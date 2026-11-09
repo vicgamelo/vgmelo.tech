@@ -1,0 +1,125 @@
+---
+import { render } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import AdSlot from '../components/AdSlot.astro';
+import Consent from '../components/Consent.astro';
+import { PROJECTS } from '../data/site';
+import { articlePath, route, type Lang } from '../i18n/routes';
+import { useT } from '../i18n/ui';
+import { formatDate, readingMinutes, translationOf, type Article } from '../lib/articles';
+
+interface Props {
+  article: Article;
+}
+const { article } = Astro.props;
+const lang = article.data.lang as Lang;
+const t = useT(lang);
+const { Content } = await render(article);
+const other = await translationOf(article);
+const otherLang: Lang = lang === 'pt' ? 'en' : 'pt';
+const alt = {
+  [lang]: articlePath(lang, article.data.slug),
+  ...(other ? { [otherLang]: articlePath(otherLang, other.data.slug) } : {}),
+} as { pt?: string; en?: string };
+const project = PROJECTS.find((p) => p.slug === article.data.project);
+const adsClient = import.meta.env.PUBLIC_ADSENSE_CLIENT ?? '';
+---
+
+<Base
+  lang={lang}
+  title={article.data.title}
+  description={article.data.description}
+  alt={alt}
+  type="article"
+  published={article.data.date}
+  noindex={article.data.draft}
+>
+  <article class="container post">
+    <header class="page-head">
+      <a class="back" href={route('articles', lang)}>← {t('articles.back')}</a>
+      {article.data.draft && <p class="notice draft">DRAFT: não publicado / not published</p>}
+      <h1>{article.data.title}</h1>
+      <p>{article.data.description}</p>
+      <p class="meta muted">
+        <time datetime={article.data.date.toISOString()}>{formatDate(article.data.date, lang)}</time> ·
+        {readingMinutes(article.body)}
+        {t('articles.readingTime')}
+        {
+          other && (
+            <>
+              {' · '}
+              <a href={articlePath(otherLang, other.data.slug)} hreflang={otherLang}>
+                {t('articles.otherLang')}
+              </a>
+            </>
+          )
+        }
+      </p>
+    </header>
+    <div class="prose">
+      <Content />
+    </div>
+    <AdSlot lang={lang} client={adsClient} />
+    {
+      project && (
+        <aside class="card project">
+          <span class="mono muted">{project.name}</span>
+          <p>{project.summary[lang]}</p>
+          <a href={project.repo} rel="noopener">
+            {t('projects.repo')} →
+          </a>
+        </aside>
+      )
+    }
+  </article>
+  {adsClient && <Consent slot="end" lang={lang} client={adsClient} />}
+</Base>
+
+<style>
+  .post {
+    max-width: 760px;
+  }
+  .back {
+    font-size: 14px;
+    text-decoration: none;
+  }
+  .meta {
+    font-size: 14px !important;
+    margin-top: 12px !important;
+  }
+  .draft {
+    margin: 16px 0;
+    color: var(--warn);
+    border-color: var(--warn);
+  }
+  .prose :global(h2) {
+    font-size: 24px;
+    margin-top: 40px;
+  }
+  .prose :global(h3) {
+    font-size: 19px;
+    margin-top: 28px;
+  }
+  .prose :global(p),
+  .prose :global(li) {
+    font-size: 17px;
+    line-height: 1.75;
+  }
+  .prose :global(img) {
+    border-radius: 12px;
+    border: 1px solid var(--line);
+  }
+  .prose :global(blockquote) {
+    margin: 20px 0;
+    padding: 4px 18px;
+    border-left: 3px solid var(--accent);
+    color: var(--muted);
+  }
+  .prose :global(table) {
+    display: block;
+    overflow-x: auto;
+  }
+  .project {
+    margin-top: 40px;
+  }
+</style>

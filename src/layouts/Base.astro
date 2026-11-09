@@ -1,0 +1,72 @@
+---
+import '../styles/global.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import type { Lang } from '../i18n/routes';
+import { useT } from '../i18n/ui';
+
+interface Props {
+  lang: Lang;
+  title?: string;
+  description?: string;
+  alt: { pt?: string; en?: string };
+  image?: string;
+  type?: 'website' | 'article';
+  noindex?: boolean;
+  published?: Date;
+}
+
+const { lang, title, description, alt, image, type = 'website', noindex = false, published } = Astro.props;
+const t = useT(lang);
+const site = Astro.site!;
+const fullTitle = title ? `${title} · ${t('site.name')}` : `${t('site.name')} · ${t('site.role')}`;
+const desc = description ?? t('site.description');
+const canonical = new URL(Astro.url.pathname, site).href;
+const ogImage = new URL(image ?? '/og.png', site).href;
+const htmlLang = lang === 'pt' ? 'pt-BR' : 'en';
+const person = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: 'Victor Gabriel Andrade de Melo',
+  jobTitle: t('site.role'),
+  url: 'https://vgmelo.tech',
+  sameAs: ['https://github.com/vicgamelo', 'https://www.linkedin.com/in/vgmelo/'],
+};
+---
+
+<!doctype html>
+<html lang={htmlLang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={desc} />
+    <link rel="canonical" href={canonical} />
+    {alt.pt && <link rel="alternate" hreflang="pt-BR" href={new URL(alt.pt, site).href} />}
+    {alt.en && <link rel="alternate" hreflang="en" href={new URL(alt.en, site).href} />}
+    {alt.pt && <link rel="alternate" hreflang="x-default" href={new URL(alt.pt, site).href} />}
+    {noindex && <meta name="robots" content="noindex" />}
+    <meta property="og:type" content={type} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={desc} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:locale" content={lang === 'pt' ? 'pt_BR' : 'en_US'} />
+    <meta name="twitter:card" content="summary_large_image" />
+    {published && <meta property="article:published_time" content={published.toISOString()} />}
+    <meta name="theme-color" content="#0b0f14" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f7f8fa" media="(prefers-color-scheme: light)" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="alternate" type="application/rss+xml" title="RSS" href={lang === 'pt' ? '/rss.xml' : '/en/rss.xml'} />
+    <script type="application/ld+json" set:html={JSON.stringify(person)} />
+  </head>
+  <body>
+    <a class="skip" href="#main">{t('nav.skip')}</a>
+    <Header lang={lang} alt={alt} />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer lang={lang} />
+    <slot name="end" />
+  </body>
+</html>

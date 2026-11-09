@@ -1,0 +1,150 @@
+---
+import Base from '../layouts/Base.astro';
+import { ROUTES, route, type Lang } from '../i18n/routes';
+import { useT } from '../i18n/ui';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const t = useT(lang);
+const updated = lang === 'pt' ? 'Atualizada em 9 de novembro de 2026.' : 'Last updated November 9, 2026.';
+const contact = route('contact', lang);
+---
+
+<Base lang={lang} title={t('privacy.title')} alt={ROUTES.privacy}>
+  <div class="container prose">
+    <header class="page-head">
+      <h1>{t('privacy.title')}</h1>
+      <p>{updated}</p>
+    </header>
+    {
+      lang === 'pt' ? (
+        <>
+          <p>
+            Este site é mantido por Victor Gabriel Andrade de Melo, responsável pelos dados tratados aqui (LGPD,
+            Lei 13.709/2018).
+          </p>
+          <h2>O que eu coleto</h2>
+          <ul>
+            <li>
+              <strong>Conta</strong> (se você entrar): nome, e-mail e o identificador do Google ou do GitHub. No login por
+              e-mail, a senha é guardada só como hash e o segredo do autenticador fica cifrado.
+            </li>
+            <li>
+              <strong>Uso das demos</strong>: quantas vezes você usou cada demo no dia, para aplicar o limite, e o que você
+              enviou para elas.
+            </li>
+            <li>
+              <strong>Formulário de contato</strong>: nome, e-mail, assunto e mensagem.
+            </li>
+            <li>
+              <strong>Registros técnicos</strong>: endereço IP e horário dos pedidos, usados contra abuso e para manter o
+              site no ar.
+            </li>
+          </ul>
+          <h2>Para que eu uso</h2>
+          <p>
+            Para fazer o login funcionar, aplicar os limites das demos, proteger o site contra abuso e responder quem me
+            escreve. Não vendo nem compartilho seus dados para marketing.
+          </p>
+          <h2>Quem mais recebe</h2>
+          <ul>
+            <li>
+              As perguntas da demo de agentes são processadas por um provedor de LLM (como Groq ou OpenRouter). Não envie
+              dados pessoais nas demos.
+            </li>
+            <li>Google e GitHub, quando você escolhe entrar com eles.</li>
+            <li>O serviço de envio de e-mail, para códigos de verificação e para me avisar de mensagens novas.</li>
+            <li>
+              Google AdSense, só nos artigos e só se você aceitar os anúncios no aviso de cookies. Sem aceite, nenhum
+              script de anúncio é carregado.
+            </li>
+          </ul>
+          <h2>Cookies</h2>
+          <p>
+            Um cookie de sessão necessário para o login, e a sua escolha sobre anúncios guardada no navegador. Cookies
+            de publicidade só existem depois do aceite.
+          </p>
+          <h2>Por quanto tempo</h2>
+          <p>
+            Registros técnicos por até 30 dias, mensagens de contato por até 12 meses e a conta até você pedir a
+            exclusão.
+          </p>
+          <h2>Seus direitos</h2>
+          <p>
+            Você pode pedir acesso, correção ou exclusão dos seus dados a qualquer momento pelo{' '}
+            <a href={contact}>formulário de contato</a>.
+          </p>
+        </>
+      ) : (
+        <>
+          <p>
+            This site is run by Victor Gabriel Andrade de Melo, who is responsible for the data handled here (Brazil's
+            LGPD, Law 13,709/2018).
+          </p>
+          <h2>What I collect</h2>
+          <ul>
+            <li>
+              <strong>Account</strong> (if you log in): name, email and your Google or GitHub identifier. For email
+              login, the password is stored only as a hash and the authenticator secret is encrypted.
+            </li>
+            <li>
+              <strong>Demo usage</strong>: how many times you used each demo today, to enforce the limit, and what you
+              sent to them.
+            </li>
+            <li>
+              <strong>Contact form</strong>: name, email, subject and message.
+            </li>
+            <li>
+              <strong>Technical logs</strong>: IP address and time of requests, used against abuse and to keep the site
+              running.
+            </li>
+          </ul>
+          <h2>What I use it for</h2>
+          <p>
+            To make login work, enforce demo limits, protect the site from abuse and reply to people who write to me. I
+            don't sell or share your data for marketing.
+          </p>
+          <h2>Who else receives it</h2>
+          <ul>
+            <li>
+              Questions sent to the agents demo are processed by an LLM provider (such as Groq or OpenRouter). Don't send
+              personal data to the demos.
+            </li>
+            <li>Google and GitHub, when you choose to log in with them.</li>
+            <li>The email delivery service, for verification codes and to notify me about new messages.</li>
+            <li>
+              Google AdSense, on articles only and only if you accept ads in the cookie notice. Without consent, no ad
+              script is loaded.
+            </li>
+          </ul>
+          <h2>Cookies</h2>
+          <p>
+            One session cookie required for login, and your choice about ads stored in your browser. Advertising cookies
+            only exist after you accept.
+          </p>
+          <h2>How long</h2>
+          <p>Technical logs for up to 30 days, contact messages for up to 12 months and your account until you ask me to delete it.</p>
+          <h2>Your rights</h2>
+          <p>
+            You can ask to access, correct or delete your data at any time using the <a href={contact}>contact form</a>.
+          </p>
+        </>
+      )
+    }
+  </div>
+</Base>
+
+<style>
+  .prose {
+    max-width: 760px;
+  }
+  .prose h2 {
+    font-size: 20px;
+    margin-top: 28px;
+  }
+  .prose li {
+    margin-bottom: 6px;
+  }
+</style>

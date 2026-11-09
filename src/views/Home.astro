@@ -1,0 +1,171 @@
+---
+import Base from '../layouts/Base.astro';
+import Cards from '../components/Cards.astro';
+import ArticleList from '../components/ArticleList.astro';
+import { APPS, DEMOS, LINKS, PROJECTS } from '../data/site';
+import { ROUTES, route, type Lang } from '../i18n/routes';
+import { useT } from '../i18n/ui';
+import { articlesFor } from '../lib/articles';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const t = useT(lang);
+const featured = PROJECTS.filter((p) => p.featured);
+const articles = (await articlesFor(lang)).slice(0, 3);
+const what = (['agents', 'mlops', 'obs', 'data'] as const).map((k) => ({
+  title: t(`what.${k}.title`),
+  text: t(`what.${k}.text`),
+}));
+---
+
+<Base lang={lang} alt={ROUTES.home}>
+  <section class="hero">
+    <div class="container hero-grid">
+      <div>
+        <div class="eyebrow">{t('home.eyebrow')}</div>
+        <h1>{t('home.title')}</h1>
+        <p class="hero-lead">{t('home.lead')}</p>
+        <div class="actions">
+          <a class="btn primary" href={route('demos', lang)}>{t('home.ctaDemos')}</a>
+          <a class="btn" href={route('contact', lang)}>{t('home.ctaContact')}</a>
+          <a class="btn" href={LINKS.linkedin} rel="me noopener">LinkedIn</a>
+          <a class="btn" href={LINKS.github} rel="me noopener">GitHub</a>
+        </div>
+      </div>
+      <img class="avatar" src={LINKS.avatar} alt="Victor Gabriel Andrade de Melo" width="220" height="220" />
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-title"><h2>{t('home.whatTitle')}</h2></div>
+      <div class="grid what">
+        {
+          what.map((w) => (
+            <div class="card">
+              <h3>{w.title}</h3>
+              <p>{w.text}</p>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-title">
+        <h2>{t('home.projectsTitle')}</h2>
+        <a href={route('projects', lang)}>{t('home.projectsAll')} →</a>
+      </div>
+      <div class="grid">{featured.map((p) => <Cards kind="project" lang={lang} item={p} />)}</div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-title">
+        <h2>{t('home.demosTitle')}</h2>
+        <a href={route('demos', lang)}>{t('nav.demos')} →</a>
+      </div>
+      <p class="lead">{t('home.demosLead')}</p>
+      <div class="grid">{DEMOS.slice(0, 3).map((d) => <Cards kind="demo" lang={lang} item={d} />)}</div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-title">
+        <h2>{t('home.appsTitle')}</h2>
+        <a href={route('apps', lang)}>{t('home.appsAll')} →</a>
+      </div>
+      <div class="grid">{APPS.map((a) => <Cards kind="app" lang={lang} item={a} />)}</div>
+    </div>
+  </section>
+
+  {
+    articles.length > 0 && (
+      <section class="section">
+        <div class="container">
+          <div class="section-title">
+            <h2>{t('home.articlesTitle')}</h2>
+            <a href={route('articles', lang)}>{t('home.articlesAll')} →</a>
+          </div>
+          <ArticleList lang={lang} articles={articles} />
+        </div>
+      </section>
+    )
+  }
+
+  <section class="section">
+    <div class="container">
+      <div class="cta card">
+        <div>
+          <h2>{t('home.consultingTitle')}</h2>
+          <p>{t('home.consultingLead')}</p>
+        </div>
+        <div class="actions">
+          <a class="btn primary" href={route('consulting', lang)}>{t('home.consultingCta')}</a>
+          <a class="btn" href={route('contact', lang)}>{t('nav.contact')}</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .hero {
+    padding: 64px 0 24px;
+  }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 40px;
+    align-items: center;
+  }
+  .hero-lead {
+    color: var(--muted);
+    font-size: 18px;
+    max-width: 680px;
+    margin: 0 0 24px;
+  }
+  .avatar {
+    border-radius: 28px;
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    width: 220px;
+    height: 220px;
+    object-fit: cover;
+  }
+  .what {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  }
+  .cta {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding: 28px;
+    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+  }
+  .cta h2 {
+    margin: 0 0 6px;
+  }
+  @media (max-width: 760px) {
+    .hero {
+      padding-top: 32px;
+    }
+    .hero-grid {
+      grid-template-columns: 1fr;
+    }
+    .avatar {
+      order: -1;
+      width: 112px;
+      height: 112px;
+      border-radius: 22px;
+    }
+  }
+</style>

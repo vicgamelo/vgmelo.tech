@@ -1,0 +1,24 @@
+---
+import Base from '../layouts/Base.astro';
+import ArticleList from '../components/ArticleList.astro';
+import { ROUTES, type Lang } from '../i18n/routes';
+import { useT } from '../i18n/ui';
+import { articlesFor } from '../lib/articles';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const t = useT(lang);
+const articles = await articlesFor(lang);
+---
+
+<Base lang={lang} title={t('articles.title')} description={t('articles.lead')} alt={ROUTES.articles}>
+  <div class="container">
+    <header class="page-head">
+      <h1>{t('articles.title')}</h1>
+      <p>{t('articles.lead')}</p>
+    </header>
+    {articles.length ? <ArticleList lang={lang} articles={articles} /> : <p class="notice">{t('articles.empty')}</p>}
+  </div>
+</Base>

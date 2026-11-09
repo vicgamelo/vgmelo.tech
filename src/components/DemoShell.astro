@@ -1,0 +1,46 @@
+---
+import Base from '../layouts/Base.astro';
+import { DEMOS, PROJECTS, type Demo } from '../data/site';
+import { ROUTES, route, type Lang } from '../i18n/routes';
+import { useT } from '../i18n/ui';
+
+interface Props {
+  lang: Lang;
+  demo: Demo['key'];
+}
+const { lang, demo } = Astro.props;
+const t = useT(lang);
+const d = DEMOS.find((x) => x.key === demo)!;
+const project = PROJECTS.find((p) => p.slug === d.project)!;
+---
+
+<Base lang={lang} title={d.title[lang]} description={d.text[lang]} alt={ROUTES[demo]}>
+  <div class="container">
+    <header class="page-head">
+      <a class="back" href={route('demos', lang)}>← {t('nav.demos')}</a>
+      <span class={d.live ? 'badge live' : 'badge'}>{d.live ? t('demos.live') : t('demos.browser')}</span>
+      <h1>{d.title[lang]}</h1>
+      <p>{d.text[lang]}</p>
+      <p class="from">
+        <a class="mono" href={project.repo} rel="noopener">{project.name}</a>
+      </p>
+    </header>
+    <slot />
+  </div>
+</Base>
+
+<style>
+  .back {
+    display: block;
+    font-size: 14px;
+    text-decoration: none;
+    margin-bottom: 14px;
+  }
+  .badge {
+    margin-bottom: 10px;
+  }
+  .from {
+    margin-top: 10px !important;
+    font-size: 14px !important;
+  }
+</style>

@@ -1,0 +1,73 @@
+---
+import Base from '../layouts/Base.astro';
+import { LINKS, STACK } from '../data/site';
+import { ROUTES, route, type Lang } from '../i18n/routes';
+import { useT } from '../i18n/ui';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const t = useT(lang);
+---
+
+<Base lang={lang} title={t('about.title')} description={t('about.p1')} alt={ROUTES.about}>
+  <div class="container about">
+    <img class="avatar" src={LINKS.avatar} alt="Victor Gabriel Andrade de Melo" width="160" height="160" />
+    <div>
+      <header class="page-head">
+        <h1>{t('about.title')}</h1>
+      </header>
+      <p>{t('about.p1')}</p>
+      <p>{t('about.p2')}</p>
+      <p>{t('about.p3')}</p>
+      <h2>{t('about.stack')}</h2>
+      <ul class="tags">{STACK.map((s) => <li class="tag">{s}</li>)}</ul>
+      <div class="actions links">
+        <a class="btn primary" href={route('contact', lang)}>{t('nav.contact')}</a>
+        <a class="btn" href={LINKS.linkedin} rel="me noopener">LinkedIn</a>
+        <a class="btn" href={LINKS.github} rel="me noopener">GitHub</a>
+      </div>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .about {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 40px;
+    align-items: start;
+    max-width: 880px;
+  }
+  .avatar {
+    margin-top: 64px;
+    border-radius: 24px;
+    border: 1px solid var(--line);
+  }
+  .about p {
+    font-size: 17px;
+    max-width: 680px;
+  }
+  h2 {
+    font-size: 20px;
+    margin-top: 32px;
+  }
+  .links {
+    margin-top: 28px;
+  }
+  @media (max-width: 680px) {
+    .about {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+    .avatar {
+      margin-top: 32px;
+      width: 112px;
+      height: 112px;
+    }
+    .page-head {
+      padding-top: 16px;
+    }
+  }
+</style>

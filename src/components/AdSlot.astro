@@ -1,0 +1,50 @@
+---
+// Espaço de anúncio dos artigos. Sem PUBLIC_ADSENSE_CLIENT não renderiza nada.
+// O script do AdSense só é carregado pelo Consent depois do aceite.
+import type { Lang } from '../i18n/routes';
+import { useT } from '../i18n/ui';
+
+interface Props {
+  lang: Lang;
+  client: string;
+  slot?: string;
+}
+const { lang, client, slot = import.meta.env.PUBLIC_ADSENSE_SLOT ?? '' } = Astro.props;
+const t = useT(lang);
+---
+
+{
+  client && (
+    <aside class="ad" aria-label={t('ads.label')} hidden data-ad>
+      <span class="label">{t('ads.label')}</span>
+      <ins
+        class="adsbygoogle"
+        data-ad-client={client}
+        data-ad-slot={slot || undefined}
+        data-ad-format="auto"
+        data-full-width-responsive="true"
+      />
+    </aside>
+  )
+}
+
+<style>
+  .ad {
+    margin: 40px 0;
+    padding: 12px;
+    border: 1px dashed var(--line);
+    border-radius: 12px;
+    min-height: 120px;
+  }
+  .label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .adsbygoogle {
+    display: block;
+  }
+</style>

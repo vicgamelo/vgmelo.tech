@@ -1,0 +1,110 @@
+---
+import Base from '../layouts/Base.astro';
+import { LINKS } from '../data/site';
+import { ROUTES, route, type Lang } from '../i18n/routes';
+import { uiStrings, useT } from '../i18n/ui';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const t = useT(lang);
+const strings = uiStrings(lang, ['contact.sending', 'contact.ok', 'contact.error', 'contact.tooMany', 'contact.send']);
+---
+
+<Base lang={lang} title={t('contact.title')} description={t('contact.lead')} alt={ROUTES.contact}>
+  <div class="container">
+    <header class="page-head">
+      <h1>{t('contact.title')}</h1>
+      <p>{t('contact.lead')}</p>
+    </header>
+    <form id="contact" class="form" data-strings={JSON.stringify(strings)} novalidate>
+      <div class="field">
+        <label for="c-name">{t('contact.name')}</label>
+        <input id="c-name" name="name" autocomplete="name" required maxlength="120" />
+      </div>
+      <div class="field">
+        <label for="c-email">{t('contact.email')}</label>
+        <input id="c-email" name="email" type="email" autocomplete="email" required maxlength="254" />
+      </div>
+      <div class="field">
+        <label for="c-kind">{t('contact.kind')}</label>
+        <select id="c-kind" name="kind">
+          <option value="job">{t('contact.kind.job')}</option>
+          <option value="consulting">{t('contact.kind.consulting')}</option>
+          <option value="other">{t('contact.kind.other')}</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="c-message">{t('contact.message')}</label>
+        <textarea id="c-message" name="message" required minlength="10" maxlength="4000"></textarea>
+      </div>
+      <div class="hp" aria-hidden="true">
+        <label for="c-website">Website</label>
+        <input id="c-website" name="website" tabindex="-1" autocomplete="off" />
+      </div>
+      <p class="muted small">
+        {t('contact.privacy')} <a href={route('privacy', lang)}>{t('footer.privacy').toLowerCase()}</a>.
+      </p>
+      <div class="actions">
+        <button class="btn primary" type="submit">{t('contact.send')}</button>
+      </div>
+      <p class="notice" role="status" aria-live="polite" hidden></p>
+    </form>
+    <p class="or">
+      {t('contact.or')} <a href={LINKS.linkedin} rel="me noopener">LinkedIn</a>.
+    </p>
+  </div>
+</Base>
+
+<script>
+  import { api } from '../lib/api';
+
+  const form = document.querySelector<HTMLFormElement>('#contact');
+  if (form) {
+    const s = JSON.parse(form.dataset.strings ?? '{}') as Record<string, string>;
+    const status = form.querySelector<HTMLElement>('.notice')!;
+    const button = form.querySelector<HTMLButtonElement>('button[type=submit]')!;
+    const startedAt = Date.now();
+    const kind = new URLSearchParams(location.search).get('kind');
+    const select = form.querySelector<HTMLSelectElement>('select[name=kind]')!;
+    if (kind && [...select.options].some((o) => o.value === kind)) select.value = kind;
+
+    const show = (text: string, cls: 'ok' | 'error' | '') => {
+      status.hidden = false;
+      status.className = `notice ${cls}`;
+      status.textContent = text;
+    };
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!form.reportValidity()) return;
+      const data = Object.fromEntries(new FormData(form)) as Record<string, string>;
+      button.disabled = true;
+      show(s['contact.sending'], '');
+      try {
+        await api('/api/contact', {
+          method: 'POST',
+          body: JSON.stringify({ ...data, started_at: Math.floor(startedAt / 1000) }),
+        });
+        form.reset();
+        show(s['contact.ok'], 'ok');
+      } catch (err) {
+        show((err as { status?: number }).status === 429 ? s['contact.tooMany'] : s['contact.error'], 'error');
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
+</script>
+
+<style>
+  .small {
+    font-size: 14px;
+    margin: 0;
+  }
+  .or {
+    margin-top: 28px;
+    color: var(--muted);
+  }
+</style>

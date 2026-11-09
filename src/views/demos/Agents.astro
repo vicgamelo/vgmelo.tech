@@ -1,0 +1,233 @@
+---
+import DemoShell from '../../components/DemoShell.astro';
+import { route, type Lang } from '../../i18n/routes';
+import { uiStrings } from '../../i18n/ui';
+import { LIVE_KEYS } from '../../lib/live';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const s = uiStrings(lang, [...LIVE_KEYS]);
+const L =
+  lang === 'pt'
+    ? {
+        question: 'Sua pergunta',
+        placeholder: 'Ex.: Qual a Selic hoje e quantos dias úteis tem dezembro de 2026?',
+        examples: [
+          'Qual a Selic hoje e como está o IPCA dos últimos 12 meses?',
+          'Quantos dias úteis tem dezembro de 2026?',
+          'O que a empresa de CNPJ 00.000.000/0001-91 faz e onde fica?',
+        ],
+        run: 'Perguntar',
+        running: 'Rodando…',
+        answer: 'Resposta',
+        timeline: 'O que aconteceu',
+        trace: 'Trace no genai-lens',
+        tokens: 'tokens',
+        tools: 'chamadas de ferramenta',
+        start: 'começou',
+        delegates: 'chamou',
+        result: 'resultado de',
+        note: 'Não envie dados pessoais: a pergunta é processada por um provedor de LLM gratuito.',
+      }
+    : {
+        question: 'Your question',
+        placeholder: "E.g. What's the Selic rate today and how many business days are in December 2026?",
+        examples: [
+          "What's the Selic rate today and how has IPCA moved over the last 12 months?",
+          'How many business days are in December 2026?',
+          'What does the company with CNPJ 00.000.000/0001-91 do and where is it?',
+        ],
+        run: 'Ask',
+        running: 'Running…',
+        answer: 'Answer',
+        timeline: 'What happened',
+        trace: 'Trace in genai-lens',
+        tokens: 'tokens',
+        tools: 'tool calls',
+        start: 'started',
+        delegates: 'called',
+        result: 'result from',
+        note: "Don't send personal data: the question is processed by a free LLM provider.",
+      };
+---
+
+<DemoShell lang={lang} demo="demoAgents">
+  <div class="demo" id="agents" data-s={JSON.stringify(s)} data-l={JSON.stringify(L)} data-login={route('login', lang)}>
+    <p class="notice" data-gate>…</p>
+    <form class="form wide" data-live hidden>
+      <div class="field">
+        <label for="q">{L.question} <span class="muted" data-remaining></span></label>
+        <textarea id="q" name="question" maxlength="600" required placeholder={L.placeholder}></textarea>
+      </div>
+      <div class="examples">
+        {L.examples.map((e) => <button type="button" class="chip" data-example={e}>{e}</button>)}
+      </div>
+      <div class="actions"><button class="btn primary" type="submit">{L.run}</button></div>
+      <p class="muted small">{L.note}</p>
+    </form>
+    <p class="notice error" id="a-error" hidden></p>
+    <section id="a-answer" hidden>
+      <h2>{L.answer}</h2>
+      <div class="card answer" id="a-text"></div>
+      <p class="muted small mono" id="a-stats"></p>
+    </section>
+    <section id="a-timeline" hidden>
+      <h2>{L.timeline}</h2>
+      <ol class="events" id="a-events"></ol>
+    </section>
+    <section id="a-trace" hidden>
+      <h2>{L.trace}</h2>
+      <div class="waterfall" id="a-waterfall"></div>
+    </section>
+  </div>
+</DemoShell>
+
+<script>
+  import { api, liveError, readSse, type ApiError } from '../../lib/api';
+  import { gate } from '../../lib/live';
+  import { renderWaterfall, type Span } from '../../lib/waterfall';
+
+  const root = document.getElementById('agents');
+  if (root) {
+    const s = JSON.parse(root.dataset.s!) as Record<string, string>;
+    const L = JSON.parse(root.dataset.l!) as Record<string, string>;
+    const $ = (id: string) => document.getElementById(id)!;
+    const form = root.querySelector<HTMLFormElement>('form')!;
+    const button = form.querySelector<HTMLButtonElement>('button[type=submit]')!;
+    const textarea = form.querySelector<HTMLTextAreaElement>('textarea')!;
+
+    root.querySelectorAll<HTMLButtonElement>('[data-example]').forEach((b) =>
+      b.addEventListener('click', () => {
+        textarea.value = b.dataset.example!;
+        textarea.focus();
+      }),
+    );
+
+    const addEvent = (text: string, depth: number, cls = '') => {
+      const li = document.createElement('li');
+      li.className = cls;
+      li.style.marginLeft = `${depth * 18}px`;
+      li.textContent = text;
+      $('a-events').append(li);
+    };
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const question = textarea.value.trim();
+      if (!question) return;
+      button.disabled = true;
+      button.textContent = L.running;
+      for (const id of ['a-error', 'a-answer', 'a-trace']) $(id).hidden = true;
+      $('a-events').replaceChildren();
+      $('a-timeline').hidden = false;
+      try {
+        const res = await fetch('/api/demo/agents/stream', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
+          body: JSON.stringify({ question }),
+        });
+        if (!res.ok) {
+          let reason: string | undefined;
+          try {
+            reason = (await res.json()).reason;
+          } catch {
+            /* sem corpo */
+          }
+          throw { status: res.status, reason } satisfies ApiError;
+        }
+        let traceId: string | null = null;
+        await readSse(res, (event, raw) => {
+          const ev = raw as { agent?: string; depth?: number; data?: Record<string, unknown> } & Record<string, unknown>;
+          const depth = ev.depth ?? 0;
+          if (event === 'agent_start') addEvent(`▶ ${ev.agent} ${L.start}`, depth);
+          else if (event === 'tool_call') addEvent(`→ ${ev.agent} ${L.delegates} ${String(ev.data?.tool)}`, depth, 'tool');
+          else if (event === 'tool_result') addEvent(`← ${L.result} ${String(ev.data?.tool)}`, depth, 'muted');
+          else if (event === 'error') addEvent(`⚠ ${String(ev.data?.message ?? '')}`, depth, 'err');
+          else if (event === 'done') {
+            $('a-answer').hidden = false;
+            $('a-text').textContent = String(ev.output ?? '');
+            $('a-stats').textContent = `${Number(ev.input_tokens) + Number(ev.output_tokens)} ${L.tokens} · ${ev.tool_calls} ${L.tools} · ${Math.round(Number(ev.duration_ms))} ms`;
+            traceId = (ev.trace_id as string | null) ?? null;
+          }
+        });
+        if (traceId) {
+          const spans = await api<Span[]>(`/api/demo/traces/${encodeURIComponent(traceId)}`);
+          renderWaterfall($('a-waterfall'), spans);
+          $('a-trace').hidden = false;
+        }
+        await gate(root, 'agents', s);
+      } catch (err) {
+        $('a-error').hidden = false;
+        $('a-error').textContent = liveError(err, s);
+      } finally {
+        button.disabled = false;
+        button.textContent = L.run;
+      }
+    });
+
+    void gate(root, 'agents', s);
+  }
+</script>
+
+<style>
+  .demo {
+    max-width: 900px;
+    display: grid;
+    gap: 18px;
+  }
+  .wide {
+    max-width: none;
+  }
+  .examples {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chip {
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 6px 12px;
+    cursor: pointer;
+    text-align: left;
+  }
+  .chip:hover {
+    border-color: var(--accent);
+  }
+  .small {
+    font-size: 14px;
+    margin: 0;
+  }
+  h2 {
+    font-size: 20px;
+    margin: 8px 0 10px;
+  }
+  .answer {
+    white-space: pre-wrap;
+    font-size: 16px;
+  }
+  .events {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 13px;
+    display: grid;
+    gap: 4px;
+  }
+  .events :global(.tool) {
+    color: var(--accent2);
+  }
+  .events :global(.err) {
+    color: var(--danger);
+  }
+  :global(.gate-btn) {
+    margin-top: 12px;
+  }
+</style>

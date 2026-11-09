@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /api/
+Disallow: /admin
+Disallow: /entrar/
+Disallow: /en/login/
+
+Sitemap: https://vgmelo.tech/sitemap-index.xml

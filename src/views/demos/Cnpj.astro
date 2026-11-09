@@ -1,0 +1,161 @@
+---
+import DemoShell from '../../components/DemoShell.astro';
+import type { Lang } from '../../i18n/routes';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const L =
+  lang === 'pt'
+    ? {
+        label: 'CPF ou CNPJ',
+        hint: 'Tente o exemplo oficial da Receita: 12.ABC.345/01DE-35',
+        valid: 'válido',
+        invalid: 'inválido',
+        unknown: 'Digite 11 dígitos (CPF) ou 14 posições (CNPJ).',
+        expected: 'Dígitos esperados',
+        step: 'Dígito',
+        char: 'Caractere',
+        value: 'Valor (ord − 48)',
+        weight: 'Peso',
+        product: 'Produto',
+        sum: 'Soma',
+        rest: 'Resto da divisão por 11',
+        digit: 'Dígito',
+        alnum: 'alfanumérico',
+        note: 'Tudo roda no seu navegador; nada é enviado para servidor.',
+      }
+    : {
+        label: 'CPF or CNPJ',
+        hint: "Try the Receita Federal's official example: 12.ABC.345/01DE-35",
+        valid: 'valid',
+        invalid: 'invalid',
+        unknown: 'Type 11 digits (CPF) or 14 characters (CNPJ).',
+        expected: 'Expected check digits',
+        step: 'Digit',
+        char: 'Character',
+        value: 'Value (ord − 48)',
+        weight: 'Weight',
+        product: 'Product',
+        sum: 'Sum',
+        rest: 'Remainder of division by 11',
+        digit: 'Digit',
+        alnum: 'alphanumeric',
+        note: 'Everything runs in your browser; nothing is sent to a server.',
+      };
+---
+
+<DemoShell lang={lang} demo="demoCnpj">
+  <div class="demo" id="cnpj" data-l={JSON.stringify(L)}>
+    <div class="field">
+      <label for="doc">{L.label}</label>
+      <input id="doc" value="12.ABC.345/01DE-35" maxlength="32" autocomplete="off" spellcheck="false" />
+      <small class="muted">{L.hint}</small>
+    </div>
+    <p class="result" id="result" aria-live="polite"></p>
+    <div id="steps"></div>
+    <p class="muted small">{L.note}</p>
+  </div>
+</DemoShell>
+
+<script>
+  import { checkDocument, type DigitStep } from '../../lib/cnpj';
+
+  const root = document.getElementById('cnpj');
+  if (root) {
+    const L = JSON.parse(root.dataset.l!) as Record<string, string>;
+    const input = document.getElementById('doc') as HTMLInputElement;
+    const result = document.getElementById('result')!;
+    const steps = document.getElementById('steps')!;
+
+    const el = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string | number, cls?: string) => {
+      const e = document.createElement(tag);
+      if (text !== undefined) e.textContent = String(text);
+      if (cls) e.className = cls;
+      return e;
+    };
+
+    function table(step: DigitStep, n: number): HTMLElement {
+      const wrap = el('div', undefined, 'table-wrap');
+      wrap.append(el('h3', `${L.step} ${n}`));
+      const t = el('table');
+      const rows: [string, (string | number)[]][] = [
+        [L.char, step.chars.map((c) => c.char)],
+        [L.value, step.chars.map((c) => c.value)],
+        [L.weight, step.chars.map((c) => c.weight)],
+        [L.product, step.chars.map((c) => c.product)],
+      ];
+      for (const [head, cells] of rows) {
+        const tr = el('tr');
+        tr.append(el('th', head), ...cells.map((c) => el('td', c, 'mono')));
+        t.append(tr);
+      }
+      wrap.append(t);
+      wrap.append(el('p', `${L.sum} = ${step.total} · ${L.rest} = ${step.rest} → ${L.digit} = ${step.digit}`, 'mono small'));
+      return wrap;
+    }
+
+    function update() {
+      const r = checkDocument(input.value);
+      steps.replaceChildren();
+      if (r.kind === 'unknown') {
+        result.className = 'result';
+        result.textContent = L.unknown;
+        return;
+      }
+      result.className = `result ${r.valid ? 'ok' : 'bad'}`;
+      const alnum = r.alphanumeric ? ` (${L.alnum})` : '';
+      result.textContent = `${r.kind}${alnum} ${r.valid ? L.valid : L.invalid}${r.formatted ? `: ${r.formatted}` : ''}`;
+      if (r.steps) {
+        if (!r.valid && r.expected) steps.append(el('p', `${L.expected}: ${r.expected}`, 'mono'));
+        steps.append(table(r.steps[0], 1), table(r.steps[1], 2));
+      }
+    }
+    input.addEventListener('input', update);
+    update();
+  }
+</script>
+
+<style>
+  .demo {
+    max-width: 860px;
+    display: grid;
+    gap: 16px;
+  }
+  /* sem isso a tabela de 14 colunas alarga o grid inteiro no celular */
+  .demo > * {
+    min-width: 0;
+  }
+  .result {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0;
+  }
+  .result.ok {
+    color: var(--ok);
+  }
+  .result.bad {
+    color: var(--danger);
+  }
+  #steps :global(h3) {
+    font-size: 16px;
+    margin: 12px 0 6px;
+  }
+  #steps :global(td),
+  #steps :global(th) {
+    padding: 4px 6px;
+    text-align: center;
+    font-size: 14px;
+  }
+  #steps :global(th) {
+    text-align: left;
+    white-space: nowrap;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .small,
+  #steps :global(.small) {
+    font-size: 14px;
+  }
+</style>

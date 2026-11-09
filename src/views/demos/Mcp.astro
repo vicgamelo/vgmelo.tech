@@ -1,0 +1,145 @@
+---
+import DemoShell from '../../components/DemoShell.astro';
+import { route, type Lang } from '../../i18n/routes';
+import { uiStrings } from '../../i18n/ui';
+import { LIVE_KEYS } from '../../lib/live';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const s = uiStrings(lang, [...LIVE_KEYS]);
+const pt = lang === 'pt';
+// Lista fechada; o portal só repassa estas tools.
+const tools = [
+  { name: 'consultar_cep', label: pt ? 'Endereço por CEP' : 'Address by CEP', args: { cep: '01310-100' } },
+  { name: 'consultar_cnpj', label: pt ? 'Empresa por CNPJ' : 'Company by CNPJ', args: { cnpj: '00.000.000/0001-91' } },
+  { name: 'feriados_nacionais', label: pt ? 'Feriados do ano' : 'Holidays of a year', args: { ano: 2026 } },
+  {
+    name: 'dias_uteis',
+    label: pt ? 'Dias úteis entre datas' : 'Business days between dates',
+    args: { inicio: '2026-12-01', fim: '2026-12-31' },
+  },
+  {
+    name: 'indicador_economico',
+    label: pt ? 'Selic, IPCA, dólar… (BCB)' : 'Selic, IPCA, USD… (BCB)',
+    args: { indicador: 'selic_meta', ultimos: 3 },
+  },
+  { name: 'consultar_ddd', label: pt ? 'Cidades por DDD' : 'Cities by area code', args: { ddd: '12' } },
+];
+const L = pt
+  ? {
+      tool: 'Ferramenta',
+      args: 'Argumentos (JSON)',
+      run: 'Chamar',
+      result: 'Resposta',
+      badJson: 'Os argumentos precisam ser um JSON válido.',
+      connect: 'Use no seu cliente MCP',
+    }
+  : {
+      tool: 'Tool',
+      args: 'Arguments (JSON)',
+      run: 'Call',
+      result: 'Response',
+      badJson: 'Arguments must be valid JSON.',
+      connect: 'Use it in your MCP client',
+    };
+---
+
+<DemoShell lang={lang} demo="demoMcp">
+  <div class="demo" id="mcp" data-s={JSON.stringify(s)} data-l={JSON.stringify(L)} data-login={route('login', lang)} data-tools={JSON.stringify(tools)}>
+    <p class="notice" data-gate>…</p>
+    <form class="form wide" data-live hidden>
+      <div class="field">
+        <label for="m-tool">{L.tool} <span class="muted" data-remaining></span></label>
+        <select id="m-tool" name="tool">
+          {tools.map((t) => <option value={t.name}>{t.label} · {t.name}</option>)}
+        </select>
+      </div>
+      <div class="field">
+        <label for="m-args">{L.args}</label>
+        <textarea id="m-args" name="args" class="mono" maxlength="1000" spellcheck="false"></textarea>
+      </div>
+      <div class="actions"><button class="btn primary" type="submit">{L.run}</button></div>
+    </form>
+    <p class="notice error" id="m-error" hidden></p>
+    <section id="m-out" hidden>
+      <h2>{L.result}</h2>
+      <pre id="m-result"></pre>
+    </section>
+    <section>
+      <h2>{L.connect}</h2>
+      <pre>claude mcp add --transport http brasil https://mcp.vgmelo.tech/mcp</pre>
+    </section>
+  </div>
+</DemoShell>
+
+<script>
+  import { api, liveError } from '../../lib/api';
+  import { gate } from '../../lib/live';
+
+  const root = document.getElementById('mcp');
+  if (root) {
+    const s = JSON.parse(root.dataset.s!) as Record<string, string>;
+    const L = JSON.parse(root.dataset.l!) as Record<string, string>;
+    const tools = JSON.parse(root.dataset.tools!) as { name: string; args: unknown }[];
+    const form = root.querySelector<HTMLFormElement>('form')!;
+    const select = form.querySelector<HTMLSelectElement>('select')!;
+    const args = form.querySelector<HTMLTextAreaElement>('textarea')!;
+    const $ = (id: string) => document.getElementById(id)!;
+    const fill = () => {
+      args.value = JSON.stringify(tools.find((t) => t.name === select.value)?.args ?? {}, null, 2);
+    };
+    select.addEventListener('change', fill);
+    fill();
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('m-error').hidden = true;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(args.value);
+      } catch {
+        $('m-error').hidden = false;
+        $('m-error').textContent = L.badJson;
+        return;
+      }
+      try {
+        const r = await api<unknown>(`/api/demo/mcp/${encodeURIComponent(select.value)}`, {
+          method: 'POST',
+          body: JSON.stringify({ args: parsed }),
+        });
+        $('m-out').hidden = false;
+        $('m-result').textContent = JSON.stringify(r, null, 2);
+        await gate(root, 'mcp', s);
+      } catch (err) {
+        $('m-error').hidden = false;
+        $('m-error').textContent = liveError(err, s);
+      }
+    });
+    void gate(root, 'mcp', s);
+  }
+</script>
+
+<style>
+  .demo {
+    max-width: 900px;
+    display: grid;
+    gap: 18px;
+  }
+  .wide {
+    max-width: none;
+  }
+  textarea {
+    min-height: 110px;
+  }
+  h2 {
+    font-size: 20px;
+    margin: 8px 0 10px;
+  }
+  pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 480px;
+  }
+</style>

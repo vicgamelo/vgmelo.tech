@@ -1,0 +1,79 @@
+---
+import Base from '../layouts/Base.astro';
+import { SERVICES } from '../data/site';
+import { ROUTES, route, type Lang } from '../i18n/routes';
+import { useT } from '../i18n/ui';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const t = useT(lang);
+const steps = ([1, 2, 3] as const).map((n) => ({
+  n,
+  title: t(`consulting.how${n}.title`),
+  text: t(`consulting.how${n}.text`),
+}));
+const contact = `${route('contact', lang)}?kind=consulting`;
+---
+
+<Base lang={lang} title={t('consulting.title')} description={t('consulting.lead')} alt={ROUTES.consulting}>
+  <div class="container">
+    <header class="page-head">
+      <h1>{t('consulting.title')}</h1>
+      <p>{t('consulting.lead')}</p>
+      <div class="actions top">
+        <a class="btn primary" href={contact}>{t('consulting.cta')}</a>
+      </div>
+    </header>
+
+    <section class="section">
+      <div class="grid">
+        {
+          SERVICES.map((s) => (
+            <div class="card">
+              <h3>{s.title[lang]}</h3>
+              <p>{s.text[lang]}</p>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-title"><h2>{t('consulting.howTitle')}</h2></div>
+      <ol class="steps">
+        {
+          steps.map((s) => (
+            <li class="card">
+              <span class="num mono">0{s.n}</span>
+              <h3>{s.title}</h3>
+              <p>{s.text}</p>
+            </li>
+          ))
+        }
+      </ol>
+      <div class="actions">
+        <a class="btn primary" href={contact}>{t('consulting.cta')}</a>
+      </div>
+    </section>
+  </div>
+</Base>
+
+<style>
+  .top {
+    margin-top: 20px;
+  }
+  .steps {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 24px;
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  }
+  .num {
+    color: var(--accent);
+    font-weight: 700;
+  }
+</style>

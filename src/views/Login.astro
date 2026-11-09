@@ -1,0 +1,278 @@
+---
+import Base from '../layouts/Base.astro';
+import { ROUTES, route, type Lang } from '../i18n/routes';
+import { uiStrings, useT } from '../i18n/ui';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const t = useT(lang);
+const strings = uiStrings(lang, [
+  'login.failed',
+  'login.locked',
+  'login.done',
+  'login.as',
+  'login.unavailable',
+  'login.emailOff',
+  'live.error',
+]);
+const fallbackNext = route('demos', lang);
+---
+
+<Base lang={lang} title={t('login.title')} alt={ROUTES.login} noindex>
+  <div class="container narrow" id="login" data-strings={JSON.stringify(strings)} data-next={fallbackNext}>
+    <header class="page-head">
+      <h1>{t('login.title')}</h1>
+      <p>{t('login.lead')}</p>
+    </header>
+
+    <p class="notice" id="l-status" role="status" aria-live="polite" hidden></p>
+
+    <section id="l-signed" hidden>
+      <p><span id="l-who"></span></p>
+      <div class="actions">
+        <a class="btn primary" id="l-continue" href={fallbackNext}>{t('nav.demos')} →</a>
+        <button class="btn" id="l-logout" type="button">{t('login.logout')}</button>
+      </div>
+    </section>
+
+    <section id="l-totp" hidden>
+      <p>{t('login.totpSetup')}</p>
+      <img id="l-qr" alt="QR code" width="200" height="200" />
+      <p class="mono small" id="l-secret"></p>
+      <form class="form" id="f-totp">
+        <div class="field">
+          <label for="t-code">{t('login.totp')}</label>
+          <input id="t-code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required />
+        </div>
+        <div class="actions"><button class="btn primary" type="submit">{t('login.totpConfirm')}</button></div>
+      </form>
+    </section>
+
+    <section id="l-codes" hidden>
+      <p>{t('login.recoveryCodes')}</p>
+      <pre id="l-codes-list"></pre>
+      <a class="btn primary" href={fallbackNext}>{t('nav.demos')} →</a>
+    </section>
+
+    <section id="l-start">
+      <div class="providers">
+        <a class="btn provider" id="p-google" href="/api/auth/google/start">{t('login.google')}</a>
+        <a class="btn provider" id="p-github" href="/api/auth/github/start">{t('login.github')}</a>
+      </div>
+
+      <div id="l-email">
+        <p class="divider muted"><span>{t('login.or')}</span></p>
+        <form class="form" id="f-login">
+          <div class="field">
+            <label for="e-email">{t('login.email')}</label>
+            <input id="e-email" name="email" type="email" autocomplete="username" required maxlength="254" />
+          </div>
+          <div class="field">
+            <label for="e-password">{t('login.password')}</label>
+            <input id="e-password" name="password" type="password" autocomplete="current-password" required maxlength="200" />
+          </div>
+          <div class="field">
+            <label for="e-totp">{t('login.totp')}</label>
+            <input id="e-totp" name="totp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" />
+            <details>
+              <summary class="small">{t('login.recovery')}</summary>
+              <input name="recovery_code" autocomplete="off" maxlength="32" aria-label={t('login.recovery')} />
+            </details>
+          </div>
+          <div class="actions">
+            <button class="btn primary" type="submit">{t('login.submit')}</button>
+          </div>
+        </form>
+
+        <details class="register">
+          <summary>{t('login.register')}</summary>
+          <form class="form" id="f-register">
+            <div class="field">
+              <label for="r-email">{t('login.email')}</label>
+              <input id="r-email" name="email" type="email" autocomplete="email" required maxlength="254" />
+            </div>
+            <div class="field">
+              <label for="r-password">{t('login.password')}</label>
+              <input id="r-password" name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="200" />
+              <small>{t('login.passwordHint')}</small>
+            </div>
+            <div class="actions"><button class="btn" type="submit">{t('login.registerSubmit')}</button></div>
+          </form>
+          <form class="form" id="f-verify" hidden>
+            <div class="field">
+              <label for="v-code">{t('login.verifyCode')}</label>
+              <input id="v-code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required />
+            </div>
+            <div class="actions"><button class="btn primary" type="submit">{t('login.verifySubmit')}</button></div>
+          </form>
+        </details>
+      </div>
+    </section>
+  </div>
+</Base>
+
+<script>
+  import { api, getMe, type Me } from '../lib/api';
+
+  const root = document.getElementById('login');
+  if (root) {
+    const s = JSON.parse(root.dataset.strings ?? '{}') as Record<string, string>;
+    const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+    const status = $('l-status');
+
+    // `next` só aceita caminho relativo do próprio site (evita open redirect).
+    const raw = new URLSearchParams(location.search).get('next') ?? '';
+    const next = /^\/(?!\/)[\w\-./?=&%]*$/.test(raw) ? raw : root.dataset.next!;
+    $<HTMLAnchorElement>('l-continue').href = next;
+    for (const id of ['p-google', 'p-github']) {
+      const a = $<HTMLAnchorElement>(id);
+      a.href = `${a.getAttribute('href')}?next=${encodeURIComponent(next)}`;
+    }
+
+    const say = (text: string, cls: 'ok' | 'error' | '' = '') => {
+      status.hidden = false;
+      status.className = `notice ${cls}`;
+      status.textContent = text;
+    };
+    const fail = (err: unknown) => {
+      const e = err as { status?: number };
+      say(e.status === 429 ? s['login.locked'] : e.status && e.status < 500 ? s['login.failed'] : s['live.error'], 'error');
+    };
+    const form = (id: string) => $<HTMLFormElement>(id);
+    const values = (f: HTMLFormElement) =>
+      Object.fromEntries([...new FormData(f)].filter(([, v]) => v !== '')) as Record<string, string>;
+
+    async function setupTotp() {
+      const data = await api<{ otpauth_uri: string; qr_svg: string; secret: string }>('/api/auth/totp/setup', {
+        method: 'POST',
+      });
+      // SVG vai num <img> via data: URI, então nenhum script dentro dele roda.
+      $<HTMLImageElement>('l-qr').src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(data.qr_svg)}`;
+      $('l-secret').textContent = data.secret;
+      $('l-start').hidden = true;
+      $('l-totp').hidden = false;
+    }
+
+    function render(me: Me | null) {
+      if (!me) {
+        say(s['login.unavailable']);
+        root!.querySelectorAll<HTMLElement>('.provider, #l-email').forEach((el) => {
+          el.setAttribute('aria-disabled', 'true');
+          el.hidden = true;
+        });
+        return;
+      }
+      if (me.email_login === false) $('l-email').hidden = true;
+      if (!me.user) return;
+      if (me.user.provider === 'email' && !me.user.mfa) {
+        void setupTotp().catch(fail);
+        return;
+      }
+      $('l-start').hidden = true;
+      $('l-signed').hidden = false;
+      $('l-who').textContent = `${s['login.as']} ${me.user.name ?? me.user.email ?? ''}`;
+    }
+
+    form('f-login').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        await api('/api/auth/email/login', { method: 'POST', body: JSON.stringify(values(form('f-login'))) });
+        location.assign(next);
+      } catch (err) {
+        fail(err);
+      }
+    });
+
+    let registeredEmail = '';
+    form('f-register').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const v = values(form('f-register'));
+      try {
+        await api('/api/auth/email/register', { method: 'POST', body: JSON.stringify(v) });
+        registeredEmail = v.email;
+        form('f-register').hidden = true;
+        form('f-verify').hidden = false;
+      } catch (err) {
+        fail(err);
+      }
+    });
+
+    form('f-verify').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        await api('/api/auth/email/verify', {
+          method: 'POST',
+          body: JSON.stringify({ email: registeredEmail, code: values(form('f-verify')).code }),
+        });
+        await setupTotp();
+      } catch (err) {
+        fail(err);
+      }
+    });
+
+    form('f-totp').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const res = await api<{ recovery_codes: string[] }>('/api/auth/totp/confirm', {
+          method: 'POST',
+          body: JSON.stringify(values(form('f-totp'))),
+        });
+        $('l-totp').hidden = true;
+        $('l-codes').hidden = false;
+        $('l-codes-list').textContent = res.recovery_codes.join('\n');
+        say(s['login.done'], 'ok');
+      } catch (err) {
+        fail(err);
+      }
+    });
+
+    $('l-logout').addEventListener('click', async () => {
+      await api('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
+      location.reload();
+    });
+
+    void getMe().then(render);
+  }
+</script>
+
+<style>
+  .narrow {
+    max-width: 560px;
+  }
+  .providers {
+    display: grid;
+    gap: 10px;
+  }
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 24px 0 16px;
+    font-size: 14px;
+  }
+  .divider::before,
+  .divider::after {
+    content: '';
+    flex: 1;
+    border-top: 1px solid var(--line);
+  }
+  .register {
+    margin-top: 24px;
+  }
+  .register summary,
+  .small {
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--accent);
+  }
+  .register .form {
+    margin-top: 14px;
+  }
+  #l-qr {
+    background: #fff;
+    border-radius: 12px;
+    padding: 8px;
+  }
+</style>

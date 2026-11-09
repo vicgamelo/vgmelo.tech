@@ -1,0 +1,202 @@
+---
+import DemoShell from '../../components/DemoShell.astro';
+import { route, type Lang } from '../../i18n/routes';
+import { uiStrings } from '../../i18n/ui';
+import { LIVE_KEYS } from '../../lib/live';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const s = uiStrings(lang, [...LIVE_KEYS]);
+const pt = lang === 'pt';
+// Valores das categorias = os do dataset German Credit (OpenML credit-g) usados no treino.
+const selects = [
+  {
+    name: 'checking_status',
+    label: pt ? 'Conta corrente (DM)' : 'Checking account (DM)',
+    options: ['<0', '0<=X<200', '>=200', 'no checking'],
+    value: 'no checking',
+  },
+  {
+    name: 'credit_history',
+    label: pt ? 'Histórico de crédito' : 'Credit history',
+    options: ['existing paid', 'critical/other existing credit', 'delayed previously', 'all paid'],
+    value: 'existing paid',
+  },
+  {
+    name: 'purpose',
+    label: pt ? 'Finalidade' : 'Purpose',
+    options: ['new car', 'used car', 'furniture/equipment', 'radio/tv', 'education', 'business'],
+    value: 'radio/tv',
+  },
+  {
+    name: 'savings_status',
+    label: pt ? 'Poupança (DM)' : 'Savings (DM)',
+    options: ['<100', '100<=X<500', '500<=X<1000', '>=1000', 'no known savings'],
+    value: '<100',
+  },
+  {
+    name: 'employment',
+    label: pt ? 'Tempo no emprego (anos)' : 'Years employed',
+    options: ['unemployed', '<1', '1<=X<4', '4<=X<7', '>=7'],
+    value: '1<=X<4',
+  },
+  { name: 'housing', label: pt ? 'Moradia' : 'Housing', options: ['own', 'rent', 'for free'], value: 'own' },
+];
+const numbers = [
+  { name: 'duration', label: pt ? 'Prazo (meses)' : 'Term (months)', min: 4, max: 72, value: 24 },
+  { name: 'credit_amount', label: pt ? 'Valor (DM)' : 'Amount (DM)', min: 250, max: 20000, value: 3000 },
+  { name: 'age', label: pt ? 'Idade' : 'Age', min: 18, max: 75, value: 35 },
+];
+const L = pt
+  ? {
+      run: 'Calcular',
+      prob: 'Probabilidade de inadimplência',
+      approve: 'aprovar',
+      review: 'mandar para análise',
+      model: 'modelo',
+      note: 'O German Credit é de um banco alemão dos anos 70 (valores em marcos). Sexo e estrangeiro ficam fora do modelo, e a diferença de desempenho entre faixas de idade é um dos critérios para promover. Quem responde é o @champion do MLflow.',
+    }
+  : {
+      run: 'Score',
+      prob: 'Probability of default',
+      approve: 'approve',
+      review: 'send to review',
+      model: 'model',
+      note: "German Credit comes from a 1970s German bank (amounts in Deutsche Marks). Sex and foreign-worker status are left out of the model, and the performance gap between age groups is one of the promotion gates. The answer comes from the @champion in MLflow.",
+    };
+---
+
+<DemoShell lang={lang} demo="demoCredit">
+  <div class="demo" id="credit" data-s={JSON.stringify(s)} data-l={JSON.stringify(L)} data-login={route('login', lang)}>
+    <p class="notice" data-gate>…</p>
+    <form class="grid-form" data-live hidden>
+      {
+        selects.map((f) => (
+          <div class="field">
+            <label for={`c-${f.name}`}>{f.label}</label>
+            <select id={`c-${f.name}`} name={f.name}>
+              {f.options.map((o) => (
+                <option value={o} selected={o === f.value}>
+                  {o}
+                </option>
+              ))}
+            </select>
+          </div>
+        ))
+      }
+      {
+        numbers.map((f) => (
+          <div class="field">
+            <label for={`c-${f.name}`}>{f.label}</label>
+            <input id={`c-${f.name}`} name={f.name} type="number" min={f.min} max={f.max} value={f.value} required />
+          </div>
+        ))
+      }
+      <div class="actions full">
+        <button class="btn primary" type="submit">{L.run}</button>
+        <span class="muted" data-remaining></span>
+      </div>
+    </form>
+    <p class="notice error" id="c-error" hidden></p>
+    <div class="card out" id="c-out" hidden>
+      <span class="muted">{L.prob}</span>
+      <strong class="big mono" id="c-prob"></strong>
+      <span id="c-decision"></span>
+      <span class="muted small mono" id="c-model"></span>
+    </div>
+    <p class="muted small">{L.note}</p>
+  </div>
+</DemoShell>
+
+<script>
+  import { api, liveError } from '../../lib/api';
+  import { gate } from '../../lib/live';
+
+  const root = document.getElementById('credit');
+  if (root) {
+    const s = JSON.parse(root.dataset.s!) as Record<string, string>;
+    const L = JSON.parse(root.dataset.l!) as Record<string, string>;
+    const form = root.querySelector<HTMLFormElement>('form')!;
+    const $ = (id: string) => document.getElementById(id)!;
+    // Campos que a demo não pergunta: valores comuns no dataset.
+    const fixed = {
+      installment_commitment: 3,
+      other_parties: 'none',
+      residence_since: 2,
+      property_magnitude: 'car',
+      other_payment_plans: 'none',
+      existing_credits: 1,
+      job: 'skilled',
+      num_dependents: 1,
+      own_telephone: 'none',
+    };
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!form.reportValidity()) return;
+      const data = Object.fromEntries(new FormData(form)) as Record<string, string>;
+      const applicant = {
+        ...fixed,
+        ...data,
+        duration: Number(data.duration),
+        credit_amount: Number(data.credit_amount),
+        age: Number(data.age),
+      };
+      $('c-error').hidden = true;
+      try {
+        const r = await api<{ model_version: string; predictions: { default_probability: number; decision: string }[] }>(
+          '/api/demo/score',
+          { method: 'POST', body: JSON.stringify({ applicant }) },
+        );
+        const p = r.predictions[0];
+        $('c-out').hidden = false;
+        $('c-prob').textContent = `${(p.default_probability * 100).toFixed(1)}%`;
+        $('c-decision').textContent = p.decision === 'approve' ? `✓ ${L.approve}` : `⚑ ${L.review}`;
+        $('c-decision').className = p.decision === 'approve' ? 'ok' : 'warn';
+        $('c-model').textContent = `${L.model} v${r.model_version}`;
+        await gate(root, 'score', s);
+      } catch (err) {
+        $('c-error').hidden = false;
+        $('c-error').textContent = liveError(err, s);
+      }
+    });
+    void gate(root, 'score', s);
+  }
+</script>
+
+<style>
+  .demo {
+    max-width: 900px;
+    display: grid;
+    gap: 18px;
+  }
+  .grid-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+    gap: 14px;
+  }
+  .full {
+    grid-column: 1 / -1;
+    align-items: center;
+  }
+  .out {
+    gap: 4px;
+  }
+  .big {
+    font-size: 36px;
+  }
+  .small {
+    font-size: 14px;
+    margin: 0;
+  }
+  .ok {
+    color: var(--ok);
+    font-weight: 700;
+  }
+  .warn {
+    color: var(--warn);
+    font-weight: 700;
+  }
+</style>

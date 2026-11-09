@@ -1,0 +1,64 @@
+---
+import { LINKS } from '../data/site';
+import { route, type Lang } from '../i18n/routes';
+import { useT } from '../i18n/ui';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const t = useT(lang);
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="container cols">
+    <div>
+      <strong>Victor Gabriel Andrade de Melo</strong>
+      <p class="muted">{t('site.role')}</p>
+    </div>
+    <nav aria-label="Links">
+      <a href={LINKS.github} rel="me noopener">GitHub</a>
+      <a href={LINKS.linkedin} rel="me noopener">LinkedIn</a>
+      <a href={LINKS.youtube} rel="me noopener">YouTube</a>
+      <a href={route('contact', lang)}>{t('nav.contact')}</a>
+      <a href={route('privacy', lang)}>{t('footer.privacy')}</a>
+      <a href={LINKS.siteRepo} rel="noopener">{t('footer.source')}</a>
+    </nav>
+  </div>
+  <div class="container copy muted">© {year} Victor Gabriel Andrade de Melo</div>
+</footer>
+
+<style>
+  .site-footer {
+    margin-top: 64px;
+    border-top: 1px solid var(--line);
+    padding: 32px 0 24px;
+    font-size: 15px;
+  }
+  .cols {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .cols p {
+    margin: 4px 0 0;
+  }
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+  }
+  nav a {
+    color: var(--muted);
+    text-decoration: none;
+  }
+  nav a:hover {
+    color: var(--text);
+  }
+  .copy {
+    margin-top: 20px;
+    font-size: 13px;
+  }
+</style>

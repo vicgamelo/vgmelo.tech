@@ -1,0 +1,166 @@
+---
+import { route, type Lang } from '../i18n/routes';
+import { useT } from '../i18n/ui';
+
+interface Props {
+  lang: Lang;
+  alt: { pt?: string; en?: string };
+}
+const { lang, alt } = Astro.props;
+const t = useT(lang);
+const other: Lang = lang === 'pt' ? 'en' : 'pt';
+const otherHref = alt[other] ?? route('home', other);
+const here = Astro.url.pathname;
+const items = [
+  { href: route('projects', lang), label: t('nav.projects') },
+  { href: route('apps', lang), label: t('nav.apps') },
+  { href: route('demos', lang), label: t('nav.demos') },
+  { href: route('articles', lang), label: t('nav.articles') },
+  { href: route('consulting', lang), label: t('nav.consulting') },
+  { href: route('about', lang), label: t('nav.about') },
+];
+const isActive = (href: string) => here.startsWith(href);
+---
+
+<header class="site-header">
+  <div class="container bar">
+    <a class="brand" href={route('home', lang)} aria-label={t('site.name')}>
+      <span class="logo" aria-hidden="true">vm</span>
+      <span class="name">Victor Melo</span>
+    </a>
+    <nav class="desktop" aria-label="Principal">
+      {items.map((i) => <a href={i.href} aria-current={isActive(i.href) ? 'page' : undefined}>{i.label}</a>)}
+    </nav>
+    <div class="right">
+      <a class="lang" href={otherHref} hreflang={other === 'pt' ? 'pt-BR' : 'en'} lang={other === 'pt' ? 'pt-BR' : 'en'} aria-label={t('lang.switchLabel')}>
+        {other.toUpperCase()}
+      </a>
+      <a class="btn primary contact" href={route('contact', lang)}>{t('nav.contact')}</a>
+      <details class="mobile">
+        <summary aria-label={t('nav.menu')}>
+          <span aria-hidden="true">☰</span>
+        </summary>
+        <nav aria-label={t('nav.menu')}>
+          {items.map((i) => <a href={i.href} aria-current={isActive(i.href) ? 'page' : undefined}>{i.label}</a>)}
+          <a href={route('contact', lang)}>{t('nav.contact')}</a>
+        </nav>
+      </details>
+    </div>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: saturate(150%) blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    min-height: 64px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 700;
+  }
+  .logo {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: #0b0f14;
+    color: #5eead4;
+    font-family: var(--mono);
+    font-size: 14px;
+  }
+  nav.desktop {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+  }
+  nav a {
+    color: var(--muted);
+    text-decoration: none;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 15px;
+  }
+  nav a:hover,
+  nav a[aria-current='page'] {
+    color: var(--text);
+    background: var(--bg-soft);
+  }
+  .right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+  }
+  .lang {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--muted);
+    text-decoration: none;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 6px 8px;
+  }
+  .contact {
+    min-height: 38px;
+    padding: 6px 14px;
+  }
+  .mobile {
+    display: none;
+    position: relative;
+  }
+  .mobile summary {
+    list-style: none;
+    cursor: pointer;
+    font-size: 22px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    line-height: 1.2;
+  }
+  .mobile summary::-webkit-details-marker {
+    display: none;
+  }
+  .mobile nav {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    display: grid;
+    min-width: 200px;
+    padding: 8px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+  }
+  .mobile nav a {
+    padding: 10px 12px;
+  }
+  @media (max-width: 880px) {
+    nav.desktop {
+      display: none;
+    }
+    .mobile {
+      display: block;
+    }
+  }
+  @media (max-width: 420px) {
+    .contact {
+      display: none;
+    }
+  }
+</style>

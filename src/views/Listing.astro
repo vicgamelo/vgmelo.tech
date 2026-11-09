@@ -1,0 +1,59 @@
+---
+// Páginas de listagem simples: projetos, apps e demos.
+import Base from '../layouts/Base.astro';
+import Cards from '../components/Cards.astro';
+import { APPS, DEMOS, PROJECTS } from '../data/site';
+import { ROUTES, type Lang } from '../i18n/routes';
+import { useT } from '../i18n/ui';
+
+interface Props {
+  lang: Lang;
+  page: 'projects' | 'apps' | 'demos';
+}
+const { lang, page } = Astro.props;
+const t = useT(lang);
+const head = {
+  projects: [t('projects.title'), t('projects.lead')],
+  apps: [t('apps.title'), t('apps.lead')],
+  demos: [t('demos.title'), t('demos.lead')],
+}[page];
+const live = DEMOS.filter((d) => d.live);
+const browser = DEMOS.filter((d) => !d.live);
+---
+
+<Base lang={lang} title={head[0]} description={head[1]} alt={ROUTES[page]}>
+  <div class="container">
+    <header class="page-head">
+      <h1>{head[0]}</h1>
+      <p>{head[1]}</p>
+    </header>
+    {page === 'projects' && <div class="grid">{PROJECTS.map((p) => <Cards kind="project" lang={lang} item={p} detailed />)}</div>}
+    {page === 'apps' && <div class="grid">{APPS.map((a) => <Cards kind="app" lang={lang} item={a} detailed />)}</div>}
+    {
+      page === 'demos' && (
+        <>
+          <section class="section">
+            <div class="section-title">
+              <h2>{t('demos.live')}</h2>
+            </div>
+            <div class="grid">
+              {live.map((d) => (
+                <Cards kind="demo" lang={lang} item={d} />
+              ))}
+            </div>
+          </section>
+          <section class="section">
+            <div class="section-title">
+              <h2>{t('demos.browser')}</h2>
+            </div>
+            <div class="grid">
+              {browser.map((d) => (
+                <Cards kind="demo" lang={lang} item={d} />
+              ))}
+            </div>
+          </section>
+        </>
+      )
+    }
+  </div>
+</Base>

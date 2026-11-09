@@ -1,0 +1,212 @@
+---
+import DemoShell from '../../components/DemoShell.astro';
+import type { Lang } from '../../i18n/routes';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const L =
+  lang === 'pt'
+    ? {
+        intro:
+          'A referência é a idade dos clientes no treino (média 35, desvio 11). Mude a produção e veja o PSI por faixa. É a mesma conta que o mlops-platform roda antes de decidir retreinar.',
+        mean: 'Média em produção',
+        sd: 'Desvio em produção',
+        stable: 'estável (< 0,1)',
+        moderate: 'moderado (0,1 a 0,25): investigar',
+        major: 'grande (> 0,25): retreinar',
+        ref: 'Treino',
+        cur: 'Produção',
+        bin: 'Faixa',
+        contrib: 'Contribuição',
+        to: 'a',
+      }
+    : {
+        intro:
+          "The reference is customer age at training time (mean 35, sd 11). Shift production and watch the PSI per bin. It's the same math mlops-platform runs before deciding to retrain.",
+        mean: 'Production mean',
+        sd: 'Production sd',
+        stable: 'stable (< 0.1)',
+        moderate: 'moderate (0.1 to 0.25): investigate',
+        major: 'major (> 0.25): retrain',
+        ref: 'Training',
+        cur: 'Production',
+        bin: 'Bin',
+        contrib: 'Contribution',
+        to: 'to',
+      };
+---
+
+<DemoShell lang={lang} demo="demoDrift">
+  <div class="demo" id="drift" data-l={JSON.stringify(L)} data-lang={lang}>
+    <p class="muted">{L.intro}</p>
+    <div class="controls">
+      <div class="field">
+        <label for="mean">{L.mean}: <output id="mean-out">35</output></label>
+        <input id="mean" type="range" min="20" max="60" step="0.5" value="35" />
+      </div>
+      <div class="field">
+        <label for="sd">{L.sd}: <output id="sd-out">11</output></label>
+        <input id="sd" type="range" min="4" max="25" step="0.5" value="11" />
+      </div>
+    </div>
+    <p class="psi" aria-live="polite"><span class="mono" id="psi"></span> <span id="sev"></span></p>
+    <div class="legend muted"><span class="sw ref"></span>{L.ref} <span class="sw cur"></span>{L.cur}</div>
+    <div class="bars" id="bars" role="img" aria-label="Histogram"></div>
+  </div>
+</DemoShell>
+
+<script>
+  import { normal, psiNumeric, severity } from '../../lib/psi';
+
+  const root = document.getElementById('drift');
+  if (root) {
+    const L = JSON.parse(root.dataset.l!) as Record<string, string>;
+    const fmt = new Intl.NumberFormat(root.dataset.lang === 'pt' ? 'pt-BR' : 'en', { maximumFractionDigits: 3 });
+    const reference = normal(4000, 35, 11, 7);
+    const mean = document.getElementById('mean') as HTMLInputElement;
+    const sd = document.getElementById('sd') as HTMLInputElement;
+    const bars = document.getElementById('bars')!;
+    let timer = 0;
+
+    function draw() {
+      document.getElementById('mean-out')!.textContent = mean.value;
+      document.getElementById('sd-out')!.textContent = sd.value;
+      const current = normal(4000, Number(mean.value), Number(sd.value), 11);
+      const b = psiNumeric(reference, current);
+      const sev = severity(b.psi);
+      document.getElementById('psi')!.textContent = `PSI = ${fmt.format(b.psi)}`;
+      const sevEl = document.getElementById('sev')!;
+      sevEl.textContent = L[sev];
+      sevEl.className = `sev ${sev}`;
+      const max = Math.max(...b.reference, ...b.current);
+      bars.replaceChildren(
+        ...b.reference.map((r, i) => {
+          const c = b.current[i];
+          const lo = b.edges[i] === -Infinity ? '−∞' : fmt.format(b.edges[i]);
+          const hi = b.edges[i + 1] === Infinity ? '+∞' : fmt.format(b.edges[i + 1]);
+          const col = document.createElement('div');
+          col.className = 'col';
+          col.title = `${L.bin} ${lo} ${L.to} ${hi}`;
+          const pair = document.createElement('div');
+          pair.className = 'pair';
+          for (const [v, cls] of [
+            [r, 'ref'],
+            [c, 'cur'],
+          ] as const) {
+            const bar = document.createElement('span');
+            bar.className = `bar ${cls}`;
+            bar.style.height = `${(v / max) * 100}%`;
+            pair.append(bar);
+          }
+          const label = document.createElement('span');
+          label.className = 'lbl mono';
+          label.textContent = `${lo}–${hi}`;
+          col.append(pair, label);
+          return col;
+        }),
+      );
+    }
+    const schedule = () => {
+      cancelAnimationFrame(timer);
+      timer = requestAnimationFrame(draw);
+    };
+    mean.addEventListener('input', schedule);
+    sd.addEventListener('input', schedule);
+    draw();
+  }
+</script>
+
+<style>
+  .demo {
+    max-width: 900px;
+    display: grid;
+    gap: 16px;
+  }
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+    gap: 16px;
+  }
+  input[type='range'] {
+    padding: 0;
+    min-height: 32px;
+    accent-color: var(--accent);
+    border: 0;
+    background: transparent;
+  }
+  .psi {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0;
+  }
+  .sev {
+    font-size: 15px;
+    font-weight: 600;
+    margin-left: 8px;
+  }
+  .sev.stable {
+    color: var(--ok);
+  }
+  .sev.moderate {
+    color: var(--warn);
+  }
+  .sev.major {
+    color: var(--danger);
+  }
+  .legend {
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sw {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    display: inline-block;
+    margin-left: 10px;
+  }
+  .sw.ref,
+  #bars :global(.bar.ref) {
+    background: var(--muted);
+    opacity: 0.55;
+  }
+  .sw.cur,
+  #bars :global(.bar.cur) {
+    background: var(--accent);
+  }
+  .bars {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 4px;
+    height: 240px;
+    border-bottom: 1px solid var(--line);
+  }
+  #bars :global(.col) {
+    display: grid;
+    grid-template-rows: 1fr auto;
+    min-width: 0;
+  }
+  #bars :global(.pair) {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+  }
+  #bars :global(.bar) {
+    flex: 1;
+    border-radius: 3px 3px 0 0;
+    min-height: 1px;
+  }
+  #bars :global(.lbl) {
+    font-size: 10px;
+    color: var(--muted);
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-top: 4px;
+  }
+</style>

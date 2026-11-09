@@ -1,0 +1,171 @@
+---
+import DemoShell from '../../components/DemoShell.astro';
+import type { Lang } from '../../i18n/routes';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const L =
+  lang === 'pt'
+    ? {
+        intro:
+          'Cada linha mostra para onde uma palavra "olha" ao montar a própria representação: softmax(QKᵀ/√d + M). Com a máscara causal, cada palavra só vê as anteriores, como num modelo que gera texto. Os pesos aqui são aleatórios (não é um modelo treinado); o que importa é o mecanismo.',
+        sentence: 'Frase (até 12 palavras)',
+        default: 'o agente chama a ferramenta e lê o resultado',
+        head: 'Cabeça',
+        causal: 'Máscara causal',
+        query: 'quem olha ↓',
+        key: 'para quem →',
+      }
+    : {
+        intro:
+          'Each row shows where a word "looks" when building its own representation: softmax(QKᵀ/√d + M). With the causal mask, each word only sees the ones before it, like a model generating text. The weights here are random (not a trained model); the point is the mechanism.',
+        sentence: 'Sentence (up to 12 words)',
+        default: 'the agent calls the tool and reads the result',
+        head: 'Head',
+        causal: 'Causal mask',
+        query: 'who looks ↓',
+        key: 'at whom →',
+      };
+---
+
+<DemoShell lang={lang} demo="demoAttention">
+  <div class="demo" id="attn">
+    <p class="muted">{L.intro}</p>
+    <div class="field">
+      <label for="sentence">{L.sentence}</label>
+      <input id="sentence" value={L.default} maxlength="160" autocomplete="off" />
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="head">{L.head}: <output id="head-out">1</output></label>
+        <input id="head" type="range" min="1" max="8" step="1" value="1" />
+      </div>
+      <label class="check"><input id="causal" type="checkbox" checked /> {L.causal}</label>
+    </div>
+    <div class="table-wrap">
+      <table id="matrix" class="matrix" data-q={L.query} data-k={L.key}></table>
+    </div>
+  </div>
+</DemoShell>
+
+<script>
+  import { headWeights, tokenize } from '../../lib/attention';
+
+  const table = document.getElementById('matrix') as HTMLTableElement | null;
+  if (table) {
+    const sentence = document.getElementById('sentence') as HTMLInputElement;
+    const head = document.getElementById('head') as HTMLInputElement;
+    const causal = document.getElementById('causal') as HTMLInputElement;
+
+    function draw() {
+      document.getElementById('head-out')!.textContent = head.value;
+      const tokens = tokenize(sentence.value);
+      table!.replaceChildren();
+      if (!tokens.length) return;
+      const w = headWeights(tokens, Number(head.value) * 7919, causal.checked);
+      const top = document.createElement('tr');
+      const corner = document.createElement('th');
+      corner.className = 'corner';
+      corner.textContent = `${table!.dataset.q} · ${table!.dataset.k}`;
+      top.append(corner);
+      for (const tok of tokens) {
+        const th = document.createElement('th');
+        th.className = 'colh';
+        th.textContent = tok;
+        top.append(th);
+      }
+      table!.append(top);
+      w.forEach((row, i) => {
+        const tr = document.createElement('tr');
+        const th = document.createElement('th');
+        th.textContent = tokens[i];
+        tr.append(th);
+        row.forEach((v) => {
+          const td = document.createElement('td');
+          td.textContent = v === 0 ? '' : v.toFixed(2);
+          td.style.setProperty('--w', String(v));
+          td.title = v.toFixed(4);
+          tr.append(td);
+        });
+        table!.append(tr);
+      });
+    }
+    for (const el of [sentence, head, causal]) el.addEventListener('input', draw);
+    draw();
+  }
+</script>
+
+<style>
+  .demo {
+    max-width: 960px;
+    display: grid;
+    gap: 16px;
+  }
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 24px;
+  }
+  .row .field {
+    min-width: 220px;
+  }
+  input[type='range'] {
+    padding: 0;
+    min-height: 32px;
+    accent-color: var(--accent);
+    border: 0;
+    background: transparent;
+  }
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    min-height: 44px;
+  }
+  .check input {
+    width: 20px;
+    min-height: 20px;
+    accent-color: var(--accent);
+  }
+  .matrix {
+    width: auto;
+    border-collapse: separate;
+    border-spacing: 2px;
+  }
+  .matrix :global(th) {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border: 0;
+    white-space: nowrap;
+    text-align: right;
+  }
+  .matrix :global(th.colh) {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    text-align: left;
+    vertical-align: bottom;
+  }
+  .matrix :global(th.corner) {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .matrix :global(td) {
+    width: 44px;
+    height: 36px;
+    text-align: center;
+    font-size: 12px;
+    font-family: var(--mono);
+    border: 0;
+    border-radius: 6px;
+    padding: 0;
+    background: color-mix(in srgb, var(--accent) calc(var(--w, 0) * 100%), var(--bg-soft));
+    color: var(--text);
+  }
+</style>

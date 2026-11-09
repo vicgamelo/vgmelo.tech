@@ -1,0 +1,51 @@
+---
+import { articlePath, type Lang } from '../i18n/routes';
+import { useT } from '../i18n/ui';
+import { formatDate, readingMinutes, type Article } from '../lib/articles';
+
+interface Props {
+  lang: Lang;
+  articles: Article[];
+}
+const { lang, articles } = Astro.props;
+const t = useT(lang);
+---
+
+<ul class="list">
+  {
+    articles.map((a) => (
+      <li>
+        <a class="card" href={articlePath(lang, a.data.slug)}>
+          <span class="meta muted">
+            <time datetime={a.data.date.toISOString()}>{formatDate(a.data.date, lang)}</time> · {readingMinutes(a.body)}{' '}
+            {t('articles.readingTime')}
+            {a.data.draft && <strong class="draft"> · DRAFT</strong>}
+          </span>
+          <h3>{a.data.title}</h3>
+          <p>{a.data.description}</p>
+          <ul class="tags">
+            {a.data.tags.map((tag) => (
+              <li class="tag">{tag}</li>
+            ))}
+          </ul>
+        </a>
+      </li>
+    ))
+  }
+</ul>
+
+<style>
+  .list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 12px;
+  }
+  .meta {
+    font-size: 13px;
+  }
+  .draft {
+    color: var(--warn);
+  }
+</style>
