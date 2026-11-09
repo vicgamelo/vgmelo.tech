@@ -7,7 +7,7 @@ slug: llm-agent-observability
 translation: observabilidade-de-agentes
 tags: ['Observability', 'OpenTelemetry', 'Agents']
 project: genai-lens
-draft: true
+draft: false
 ---
 
 An agent in production is a program that decides by itself how many times to call the model, which tools to use and in what order. When the answer is wrong, takes 40 seconds or the monthly bill doubles, the question is always the same: **what did it do on that run?**

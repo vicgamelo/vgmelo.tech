@@ -7,7 +7,7 @@ slug: resposta-vazia-modelos-raciocinio
 translation: empty-answers-reasoning-models
 tags: ['Agentes', 'LLM', 'Ollama']
 project: agent-orchestrator
-draft: true
+draft: false
 ---
 
 Rodando o [agent-orchestrator](https://github.com/vicgamelo/agent-orchestrator) com o `qwen3.5:9b` local no Ollama, algumas respostas voltavam incompletas: faltava justamente a parte que dependia de um dos especialistas. Nenhum erro no log e nenhuma exceção. No trace, o especialista aparecia como **concluído com sucesso**, com a saída **vazia**.

@@ -7,7 +7,7 @@ slug: empty-answers-reasoning-models
 translation: resposta-vazia-modelos-raciocinio
 tags: ['Agents', 'LLM', 'Ollama']
 project: agent-orchestrator
-draft: true
+draft: false
 ---
 
 Running [agent-orchestrator](https://github.com/vicgamelo/agent-orchestrator) with `qwen3.5:9b` locally on Ollama, some answers came back incomplete: exactly the part that depended on one of the specialists was missing. No error in the log, no exception. In the trace, the specialist showed as **completed successfully**, with an **empty** output.

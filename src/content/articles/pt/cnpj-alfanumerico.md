@@ -7,7 +7,7 @@ slug: cnpj-alfanumerico
 translation: alphanumeric-cnpj
 tags: ['CNPJ', 'Python', 'Dados']
 project: mcp-server-brasil
-draft: true
+draft: false
 ---
 
 A Receita Federal mudou o formato do CNPJ: as 12 primeiras posições agora podem ter **letras de A a Z**, e só os dois dígitos verificadores continuam sendo números. A regra vem da IN RFB 2.229/2024. Os CNPJs que já existem não mudam; o que muda é que todo sistema que recebe um CNPJ precisa aceitar os dois formatos.
