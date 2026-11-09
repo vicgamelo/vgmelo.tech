@@ -18,6 +18,7 @@ export interface Project {
   highlights: Record<Lang, string[]>;
   tags: string[];
   demo?: 'demoCnpj' | 'demoMcp' | 'demoAgents' | 'demoCredit' | 'demoDrift' | 'demoAttention';
+  detail?: 'projectAgentAuth';
   featured?: boolean;
 }
 
@@ -71,6 +72,33 @@ export const PROJECTS: Project[] = [
     tags: ['MCP', 'Open source', 'Python'],
     demo: 'demoMcp',
     featured: true,
+  },
+  {
+    slug: 'agent-auth',
+    name: 'agent-auth',
+    repo: 'https://github.com/vicgamelo/agent-auth',
+    summary: {
+      pt: 'Autorização para agentes de IA e para conexão entre sistemas: servidor OAuth 2.1 leve no padrão do MCP, middleware que protege servidores MCP e APIs, e troca de token que registra qual agente agiu por qual usuário.',
+      en: 'Authorization for AI agents and system-to-system calls: a small OAuth 2.1 server following the MCP spec, a guard for MCP servers and APIs, and token exchange that records which agent acted for which user.',
+    },
+    highlights: {
+      pt: [
+        'PKCE, audiência fixa por recurso e tokens de 5 minutos',
+        'Troca de token (RFC 8693) com cadeia de atores, sem repassar o token recebido',
+        'Consentimento revogável, que corta o acesso em segundos',
+        'Log de auditoria encadeado por hash',
+        'Testes de ataque: replay, PKCE, audiência, confused deputy, SSRF e flood de registro',
+      ],
+      en: [
+        'PKCE, one audience per resource and 5-minute tokens',
+        'Token exchange (RFC 8693) with an actor chain, never forwarding the token it received',
+        'Revocable consent that cuts access within seconds',
+        'Hash-chained audit log',
+        'Attack tests: replay, PKCE, audience, confused deputy, SSRF and registration floods',
+      ],
+    },
+    tags: ['OAuth 2.1', 'MCP', 'Security'],
+    detail: 'projectAgentAuth',
   },
   {
     slug: 'genai-lens',

@@ -1,0 +1,280 @@
+---
+// Página do projeto agent-auth: o fluxo em um diagrama e a lista de ataques que os testes cobrem.
+// Estática, sem script.
+import Base from '../layouts/Base.astro';
+import { PROJECTS } from '../data/site';
+import { ROUTES, route, type Lang } from '../i18n/routes';
+import { useT } from '../i18n/ui';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const t = useT(lang);
+const project = PROJECTS.find((p) => p.slug === 'agent-auth')!;
+const pt = lang === 'pt';
+
+const L = pt
+  ? {
+      title: 'agent-auth: autorização para agentes',
+      lead: 'Quando um agente chama ferramentas por alguém, uma chave de API não diz quem é o usuário, qual agente está agindo, o que foi permitido nem como desfazer. Este projeto responde isso com OAuth 2.1 no formato que a spec do MCP pede.',
+      flow: 'O fluxo',
+      flowNote:
+        'O agente é o cliente oficial do SDK MCP em Python, sem nada específico deste projeto. A partir do 401, ele sozinho descobre o servidor de autorização, se registra e pede consentimento com PKCE. Também amplia o escopo quando uma ferramenta pede mais.',
+      boxes: ['Agente', 'Servidor de autorização', 'Servidor MCP', 'API'],
+      arrows: [
+        '1 · 401 + metadata',
+        '2 · PKCE + consentimento',
+        '3 · token aud=MCP',
+        '4 · troca de token',
+        '5 · aud=API',
+        'revogação',
+      ],
+      steps: [
+        'Sem token, o servidor MCP responde 401 e aponta para o Protected Resource Metadata (RFC 9728).',
+        'O usuário entra e aprova o pedido. A tela mostra qual cliente pede, para onde o código volta e quais serviços ele vai chamar em nome do usuário.',
+        'O token dura 5 minutos e vale só para aquele servidor MCP (RFC 8707). Para ferramentas que precisam de mais, o servidor responde 403 insufficient_scope.',
+        'O servidor MCP não repassa o token que recebeu: ele o troca (RFC 8693) por outro, com escopo igual ou menor, que expira antes e registra a cadeia em act.',
+        'A API vê "MCP ← agente ← Alice" e só aceita tokens de usuário. Um token de máquina com o mesmo escopo leva 403.',
+        'O usuário revoga o consentimento: a revogação derruba os refresh tokens e todos os tokens trocados. Os servidores consultam a lista de revogados a cada poucos segundos e, se ela ficar velha, passam a recusar.',
+      ],
+      inside: 'O que tem dentro',
+      insideItems: [
+        'Servidor de autorização: authorization code com PKCE S256, iss na resposta (RFC 9207), refresh rotacionado com detecção de reuso',
+        'Registro de cliente por Client ID Metadata Document (o padrão novo), com fetch protegido contra SSRF, e Dynamic Client Registration com limite',
+        'Machine-to-machine com client_credentials e private_key_jwt, sem segredo compartilhado',
+        'Middleware ASGI para MCP e APIs, com escopo por ferramenta lido do JSON-RPC',
+        'Log de auditoria append-only, encadeado por hash: qual agente fez o quê, por qual serviço, para qual usuário',
+        'Um processo com SQLite, uns 70 MB de RAM',
+      ],
+      attacks: 'Ataques que os testes tentam',
+      attacksNote:
+        'Cada proteção foi quebrada de propósito, uma por vez, para conferir que algum teste falha. Das 35 quebras, todas foram pegas.',
+      attackItems: [
+        'redirect_uri trocado: host parecido, outro caminho, fragmento, porta. URI desconhecida vira página de erro, nunca redirect',
+        'PKCE ausente, plain ou errado. Um verifier errado inutiliza o código',
+        'Token de outra audiência e tokens forjados: alg none, outra chave, HS256 com a chave pública',
+        'Escopo ampliado na troca, no refresh ou no client_credentials',
+        'Replay de código (revoga o que ele emitiu), de refresh token (revoga a família) e de client assertion',
+        'Token revogado, revogação em cascata e lista de revogados fora do ar',
+        'Flood de registro de cliente, X-Forwarded-For forjado, limite de clientes',
+        'Confused deputy: cliente que imita outro, serviço usando token enviado a outro serviço, troca para recurso não delegado, actor_token injetado, token de máquina em dado de usuário',
+        'CSRF no consentimento, clickjacking, aprovar o pedido de outra pessoa',
+        'SSRF no CIMD: IP privado, loopback, link-local, DNS que mistura IP privado, redirect para metadata da nuvem',
+      ],
+      run: 'Rodar local',
+      limits: 'Limites',
+      limitsText:
+        'O token é bearer, sem DPoP por enquanto, e há uma chave de assinatura só, sem rotação. O provedor de identidade que acompanha o projeto é de desenvolvimento. Ninguém auditou o código de fora.',
+      back: 'Todos os projetos',
+    }
+  : {
+      title: 'agent-auth: authorization for agents',
+      lead: "When an agent calls tools for someone, an API key can't say who the user is, which agent is acting, what was allowed or how to take it back. This project answers that with OAuth 2.1, in the shape the MCP spec asks for.",
+      flow: 'The flow',
+      flowNote:
+        "The agent is the official MCP Python SDK client, with nothing specific to this project. From the 401 on, it discovers the authorization server, registers and asks for consent with PKCE by itself. It also steps up its scope when a tool needs more.",
+      boxes: ['Agent', 'Authorization server', 'MCP server', 'API'],
+      arrows: [
+        '1 · 401 + metadata',
+        '2 · PKCE + consent',
+        '3 · token aud=MCP',
+        '4 · token exchange',
+        '5 · aud=API',
+        'revocation',
+      ],
+      steps: [
+        'Without a token, the MCP server answers 401 and points to its Protected Resource Metadata (RFC 9728).',
+        'The user signs in and approves the request. The screen shows which client is asking, where the code goes back to and which services it will call for the user.',
+        'The token lasts 5 minutes and is valid only at that MCP server (RFC 8707). For tools that need more, the server answers 403 insufficient_scope.',
+        'The MCP server never forwards the token it got: it exchanges it (RFC 8693) for one with the same or fewer scopes that expires sooner and names the chain in act.',
+        'The API sees "MCP ← agent ← Alice" and only accepts user tokens. A machine token with the same scope gets 403.',
+        'The user revokes consent: revocation takes down the refresh tokens and every exchanged token. Servers check the revocation list every few seconds and start refusing if it goes stale.',
+      ],
+      inside: "What's inside",
+      insideItems: [
+        'Authorization server: authorization code with PKCE S256, iss in the response (RFC 9207), refresh rotation with reuse detection',
+        'Client registration by Client ID Metadata Document (the new default), with an SSRF-safe fetcher, plus throttled Dynamic Client Registration',
+        'Machine-to-machine with client_credentials and private_key_jwt, no shared secrets',
+        'ASGI guard for MCP servers and APIs, with per-tool scopes read from the JSON-RPC body',
+        'Append-only, hash-chained audit log: which agent did what, through which service, for which user',
+        'One process with SQLite, about 70 MB of RAM',
+      ],
+      attacks: 'Attacks the tests try',
+      attacksNote:
+        'Each protection was broken on purpose, one at a time, to check that some test fails. All 35 breaks were caught.',
+      attackItems: [
+        'Swapped redirect_uri: look-alike host, other path, fragment, port. An unknown URI gets an error page, never a redirect',
+        'PKCE missing, plain or wrong. A wrong verifier burns the code',
+        'A token for another audience, and forged tokens: alg none, another key, HS256 with the public key',
+        'Scope widened through exchange, refresh or client_credentials',
+        'Replayed code (revokes what it issued), refresh token (revokes the family) and client assertion',
+        'Revoked tokens, cascading revocation and a revocation list that goes down',
+        'Client registration floods, forged X-Forwarded-For, client caps',
+        "Confused deputy: a look-alike client, a service using a token sent to another service, exchange into an undelegated resource, injected actor_token, a machine token on a user's data",
+        "CSRF on consent, clickjacking, approving someone else's request",
+        'CIMD SSRF: private, loopback and link-local IPs, DNS that mixes in a private IP, redirects to cloud metadata',
+      ],
+      run: 'Run it locally',
+      limits: 'Limits',
+      limitsText:
+        'Tokens are bearer, with no DPoP yet, and there is a single signing key with no rotation. The identity provider that ships with it is for development only. No one has audited the code from outside.',
+      back: 'All projects',
+    };
+---
+
+<Base lang={lang} title={L.title} description={project.summary[lang]} alt={ROUTES.projectAgentAuth}>
+  <div class="container">
+    <header class="page-head">
+      <h1>{L.title}</h1>
+      <p>{L.lead}</p>
+      <ul class="tags">
+        {project.tags.map((tag) => <li class="tag">{tag}</li>)}
+      </ul>
+    </header>
+
+    <section class="section">
+      <div class="section-title"><h2>{L.flow}</h2></div>
+      <figure class="flow">
+        <div class="flow-scroll">
+        <svg viewBox="0 0 720 296" role="img" aria-labelledby="flow-title">
+          <title id="flow-title">{L.flow}</title>
+          <defs>
+            <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" class="head" />
+            </marker>
+          </defs>
+          <rect class="box" x="270" y="12" width="180" height="60" rx="10" />
+          <text class="box-text" x="360" y="47">{L.boxes[1]}</text>
+          <rect class="box" x="12" y="206" width="170" height="60" rx="10" />
+          <text class="box-text" x="97" y="241">{L.boxes[0]}</text>
+          <rect class="box accent" x="275" y="206" width="170" height="60" rx="10" />
+          <text class="box-text" x="360" y="241">{L.boxes[2]}</text>
+          <rect class="box" x="538" y="206" width="170" height="60" rx="10" />
+          <text class="box-text" x="623" y="241">{L.boxes[3]}</text>
+
+          <line class="arrow" x1="186" y1="226" x2="271" y2="226" marker-end="url(#head)" marker-start="url(#head)" />
+          <text class="label" x="228" y="198">{L.arrows[0]}</text>
+          <text class="label" x="228" y="284">{L.arrows[2]}</text>
+          <line class="arrow" x1="186" y1="250" x2="271" y2="250" marker-end="url(#head)" />
+
+          <line class="arrow" x1="130" y1="204" x2="276" y2="70" marker-end="url(#head)" marker-start="url(#head)" />
+          <text class="label" x="150" y="128">{L.arrows[1]}</text>
+
+          <line class="arrow" x1="360" y1="204" x2="360" y2="76" marker-end="url(#head)" marker-start="url(#head)" />
+          <text class="label start" x="368" y="144">{L.arrows[3]}</text>
+
+          <line class="arrow" x1="449" y1="236" x2="534" y2="236" marker-end="url(#head)" />
+          <text class="label" x="491" y="198">{L.arrows[4]}</text>
+
+          <line class="arrow dashed" x1="452" y1="56" x2="610" y2="202" marker-end="url(#head)" />
+          <text class="label danger" x="574" y="120">{L.arrows[5]}</text>
+        </svg>
+        </div>
+        <figcaption class="muted">{L.flowNote}</figcaption>
+      </figure>
+      <ol class="steps">
+        {L.steps.map((s) => <li>{s}</li>)}
+      </ol>
+    </section>
+
+    <section class="section">
+      <div class="section-title"><h2>{L.inside}</h2></div>
+      <ul class="checks">
+        {L.insideItems.map((i) => <li>{i}</li>)}
+      </ul>
+    </section>
+
+    <section class="section">
+      <div class="section-title"><h2>{L.attacks}</h2></div>
+      <p class="muted">{L.attacksNote}</p>
+      <ul class="checks">
+        {L.attackItems.map((i) => <li>{i}</li>)}
+      </ul>
+    </section>
+
+    <section class="section">
+      <div class="section-title"><h2>{L.run}</h2></div>
+      <pre>git clone {project.repo}
+cd agent-auth && uv sync
+uv run agent-auth-demo</pre>
+    </section>
+
+    <section class="section">
+      <div class="section-title"><h2>{L.limits}</h2></div>
+      <p>{L.limitsText}</p>
+      <div class="links">
+        <a href={project.repo} rel="noopener">{t('projects.repo')}</a>
+        <a href={route('projects', lang)}>{L.back}</a>
+      </div>
+    </section>
+  </div>
+</Base>
+
+<style>
+  .flow {
+    margin: 0 0 16px;
+  }
+  /* No celular o diagrama rola na horizontal em vez de encolher até o texto ficar ilegível. */
+  .flow-scroll {
+    overflow-x: auto;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+  .flow svg {
+    width: 100%;
+    min-width: 560px;
+    height: auto;
+    display: block;
+  }
+  .box {
+    fill: var(--bg-soft);
+    stroke: var(--line);
+  }
+  .box.accent {
+    fill: var(--accent-soft);
+    stroke: var(--accent);
+  }
+  .box-text {
+    fill: var(--text);
+    font: 600 14px var(--sans);
+    text-anchor: middle;
+  }
+  .arrow {
+    stroke: var(--muted);
+    stroke-width: 1.5;
+  }
+  .arrow.dashed {
+    stroke: var(--danger);
+    stroke-dasharray: 5 4;
+  }
+  .head {
+    fill: var(--muted);
+  }
+  .label {
+    fill: var(--muted);
+    font: 12px var(--mono);
+    text-anchor: middle;
+  }
+  .label.start {
+    text-anchor: start;
+  }
+  .label.danger {
+    fill: var(--danger);
+  }
+  figcaption {
+    margin-top: 8px;
+  }
+  .steps {
+    padding-left: 20px;
+  }
+  .steps li {
+    margin: 6px 0;
+  }
+  .links {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+</style>
