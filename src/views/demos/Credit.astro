@@ -112,6 +112,7 @@ const L = pt
 
 <script>
   import { api, liveError } from '../../lib/api';
+  import { buildApplicant } from '../../lib/credit';
   import { gate } from '../../lib/live';
 
   const root = document.getElementById('credit');
@@ -120,37 +121,18 @@ const L = pt
     const L = JSON.parse(root.dataset.l!) as Record<string, string>;
     const form = root.querySelector<HTMLFormElement>('form')!;
     const $ = (id: string) => document.getElementById(id)!;
-    // Campos que a demo não pergunta: valores comuns no dataset.
-    const fixed = {
-      installment_commitment: 3,
-      other_parties: 'none',
-      residence_since: 2,
-      property_magnitude: 'car',
-      other_payment_plans: 'none',
-      existing_credits: 1,
-      job: 'skilled',
-      num_dependents: 1,
-      own_telephone: 'none',
-    };
-
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!form.reportValidity()) return;
-      const data = Object.fromEntries(new FormData(form)) as Record<string, string>;
-      const applicant = {
-        ...fixed,
-        ...data,
-        duration: Number(data.duration),
-        credit_amount: Number(data.credit_amount),
-        age: Number(data.age),
-      };
+      const applicant = buildApplicant(Object.fromEntries(new FormData(form)) as Record<string, string>);
       $('c-error').hidden = true;
       try {
-        const r = await api<{ model_version: string; predictions: { default_probability: number; decision: string }[] }>(
+        // O portal recebe o candidato direto no corpo (campos extras são recusados).
+        const r = await api<{ model_version: string; prediction: { default_probability: number; decision: string } }>(
           '/api/demo/score',
-          { method: 'POST', body: JSON.stringify({ applicant }) },
+          { method: 'POST', body: JSON.stringify(applicant) },
         );
-        const p = r.predictions[0];
+        const p = r.prediction;
         $('c-out').hidden = false;
         $('c-prob').textContent = `${(p.default_probability * 100).toFixed(1)}%`;
         $('c-decision').textContent = p.decision === 'approve' ? `✓ ${L.approve}` : `⚑ ${L.review}`;

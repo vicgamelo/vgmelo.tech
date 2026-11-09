@@ -15,6 +15,8 @@ const strings = uiStrings(lang, [
   'login.as',
   'login.unavailable',
   'login.emailOff',
+  'login.oauthError',
+  'login.setup',
   'live.error',
 ]);
 const fallbackNext = route('demos', lang);
@@ -53,7 +55,7 @@ const fallbackNext = route('demos', lang);
     <section id="l-codes" hidden>
       <p>{t('login.recoveryCodes')}</p>
       <pre id="l-codes-list"></pre>
-      <a class="btn primary" href={fallbackNext}>{t('nav.demos')} →</a>
+      <a class="btn primary" id="l-codes-next" href={fallbackNext}>{t('nav.demos')} →</a>
     </section>
 
     <section id="l-start">
@@ -114,7 +116,7 @@ const fallbackNext = route('demos', lang);
 </Base>
 
 <script>
-  import { api, getMe, type Me } from '../lib/api';
+  import { api, getMe, totpSecret, type Me } from '../lib/api';
 
   const root = document.getElementById('login');
   if (root) {
@@ -126,6 +128,7 @@ const fallbackNext = route('demos', lang);
     const raw = new URLSearchParams(location.search).get('next') ?? '';
     const next = /^\/(?!\/)[\w\-./?=&%]*$/.test(raw) ? raw : root.dataset.next!;
     $<HTMLAnchorElement>('l-continue').href = next;
+    $<HTMLAnchorElement>('l-codes-next').href = next;
     for (const id of ['p-google', 'p-github']) {
       const a = $<HTMLAnchorElement>(id);
       a.href = `${a.getAttribute('href')}?next=${encodeURIComponent(next)}`;
@@ -145,12 +148,12 @@ const fallbackNext = route('demos', lang);
       Object.fromEntries([...new FormData(f)].filter(([, v]) => v !== '')) as Record<string, string>;
 
     async function setupTotp() {
-      const data = await api<{ otpauth_uri: string; qr_svg: string; secret: string }>('/api/auth/totp/setup', {
+      const data = await api<{ otpauth_uri: string; qr_svg: string }>('/api/auth/totp/setup', {
         method: 'POST',
       });
       // SVG vai num <img> via data: URI, então nenhum script dentro dele roda.
       $<HTMLImageElement>('l-qr').src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(data.qr_svg)}`;
-      $('l-secret').textContent = data.secret;
+      $('l-secret').textContent = totpSecret(data.otpauth_uri);
       $('l-start').hidden = true;
       $('l-totp').hidden = false;
     }
@@ -164,12 +167,18 @@ const fallbackNext = route('demos', lang);
         });
         return;
       }
-      if (me.email_login === false) $('l-email').hidden = true;
-      if (!me.user) return;
-      if (me.user.provider === 'email' && !me.user.mfa) {
+      $('p-google').hidden = !me.providers.google;
+      $('p-github').hidden = !me.providers.github;
+      $('l-email').hidden = !me.providers.email;
+      if (!me.providers.google && !me.providers.github && !me.providers.email) say(s['login.unavailable']);
+      else if (!me.providers.email) say(s['login.emailOff']);
+      if (me.pending === 'totp_setup') {
+        // E-mail verificado, mas o autenticador ainda não foi ativado.
+        say(s['login.setup']);
         void setupTotp().catch(fail);
         return;
       }
+      if (!me.user) return;
       $('l-start').hidden = true;
       $('l-signed').hidden = false;
       $('l-who').textContent = `${s['login.as']} ${me.user.name ?? me.user.email ?? ''}`;
@@ -178,7 +187,15 @@ const fallbackNext = route('demos', lang);
     form('f-login').addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
-        await api('/api/auth/email/login', { method: 'POST', body: JSON.stringify(values(form('f-login'))) });
+        const res = await api<{ status: string }>('/api/auth/email/login', {
+          method: 'POST',
+          body: JSON.stringify(values(form('f-login'))),
+        });
+        if (res.status === 'totp_setup_required') {
+          say(s['login.setup']);
+          await setupTotp();
+          return;
+        }
         location.assign(next);
       } catch (err) {
         fail(err);
@@ -233,6 +250,7 @@ const fallbackNext = route('demos', lang);
       location.reload();
     });
 
+    if (new URLSearchParams(location.search).has('auth_error')) say(s['login.oauthError'], 'error');
     void getMe().then(render);
   }
 </script>

@@ -17,5 +17,14 @@ export default defineConfig({
   ],
   build: { inlineStylesheets: 'never', format: 'directory' },
   // Sem script inline: a CSP do Caddy fica em script-src 'self'.
-  vite: { build: { assetsInlineLimit: 0 } },
+  vite: {
+    build: { assetsInlineLimit: 0 },
+    // Só no `npm run dev`: manda /api e /admin para um vgmelo-portal local, como o Caddy faz em produção.
+    server: {
+      proxy: {
+        '/api': process.env.PORTAL_URL ?? 'http://127.0.0.1:8000',
+        '/admin': process.env.PORTAL_URL ?? 'http://127.0.0.1:8000',
+      },
+    },
+  },
 });

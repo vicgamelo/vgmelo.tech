@@ -85,7 +85,7 @@ const L =
 </DemoShell>
 
 <script>
-  import { api, liveError, readSse, type ApiError } from '../../lib/api';
+  import { errorFrom, fetchTrace, liveError, readSse } from '../../lib/api';
   import { gate } from '../../lib/live';
   import { renderWaterfall, type Span } from '../../lib/waterfall';
 
@@ -129,15 +129,7 @@ const L =
           headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
           body: JSON.stringify({ question }),
         });
-        if (!res.ok) {
-          let reason: string | undefined;
-          try {
-            reason = (await res.json()).reason;
-          } catch {
-            /* sem corpo */
-          }
-          throw { status: res.status, reason } satisfies ApiError;
-        }
+        if (!res.ok) throw await errorFrom(res);
         let traceId: string | null = null;
         await readSse(res, (event, raw) => {
           const ev = raw as { agent?: string; depth?: number; data?: Record<string, unknown> } & Record<string, unknown>;
@@ -154,7 +146,7 @@ const L =
           }
         });
         if (traceId) {
-          const spans = await api<Span[]>(`/api/demo/traces/${encodeURIComponent(traceId)}`);
+          const spans = await fetchTrace<Span[]>(traceId);
           renderWaterfall($('a-waterfall'), spans);
           $('a-trace').hidden = false;
         }

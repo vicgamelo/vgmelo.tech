@@ -21,7 +21,7 @@ const strings = uiStrings(lang, ['contact.sending', 'contact.ok', 'contact.error
     <form id="contact" class="form" data-strings={JSON.stringify(strings)} novalidate>
       <div class="field">
         <label for="c-name">{t('contact.name')}</label>
-        <input id="c-name" name="name" autocomplete="name" required maxlength="120" />
+        <input id="c-name" name="name" autocomplete="name" required maxlength="100" />
       </div>
       <div class="field">
         <label for="c-email">{t('contact.email')}</label>
@@ -58,7 +58,7 @@ const strings = uiStrings(lang, ['contact.sending', 'contact.ok', 'contact.error
 </Base>
 
 <script>
-  import { api } from '../lib/api';
+  import { api, contactBody } from '../lib/api';
 
   const form = document.querySelector<HTMLFormElement>('#contact');
   if (form) {
@@ -85,7 +85,7 @@ const strings = uiStrings(lang, ['contact.sending', 'contact.ok', 'contact.error
       try {
         await api('/api/contact', {
           method: 'POST',
-          body: JSON.stringify({ ...data, started_at: Math.floor(startedAt / 1000) }),
+          body: JSON.stringify(contactBody(data, startedAt)),
         });
         form.reset();
         show(s['contact.ok'], 'ok');

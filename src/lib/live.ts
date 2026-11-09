@@ -26,19 +26,25 @@ export async function gate(root: HTMLElement, quotaKey: string, s: Record<string
     show(s['login.unavailable']);
     return { me, ready: false };
   }
-  if (!me.user || (me.user.provider === 'email' && !me.user.mfa)) {
-    show(s['live.needLogin'], { href: `${root.dataset.login}?next=${encodeURIComponent(location.pathname)}`, label: s['login.title'] });
+  if (!me.user) {
+    // O portal volta para esta página com ?auth_error=oauth quando o Google/GitHub falha.
+    const failed = new URLSearchParams(location.search).has('auth_error');
+    show(failed ? s['login.oauthError'] : s['live.needLogin'], { href: `${root.dataset.login}?next=${encodeURIComponent(location.pathname)}`, label: s['login.title'] });
     return { me, ready: false };
   }
   const q = me.quotas[quotaKey];
-  if (q && q.used >= q.limit) {
+  if (q && q.remaining <= 0) {
     show(s['live.quota']);
+    return { me, ready: false };
+  }
+  if (quotaKey === 'agents' && me.budget_exhausted) {
+    show(s['live.budget']);
     return { me, ready: false };
   }
   notice.hidden = true;
   form.hidden = false;
-  if (remaining && q) remaining.textContent = `${q.limit - q.used} ${s['live.remaining']}`;
+  if (remaining && q) remaining.textContent = `${q.remaining} ${s['live.remaining']}`;
   return { me, ready: true };
 }
 
-export const LIVE_KEYS = ['login.unavailable', 'live.needLogin', 'login.title', 'live.quota', 'live.budget', 'live.error', 'live.remaining'] as const;
+export const LIVE_KEYS = ['login.unavailable', 'live.needLogin', 'login.title', 'live.quota', 'live.budget', 'live.error', 'live.remaining', 'live.busy', 'live.invalid', 'login.oauthError'] as const;

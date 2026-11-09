@@ -7,7 +7,7 @@ export const LINKS = {
   linkedin: 'https://www.linkedin.com/in/vgmelo/',
   youtube: 'https://www.youtube.com/@vicgamelo',
   siteRepo: 'https://github.com/vicgamelo/vgmelo.tech',
-  avatar: 'https://avatars.githubusercontent.com/vicgamelo?s=320',
+  avatar: '/victor.jpg',
 };
 
 export interface Project {
