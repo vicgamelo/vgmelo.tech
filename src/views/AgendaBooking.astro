@@ -1,0 +1,385 @@
+---
+import Base from '../layouts/Base.astro';
+import { ROUTES, route, type Lang } from '../i18n/routes';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const pt = lang === 'pt';
+
+const L = pt
+  ? {
+      title: 'Sua conversa',
+      loading: 'Carregando…',
+      notFound: 'Link inválido ou expirado. Confira se abriu o link inteiro do e-mail.',
+      error: 'Não deu para carregar agora. Tente de novo em alguns minutos.',
+      job: 'Vaga / recrutamento',
+      consulting: 'Consultoria',
+      minutes: 'min',
+      when: 'Quando',
+      kind: 'Tipo',
+      length: 'Duração',
+      where: 'Onde',
+      whereLater: 'O link chega por e-mail antes da conversa.',
+      status: 'Situação',
+      pending: 'Aguardando sua confirmação',
+      confirmed: 'Confirmada',
+      cancelled: 'Cancelada',
+      expired: 'Expirou sem confirmação',
+      holdUntil: 'Confirme até',
+      confirm: 'Confirmar conversa',
+      confirmed_ok: 'Conversa confirmada. O convite foi para o seu e-mail.',
+      cancel: 'Cancelar conversa',
+      cancelSure: 'Clique de novo para cancelar',
+      cancelled_ok: 'Conversa cancelada.',
+      reschedule: 'Remarcar',
+      rescheduleTitle: 'Escolha outro horário',
+      rescheduleSave: 'Remarcar para este horário',
+      rescheduled_ok: 'Remarcada. O convite novo foi para o seu e-mail.',
+      noSlots: 'Nenhum horário livre para essa duração.',
+      tooLate: 'Faltam menos de {h} horas: não dá mais para mudar por aqui. Fale comigo pelo contato.',
+      bookAgain: 'Marcar outro horário',
+      guest: 'Convidado',
+      company: 'Empresa',
+      topic: 'Assunto',
+      source: 'Origem',
+      ownerNote: 'Link de dono: cancelar avisa a pessoa por e-mail.',
+      tzNote: 'Horários no seu fuso:',
+    }
+  : {
+      title: 'Your call',
+      loading: 'Loading…',
+      notFound: 'Invalid or expired link. Make sure you opened the full link from the email.',
+      error: "Couldn't load right now. Try again in a few minutes.",
+      job: 'Job / recruiting',
+      consulting: 'Consulting',
+      minutes: 'min',
+      when: 'When',
+      kind: 'Type',
+      length: 'Length',
+      where: 'Where',
+      whereLater: 'The link arrives by email before the call.',
+      status: 'Status',
+      pending: 'Waiting for your confirmation',
+      confirmed: 'Confirmed',
+      cancelled: 'Cancelled',
+      expired: 'Expired without confirmation',
+      holdUntil: 'Confirm by',
+      confirm: 'Confirm the call',
+      confirmed_ok: 'Call confirmed. The invite is in your email.',
+      cancel: 'Cancel the call',
+      cancelSure: 'Click again to cancel',
+      cancelled_ok: 'Call cancelled.',
+      reschedule: 'Reschedule',
+      rescheduleTitle: 'Pick another time',
+      rescheduleSave: 'Move to this time',
+      rescheduled_ok: 'Rescheduled. The new invite is in your email.',
+      noSlots: 'No free time for this length.',
+      tooLate: 'Less than {h} hours to go: it can no longer be changed here. Reach me through the contact form.',
+      bookAgain: 'Book another time',
+      guest: 'Guest',
+      company: 'Company',
+      topic: 'Topic',
+      source: 'Source',
+      ownerNote: 'Owner link: cancelling emails the guest.',
+      tzNote: 'Times in your timezone:',
+    };
+const errors = pt
+  ? {
+      expired: 'O prazo de confirmação acabou e o horário foi liberado. Marque de novo.',
+      too_late: 'Faltam menos de 2 horas: não dá mais para mudar por aqui.',
+      slot_unavailable: 'Esse horário não está mais livre. Escolha outro.',
+      slot_taken: 'Esse horário não está mais livre. Escolha outro.',
+      day_full: 'Esse dia já está cheio. Escolha outro.',
+      cancelled: 'Essa conversa já foi cancelada.',
+      rate_limited: 'Muitas tentativas em pouco tempo. Tente mais tarde.',
+    }
+  : {
+      expired: 'The confirmation window is over and the slot was released. Please book again.',
+      too_late: 'Less than 2 hours to go: it can no longer be changed here.',
+      slot_unavailable: 'That time is no longer free. Pick another.',
+      slot_taken: 'That time is no longer free. Pick another.',
+      day_full: 'That day is full. Pick another.',
+      cancelled: 'This call was already cancelled.',
+      rate_limited: 'Too many attempts in a short time. Please try again later.',
+    };
+---
+
+<Base lang={lang} title={L.title} alt={ROUTES.agendaBooking} noindex>
+  <div class="container">
+    <header class="page-head">
+      <h1>{L.title}</h1>
+      <p class="muted small">{L.tzNote} <strong data-tz>…</strong></p>
+    </header>
+    <div
+      id="booking"
+      class="booking"
+      data-lang={lang}
+      data-l={JSON.stringify(L)}
+      data-errors={JSON.stringify(errors)}
+      data-agenda={route('agenda', lang)}
+      data-contact={route('contact', lang)}
+    >
+      <p class="notice" data-msg>{L.loading}</p>
+      <dl class="facts" data-facts hidden></dl>
+      <div class="actions" data-actions hidden>
+        <button class="btn primary" type="button" data-confirm hidden>{L.confirm}</button>
+        <button class="btn" type="button" data-resched hidden>{L.reschedule}</button>
+        <button class="btn" type="button" data-cancel hidden>{L.cancel}</button>
+        <a class="btn" data-again hidden href={route('agenda', lang)}>{L.bookAgain}</a>
+      </div>
+      <section class="resched" data-picker hidden>
+        <h2>{L.rescheduleTitle}</h2>
+        <div class="field">
+          <label for="b-duration">{L.length}</label>
+          <select id="b-duration"></select>
+        </div>
+        <div class="chips" data-days role="group"></div>
+        <div class="chips" data-times role="group"></div>
+        <p class="notice" data-noslots hidden>{L.noSlots}</p>
+        <div class="actions"><button class="btn primary" type="button" data-save disabled>{L.rescheduleSave}</button></div>
+      </section>
+    </div>
+  </div>
+</Base>
+
+<script>
+  import {
+    agendaApi,
+    browserTz,
+    dayLabel,
+    errorText,
+    groupByLocalDay,
+    safeHttps,
+    tokenFromHash,
+    whenLabel,
+    type BookingView,
+    type Day,
+    type SlotsResponse,
+  } from '../lib/agenda';
+  import type { Lang } from '../i18n/routes';
+
+  const root = document.getElementById('booking');
+  if (root) {
+    const lang = root.dataset.lang as Lang;
+    const L = JSON.parse(root.dataset.l!) as Record<string, string>;
+    const E = JSON.parse(root.dataset.errors!) as Record<string, string>;
+    const tz = browserTz();
+    const q = <T extends HTMLElement>(sel: string) => root.querySelector<T>(sel)!;
+    document.querySelector('[data-tz]')!.textContent = tz;
+    const msg = q<HTMLElement>('[data-msg]');
+    const token = tokenFromHash(location.hash);
+    let view: BookingView;
+    let cancelArmed = false;
+
+    const notice = (text: string, cls: '' | 'ok' | 'error' = '') => {
+      msg.hidden = false;
+      msg.className = `notice ${cls}`;
+      msg.textContent = text;
+    };
+
+    const fact = (label: string, value: string | Node) => {
+      const dt = document.createElement('dt');
+      dt.textContent = label;
+      const dd = document.createElement('dd');
+      if (typeof value === 'string') dd.textContent = value;
+      else dd.append(value);
+      return [dt, dd];
+    };
+
+    const render = () => {
+      const facts = q<HTMLElement>('[data-facts]');
+      const where = safeHttps(view.meeting_url);
+      let whereNode: string | Node = L.whereLater;
+      if (where) {
+        const a = document.createElement('a');
+        a.href = where;
+        a.rel = 'noopener';
+        a.textContent = where;
+        whereNode = a;
+      }
+      const rows = [
+        ...fact(L.status, L[view.status]),
+        ...fact(L.when, `${whenLabel(view.start, tz, lang)}`),
+        ...fact(L.kind, L[view.kind]),
+        ...fact(L.length, `${view.duration} ${L.minutes}`),
+      ];
+      if (view.status === 'confirmed') rows.push(...fact(L.where, whereNode));
+      if (view.status === 'pending' && view.hold_until) rows.push(...fact(L.holdUntil, whenLabel(view.hold_until, tz, lang)));
+      if (view.role === 'owner') {
+        rows.push(...fact(L.guest, `${view.name} <${view.email ?? ''}>`));
+        rows.push(...fact(L.company, view.company || '-'));
+        rows.push(...fact(L.topic, view.topic ?? ''));
+        rows.push(...fact(L.source, view.source ?? ''));
+      }
+      facts.replaceChildren(...rows);
+      facts.hidden = false;
+      q<HTMLElement>('[data-actions]').hidden = false;
+      q<HTMLElement>('[data-confirm]').hidden = !view.can_confirm;
+      q<HTMLElement>('[data-cancel]').hidden = !view.can_cancel;
+      q<HTMLElement>('[data-resched]').hidden = !view.can_reschedule;
+      q<HTMLElement>('[data-again]').hidden = view.status === 'pending' || view.status === 'confirmed';
+      if (view.role === 'owner') notice(L.ownerNote);
+      else if (view.status === 'confirmed' && !view.can_cancel && new Date(view.start) > new Date())
+        notice(L.tooLate.replace('{h}', '2'));
+      else msg.hidden = true;
+    };
+
+    const load = async () => {
+      view = await agendaApi<BookingView>('/booking', { token });
+      render();
+    };
+
+    const act = async (path: string, ok: string, body: Record<string, unknown> = {}) => {
+      root.querySelectorAll<HTMLButtonElement>('button').forEach((b) => (b.disabled = true));
+      try {
+        await agendaApi(path, { token, ...body });
+        await load();
+        notice(ok, 'ok');
+        q<HTMLElement>('[data-picker]').hidden = true;
+      } catch (err) {
+        notice(errorText(err, E, L.error), 'error');
+        await load().catch(() => undefined);
+      } finally {
+        root.querySelectorAll<HTMLButtonElement>('button').forEach((b) => (b.disabled = false));
+        q<HTMLButtonElement>('[data-save]').disabled = !picked;
+      }
+    };
+
+    q<HTMLElement>('[data-confirm]').addEventListener('click', () => void act('/booking/confirm', L.confirmed_ok));
+    q<HTMLElement>('[data-cancel]').addEventListener('click', (e) => {
+      const b = e.currentTarget as HTMLButtonElement;
+      if (!cancelArmed) {
+        cancelArmed = true;
+        b.textContent = L.cancelSure;
+        return;
+      }
+      void act('/booking/cancel', L.cancelled_ok);
+    });
+
+    // ---- remarcar ----
+    const durSel = q<HTMLSelectElement>('#b-duration');
+    let days: Day[] = [];
+    let day: string | null = null;
+    let picked: string | null = null;
+    const chip = (label: string, pressed: boolean, onClick: () => void) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.textContent = label;
+      b.setAttribute('aria-pressed', String(pressed));
+      b.addEventListener('click', onClick);
+      return b;
+    };
+    const draw = () => {
+      q<HTMLElement>('[data-days]').replaceChildren(
+        ...days.map((d) =>
+          chip(dayLabel(d.date, lang), d.date === day, () => {
+            day = d.date;
+            picked = null;
+            draw();
+          }),
+        ),
+      );
+      q<HTMLElement>('[data-times]').replaceChildren(
+        ...(days.find((d) => d.date === day)?.times ?? []).map((t) =>
+          chip(t.label, t.iso === picked, () => {
+            picked = t.iso;
+            draw();
+          }),
+        ),
+      );
+      q<HTMLElement>('[data-noslots]').hidden = days.length > 0;
+      q<HTMLButtonElement>('[data-save]').disabled = !picked;
+    };
+    const loadSlots = async () => {
+      const slots = await agendaApi<SlotsResponse>(`/slots?kind=${view.kind}&duration=${Number(durSel.value)}`);
+      days = groupByLocalDay(slots, tz, lang);
+      day = days[0]?.date ?? null;
+      picked = null;
+      draw();
+    };
+    q<HTMLElement>('[data-resched]').addEventListener('click', () => {
+      durSel.replaceChildren(
+        ...view.durations.map((m) => {
+          const o = document.createElement('option');
+          o.value = String(m);
+          o.textContent = `${m} ${L.minutes}`;
+          return o;
+        }),
+      );
+      durSel.value = String(view.duration);
+      q<HTMLElement>('[data-picker]').hidden = false;
+      void loadSlots().catch(() => notice(L.error, 'error'));
+    });
+    durSel.addEventListener('change', () => void loadSlots().catch(() => notice(L.error, 'error')));
+    q<HTMLElement>('[data-save]').addEventListener('click', () => {
+      if (picked) void act('/booking/reschedule', L.rescheduled_ok, { start: picked, duration: Number(durSel.value) });
+    });
+
+    if (!token) notice(L.notFound, 'error');
+    else
+      load().catch((err) => notice((err as { status?: number }).status === 404 ? L.notFound : errorText(err, E, L.error), 'error'));
+  }
+</script>
+
+<style>
+  .small {
+    font-size: 14px;
+  }
+  .booking {
+    max-width: 720px;
+    display: grid;
+    gap: 18px;
+  }
+  .facts {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 8px 18px;
+    margin: 0;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+  }
+  .facts :global(dt) {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .facts :global(dd) {
+    margin: 0;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+  .resched {
+    display: grid;
+    gap: 12px;
+  }
+  .resched h2 {
+    font-size: 20px;
+    margin: 0;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chips :global(.chip) {
+    font: inherit;
+    font-size: 14px;
+    min-height: 40px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+    font-variant-numeric: tabular-nums;
+  }
+  .chips :global(.chip[aria-pressed='true']) {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+</style>

@@ -12,7 +12,8 @@ export default defineConfig({
   integrations: [
     sitemap({
       i18n: { defaultLocale: 'pt', locales: { pt: 'pt-BR', en: 'en' } },
-      filter: (page) => !page.includes('/entrar') && !page.includes('/login'),
+      filter: (page) =>
+        !page.includes('/entrar') && !page.includes('/login') && !page.includes('/agenda/reserva') && !page.includes('/schedule/booking'),
     }),
   ],
   build: { inlineStylesheets: 'never', format: 'directory' },
@@ -20,8 +21,10 @@ export default defineConfig({
   vite: {
     build: { assetsInlineLimit: 0 },
     // Só no `npm run dev`: manda /api e /admin para um vgmelo-portal local, como o Caddy faz em produção.
+    // /api/agenda vem antes de /api: vai para o vgmelo-agenda.
     server: {
       proxy: {
+        '/api/agenda': process.env.AGENDA_URL ?? 'http://127.0.0.1:8010',
         '/api': process.env.PORTAL_URL ?? 'http://127.0.0.1:8000',
         '/admin': process.env.PORTAL_URL ?? 'http://127.0.0.1:8000',
       },

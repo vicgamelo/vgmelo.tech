@@ -1,0 +1,551 @@
+---
+import Base from '../layouts/Base.astro';
+import { ROUTES, route, type Lang } from '../i18n/routes';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const pt = lang === 'pt';
+
+const L = pt
+  ? {
+      title: 'Agenda',
+      lead: 'Marque uma conversa comigo: vaga, recrutamento ou consultoria. Você escolhe o horário e confirma pelo link que chega no seu e-mail.',
+      rules:
+        'Seg a sáb, 8h–10h, 12h–14h e 18h–20h (horário de Brasília), de 12 horas a 14 dias de antecedência.',
+      tzNote: 'Horários no seu fuso:',
+      kind: 'Tipo de conversa',
+      job: 'Vaga / recrutamento',
+      consulting: 'Consultoria',
+      duration: 'Duração',
+      minutes: 'min',
+      day: 'Dia',
+      time: 'Horário',
+      noSlots: 'Nenhum horário livre para essa duração nos próximos dias. Tente uma duração menor ou use o contato.',
+      picked: 'Horário escolhido:',
+      name: 'Nome',
+      email: 'Seu e-mail',
+      company: 'Empresa (opcional)',
+      topic: 'Assunto',
+      topicHint: 'O que você quer conversar? Vaga, contexto do projeto, dúvidas.',
+      submit: 'Pedir horário',
+      sending: 'Enviando…',
+      sent: 'Pronto! Mandei um link para {email}. Abra em até {min} minutos para confirmar; sem isso o horário é liberado.',
+      error: 'Não deu para marcar agora. Tente de novo em alguns minutos ou use o contato.',
+      loading: 'Carregando horários…',
+      down: 'A agenda está indisponível agora. Você pode falar comigo pelo contato.',
+      privacy: 'Uso seus dados só para esta conversa. Veja a',
+      privacyLink: 'privacidade',
+      agentTitle: 'Prefere conversar?',
+      agentLead: 'Um assistente com IA ajuda a achar um horário e marcar. Ele só fala de agendamento.',
+      agentPlaceholder: 'Ex.: quero 30 min sobre uma vaga na terça à tarde',
+      agentSend: 'Enviar',
+      agentYou: 'Você',
+      agentBot: 'Assistente',
+      agentOff: 'O assistente está fora do ar agora. Use o formulário ao lado.',
+      agentLimit: 'Muitas mensagens em pouco tempo. Use o formulário ao lado.',
+      mcpTitle: 'Para agentes (MCP)',
+      mcpLead: 'Seu agente pode ler os horários livres e pedir uma conversa pelo servidor MCP público. A reserva também só vale depois do clique no e-mail.',
+      contactLink: 'contato',
+    }
+  : {
+      title: 'Book a call',
+      lead: 'Book a call with me: a job opening, recruiting or consulting. Pick a time and confirm it with the link sent to your email.',
+      rules: 'Mon to Sat, 8–10am, 12–2pm and 6–8pm (Brasília time), from 12 hours to 14 days ahead.',
+      tzNote: 'Times in your timezone:',
+      kind: 'Type of call',
+      job: 'Job / recruiting',
+      consulting: 'Consulting',
+      duration: 'Length',
+      minutes: 'min',
+      day: 'Day',
+      time: 'Time',
+      noSlots: 'No free time for this length in the coming days. Try a shorter call or use the contact form.',
+      picked: 'Selected time:',
+      name: 'Name',
+      email: 'Your email',
+      company: 'Company (optional)',
+      topic: 'Topic',
+      topicHint: 'What would you like to talk about? The role, project context, questions.',
+      submit: 'Request this time',
+      sending: 'Sending…',
+      sent: 'Done! I sent a link to {email}. Open it within {min} minutes to confirm; otherwise the slot is released.',
+      error: "Couldn't book right now. Try again in a few minutes or use the contact form.",
+      loading: 'Loading times…',
+      down: 'The calendar is unavailable right now. You can reach me through the contact form.',
+      privacy: 'I only use your data for this call. See the',
+      privacyLink: 'privacy policy',
+      agentTitle: 'Rather chat?',
+      agentLead: 'An AI assistant helps you find a time and book it. It only talks about scheduling.',
+      agentPlaceholder: 'E.g. 30 min about a job opening on Tuesday afternoon',
+      agentSend: 'Send',
+      agentYou: 'You',
+      agentBot: 'Assistant',
+      agentOff: 'The assistant is offline right now. Please use the form.',
+      agentLimit: 'Too many messages in a short time. Please use the form.',
+      mcpTitle: 'For agents (MCP)',
+      mcpLead: 'Your agent can read free times and request a call through the public MCP server. The booking still needs the click in the email.',
+      contactLink: 'contact form',
+    };
+
+const errors = pt
+  ? {
+      slot_unavailable: 'Esse horário acabou de ser ocupado. Escolha outro.',
+      slot_taken: 'Esse horário acabou de ser ocupado. Escolha outro.',
+      day_full: 'Esse dia já está cheio. Escolha outro dia.',
+      pending_exists: 'Já existe um pedido esperando confirmação para esse e-mail. Confira sua caixa de entrada.',
+      too_many_bookings: 'Esse e-mail já tem o máximo de conversas marcadas.',
+      agenda_busy: 'Muitos pedidos esperando confirmação agora. Tente em alguns minutos.',
+      calendar_unavailable: 'A agenda está indisponível agora. Tente mais tarde.',
+      rate_limited: 'Muitas tentativas em pouco tempo. Tente mais tarde.',
+      email_limit: 'Limite de e-mails de confirmação de hoje atingido. Tente amanhã.',
+      invalid: 'Confira os campos: nome, e-mail válido e assunto (3+ caracteres).',
+    }
+  : {
+      slot_unavailable: 'That time was just taken. Please pick another.',
+      slot_taken: 'That time was just taken. Please pick another.',
+      day_full: 'That day is full. Please pick another day.',
+      pending_exists: 'There is already a request waiting for confirmation for this email. Check your inbox.',
+      too_many_bookings: 'This email already has the maximum number of calls booked.',
+      agenda_busy: 'Too many requests waiting for confirmation right now. Try again in a few minutes.',
+      calendar_unavailable: 'The calendar is unavailable right now. Try again later.',
+      rate_limited: 'Too many attempts in a short time. Please try again later.',
+      email_limit: "Today's confirmation email limit was reached. Please try tomorrow.",
+      invalid: 'Check the fields: name, a valid email and a topic (3+ characters).',
+    };
+const mcpUrl = 'https://vgmelo.tech/api/agenda/mcp';
+---
+
+<Base lang={lang} title={L.title} description={L.lead} alt={ROUTES.agenda}>
+  <div class="container">
+    <header class="page-head">
+      <h1>{L.title}</h1>
+      <p>{L.lead}</p>
+      <p class="muted small">{L.rules} {L.tzNote} <strong data-tz>…</strong></p>
+    </header>
+
+    <div class="layout" id="agenda" data-lang={lang} data-l={JSON.stringify(L)} data-errors={JSON.stringify(errors)}>
+      <section class="picker">
+        <p class="notice" data-loading>{L.loading}</p>
+        <p class="notice error" data-down hidden>
+          {L.down} <a href={route('contact', lang)}>{L.contactLink}</a>
+        </p>
+        <form class="form wide" data-form hidden novalidate>
+          <div class="row">
+            <div class="field">
+              <label for="a-kind">{L.kind}</label>
+              <select id="a-kind" name="kind">
+                <option value="job">{L.job}</option>
+                <option value="consulting">{L.consulting}</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="a-duration">{L.duration}</label>
+              <select id="a-duration" name="duration"></select>
+            </div>
+          </div>
+          <fieldset class="field">
+            <legend>{L.day}</legend>
+            <div class="days" data-days role="group"></div>
+          </fieldset>
+          <fieldset class="field">
+            <legend>{L.time}</legend>
+            <div class="times" data-times role="group"></div>
+          </fieldset>
+          <p class="notice" data-noslots hidden>{L.noSlots}</p>
+
+          <div class="details" data-details hidden>
+            <p class="picked"><span class="muted">{L.picked}</span> <strong data-picked></strong></p>
+            <div class="field">
+              <label for="a-name">{L.name}</label>
+              <input id="a-name" name="name" autocomplete="name" required maxlength="100" />
+            </div>
+            <div class="field">
+              <label for="a-email">{L.email}</label>
+              <input id="a-email" name="email" type="email" autocomplete="email" required maxlength="254" />
+            </div>
+            <div class="field">
+              <label for="a-company">{L.company}</label>
+              <input id="a-company" name="company" autocomplete="organization" maxlength="100" />
+            </div>
+            <div class="field">
+              <label for="a-topic">{L.topic}</label>
+              <textarea id="a-topic" name="topic" required minlength="3" maxlength="1000" placeholder={L.topicHint}></textarea>
+            </div>
+            <div class="hp" aria-hidden="true">
+              <label for="a-website">Website</label>
+              <input id="a-website" name="website" tabindex="-1" autocomplete="off" />
+            </div>
+            <p class="muted small">{L.privacy} <a href={route('privacy', lang)}>{L.privacyLink}</a>.</p>
+            <div class="actions">
+              <button class="btn primary" type="submit">{L.submit}</button>
+            </div>
+          </div>
+          <p class="notice" role="status" aria-live="polite" data-status hidden></p>
+        </form>
+      </section>
+
+      <aside class="chat" data-chat hidden>
+        <h2>{L.agentTitle}</h2>
+        <p class="muted small">{L.agentLead}</p>
+        <ol class="messages" data-messages aria-live="polite"></ol>
+        <form class="ask" data-ask>
+          <label class="sr" for="a-ask">{L.agentPlaceholder}</label>
+          <input id="a-ask" name="message" maxlength="500" placeholder={L.agentPlaceholder} autocomplete="off" required />
+          <button class="btn primary" type="submit">{L.agentSend}</button>
+        </form>
+      </aside>
+    </div>
+
+    <section class="section mcp">
+      <h2>{L.mcpTitle}</h2>
+      <p class="muted">{L.mcpLead}</p>
+      <pre>claude mcp add --transport http agenda-victor {mcpUrl}</pre>
+      <p class="muted small mono">horarios_livres · marcar</p>
+    </section>
+  </div>
+</Base>
+
+<script>
+  import {
+    agendaApi,
+    bookingBody,
+    browserTz,
+    chatBody,
+    dayLabel,
+    errorText,
+    groupByLocalDay,
+    whenLabel,
+    type AgendaConfig,
+    type BookingForm,
+    type ChatReply,
+    type Day,
+    type Kind,
+    type SlotsResponse,
+  } from '../lib/agenda';
+  import type { Lang } from '../i18n/routes';
+
+  const root = document.getElementById('agenda');
+  if (root) {
+    const lang = root.dataset.lang as Lang;
+    const L = JSON.parse(root.dataset.l!) as Record<string, string>;
+    const E = JSON.parse(root.dataset.errors!) as Record<string, string>;
+    const tz = browserTz();
+    const q = <T extends HTMLElement>(sel: string) => root.querySelector<T>(sel)!;
+    document.querySelector('[data-tz]')!.textContent = tz;
+
+    const form = q<HTMLFormElement>('[data-form]');
+    const kindSel = q<HTMLSelectElement>('#a-kind');
+    const durSel = q<HTMLSelectElement>('#a-duration');
+    const daysEl = q<HTMLElement>('[data-days]');
+    const timesEl = q<HTMLElement>('[data-times]');
+    const details = q<HTMLElement>('[data-details]');
+    const status = q<HTMLElement>('[data-status]');
+    const submit = form.querySelector<HTMLButtonElement>('button[type=submit]')!;
+    const startedAt = Date.now();
+    let config: AgendaConfig;
+    let days: Day[] = [];
+    let day: string | null = null;
+    let start: string | null = null;
+
+    const show = (el: HTMLElement, text: string, cls: '' | 'ok' | 'error') => {
+      el.hidden = false;
+      el.className = `notice ${cls}`;
+      el.textContent = text;
+    };
+
+    const button = (label: string, pressed: boolean, onClick: () => void) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.textContent = label;
+      b.setAttribute('aria-pressed', String(pressed));
+      b.addEventListener('click', onClick);
+      return b;
+    };
+
+    const renderTimes = () => {
+      timesEl.replaceChildren(
+        ...(days.find((d) => d.date === day)?.times ?? []).map((t) =>
+          button(t.label, t.iso === start, () => {
+            start = t.iso;
+            q<HTMLElement>('[data-picked]').textContent = `${whenLabel(t.iso, tz, lang)} · ${durSel.value} ${L.minutes}`;
+            details.hidden = false;
+            renderTimes();
+          }),
+        ),
+      );
+    };
+
+    const renderDays = () => {
+      daysEl.replaceChildren(
+        ...days.map((d) =>
+          button(dayLabel(d.date, lang), d.date === day, () => {
+            day = d.date;
+            start = null;
+            details.hidden = true;
+            renderDays();
+            renderTimes();
+          }),
+        ),
+      );
+      q<HTMLElement>('[data-noslots]').hidden = days.length > 0;
+    };
+
+    const loadSlots = async () => {
+      const kind = kindSel.value as Kind;
+      const slots = await agendaApi<SlotsResponse>(`/slots?kind=${kind}&duration=${Number(durSel.value)}`);
+      if (!slots.calendar_ok) throw { status: 503, code: 'calendar_unavailable' };
+      days = groupByLocalDay(slots, tz, lang);
+      if (!days.some((d) => d.date === day)) day = days[0]?.date ?? null;
+      if (!days.some((d) => d.times.some((t) => t.iso === start))) {
+        start = null;
+        details.hidden = true;
+      }
+      renderDays();
+      renderTimes();
+    };
+
+    const fillDurations = () => {
+      const kind = kindSel.value as Kind;
+      const current = Number(durSel.value) || 30;
+      durSel.replaceChildren(
+        ...config.kinds[kind].durations.map((m) => {
+          const o = document.createElement('option');
+          o.value = String(m);
+          o.textContent = `${m} ${L.minutes}`;
+          return o;
+        }),
+      );
+      const ds = config.kinds[kind].durations;
+      durSel.value = String(ds.includes(current) ? current : ds.includes(30) ? 30 : ds[0]);
+    };
+
+    const down = () => {
+      q<HTMLElement>('[data-loading]').hidden = true;
+      q<HTMLElement>('[data-down]').hidden = false;
+      form.hidden = true;
+    };
+
+    kindSel.addEventListener('change', () => {
+      fillDurations();
+      void loadSlots().catch(down);
+    });
+    durSel.addEventListener('change', () => void loadSlots().catch(down));
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!start || !form.reportValidity()) return;
+      const values = Object.fromEntries(new FormData(form)) as unknown as BookingForm;
+      submit.disabled = true;
+      show(status, L.sending, '');
+      try {
+        await agendaApi('/bookings', bookingBody({ ...values, start }, lang, tz, startedAt));
+        show(status, L.sent.replace('{email}', values.email).replace('{min}', String(config.hold_minutes)), 'ok');
+        details.hidden = true;
+        start = null;
+        await loadSlots();
+      } catch (err) {
+        show(status, errorText(err, E, L.error), 'error');
+        if ((err as { status?: number }).status === 409) await loadSlots().catch(() => undefined);
+      } finally {
+        submit.disabled = false;
+      }
+    });
+
+    // ---- assistente ----
+    const chat = q<HTMLElement>('[data-chat]');
+    const list = q<HTMLOListElement>('[data-messages]');
+    const ask = q<HTMLFormElement>('[data-ask]');
+    const input = ask.querySelector<HTMLInputElement>('input')!;
+    let conversation: string | null = null;
+    let chatOver = false; // fim de conversa, orçamento ou assistente fora do ar
+
+    const say = (who: string, text: string, cls: string) => {
+      const li = document.createElement('li');
+      li.className = cls;
+      const b = document.createElement('strong');
+      b.textContent = who;
+      const p = document.createElement('p');
+      p.textContent = text; // texto puro: nada do modelo vira HTML
+      li.append(b, p);
+      list.append(li);
+      li.scrollIntoView({ block: 'nearest' });
+    };
+
+    ask.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const message = input.value.trim();
+      if (!message) return;
+      input.value = '';
+      say(L.agentYou, message, 'me');
+      const btn = ask.querySelector<HTMLButtonElement>('button')!;
+      btn.disabled = input.disabled = true;
+      try {
+        const r = await agendaApi<ChatReply>('/chat', chatBody(message, conversation, lang, tz));
+        conversation = r.conversation;
+        say(L.agentBot, r.reply, 'bot');
+        if (r.remaining <= 0) chatOver = true;
+        await loadSlots().catch(() => undefined); // o assistente pode ter segurado um horário
+      } catch (err) {
+        const st = (err as { status?: number }).status;
+        say(L.agentBot, st === 429 ? L.agentLimit : L.agentOff, 'bot error');
+        if (st === 503) chatOver = true;
+      } finally {
+        btn.disabled = input.disabled = chatOver;
+        if (!chatOver) input.focus();
+      }
+    });
+
+    (async () => {
+      try {
+        config = await agendaApi<AgendaConfig>('/config');
+        if (!config.calendar_ok) return down();
+        input.maxLength = config.agent_max_chars;
+        chat.hidden = !config.agent;
+        fillDurations();
+        await loadSlots();
+        q<HTMLElement>('[data-loading]').hidden = true;
+        form.hidden = false;
+      } catch {
+        down();
+      }
+    })();
+  }
+</script>
+
+<style>
+  .small {
+    font-size: 14px;
+  }
+  .layout {
+    display: grid;
+    gap: 28px;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+  @media (min-width: 960px) {
+    .layout {
+      grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    }
+  }
+  .wide {
+    max-width: none;
+  }
+  .row {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+  fieldset {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+  }
+  legend {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+  .days,
+  .times {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .days :global(.chip),
+  .times :global(.chip) {
+    font: inherit;
+    font-size: 14px;
+    min-height: 40px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .days :global(.chip:hover),
+  .times :global(.chip:hover) {
+    border-color: var(--accent);
+  }
+  .days :global(.chip[aria-pressed='true']),
+  .times :global(.chip[aria-pressed='true']) {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+  .times :global(.chip) {
+    font-variant-numeric: tabular-nums;
+  }
+  .details {
+    display: grid;
+    gap: 14px;
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+  }
+  .picked {
+    margin: 0;
+  }
+  .chat {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+    display: grid;
+    gap: 10px;
+  }
+  .chat h2 {
+    font-size: 20px;
+    margin: 0;
+  }
+  .chat p {
+    margin: 0;
+  }
+  .messages {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 10px;
+    max-height: 420px;
+    overflow-y: auto;
+  }
+  .messages :global(li) {
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: var(--bg-soft);
+  }
+  .messages :global(li.me) {
+    background: var(--accent-soft);
+  }
+  .messages :global(li.error) {
+    color: var(--danger);
+  }
+  .messages :global(strong) {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .messages :global(p) {
+    margin: 2px 0 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .ask {
+    display: flex;
+    gap: 8px;
+  }
+  .sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .mcp pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+</style>

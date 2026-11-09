@@ -11,6 +11,8 @@ export const ROUTES = {
   consulting: { pt: '/consultoria/', en: '/en/consulting/' },
   about: { pt: '/sobre/', en: '/en/about/' },
   contact: { pt: '/contato/', en: '/en/contact/' },
+  agenda: { pt: '/agenda/', en: '/en/schedule/' },
+  agendaBooking: { pt: '/agenda/reserva/', en: '/en/schedule/booking/' },
   privacy: { pt: '/privacidade/', en: '/en/privacy/' },
   login: { pt: '/entrar/', en: '/en/login/' },
   demoCnpj: { pt: '/demos/cnpj/', en: '/en/demos/cnpj/' },
