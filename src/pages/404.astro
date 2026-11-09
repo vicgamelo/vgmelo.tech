@@ -1,0 +1,17 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base lang="pt" title="Página não encontrada" alt={{ pt: '/', en: '/en/' }} noindex>
+  <div class="container narrow">
+    <header class="page-head">
+      <h1>Página não encontrada</h1>
+      <p>Esse endereço não existe ou mudou de lugar.</p>
+      <p lang="en" class="muted">This page doesn't exist or has moved.</p>
+    </header>
+    <div class="actions">
+      <a class="btn primary" href="/">Ir para o início</a>
+      <a class="btn" href="/en/">Go to the English home</a>
+    </div>
+  </div>
+</Base>
