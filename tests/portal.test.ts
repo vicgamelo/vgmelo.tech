@@ -1,7 +1,8 @@
 // Contrato com o vgmelo-portal (README do portal). Cada caso aqui veio de uma
 // divergência real entre o que o site mandava/lia e o que o portal aceita/devolve.
 import { describe, expect, it } from 'vitest';
-import { contactBody, errorFromBody, fetchTrace, liveError, totpSecret, type ApiError } from '../src/lib/api';
+import { contactBody, errorFromBody, fetchTrace, liveError, totpSecret, type ApiError, type Me } from '../src/lib/api';
+import { gateState } from '../src/lib/live';
 import { buildApplicant, FIXED } from '../src/lib/credit';
 
 const T = {
@@ -135,5 +136,32 @@ describe('trace da demo de agentes', () => {
     };
     await expect(fetchTrace('abc', get, noWait)).rejects.toMatchObject({ status: 429 });
     expect(calls).toBe(1);
+  });
+});
+
+describe('portão das demos ao vivo', () => {
+  const me = (over: Partial<Me> = {}): Me => ({
+    user: { id: 'u', name: 'Ana', email: 'a@x.com', provider: 'github', mfa: false },
+    pending: null,
+    providers: { google: true, github: true, email: true },
+    quotas: { score: { limit: 3, used: 0, remaining: 3 }, agents: { limit: 5, used: 0, remaining: 5 } },
+    resets_at: '2026-11-10T00:00:00-03:00',
+    budget_exhausted: false,
+    ...over,
+  });
+
+  it('portal fora do ar', () => expect(gateState(null, 'score')).toEqual({ kind: 'unavailable' }));
+  it('sem sessão pede login', () => expect(gateState(me({ user: null }), 'score').kind).toBe('login'));
+  it('volta do OAuth com erro', () => expect(gateState(me({ user: null }), 'score', true).kind).toBe('oauthError'));
+  it('e-mail sem TOTP ativado ainda não usa demo', () =>
+    expect(gateState(me({ user: null, pending: 'totp_setup' }), 'score').kind).toBe('login'));
+
+  it('cota zerada bloqueia a demo', () => {
+    expect(gateState(me({ quotas: { score: { limit: 3, used: 3, remaining: 0 } } }), 'score').kind).toBe('quota');
+  });
+
+  it('orçamento global só trava a demo de agentes', () => {
+    expect(gateState(me({ budget_exhausted: true }), 'agents').kind).toBe('budget');
+    expect(gateState(me({ budget_exhausted: true }), 'score')).toEqual({ kind: 'ready', remaining: 3 });
   });
 });

@@ -6,45 +6,54 @@ export interface Gate {
   ready: boolean;
 }
 
+export type GateState =
+  | { kind: 'unavailable' | 'login' | 'oauthError' | 'quota' | 'budget' }
+  | { kind: 'ready'; remaining: number | null };
+
+/** O que a demo mostra para essa sessão. Sem efeito colateral, para dar para testar. */
+export function gateState(me: Me | null, quotaKey: string, authError = false): GateState {
+  if (!me) return { kind: 'unavailable' };
+  if (!me.user) return { kind: authError ? 'oauthError' : 'login' };
+  const q = me.quotas[quotaKey];
+  if (q && q.remaining <= 0) return { kind: 'quota' };
+  if (quotaKey === 'agents' && me.budget_exhausted) return { kind: 'budget' };
+  return { kind: 'ready', remaining: q ? q.remaining : null };
+}
+
+const MESSAGE = {
+  unavailable: 'login.unavailable',
+  login: 'live.needLogin',
+  oauthError: 'login.oauthError',
+  quota: 'live.quota',
+  budget: 'live.budget',
+} as const;
+
 export async function gate(root: HTMLElement, quotaKey: string, s: Record<string, string>): Promise<Gate> {
   const notice = root.querySelector<HTMLElement>('[data-gate]')!;
   const form = root.querySelector<HTMLElement>('[data-live]')!;
   const remaining = root.querySelector<HTMLElement>('[data-remaining]');
   const me = await getMe();
-  const show = (text: string, link?: { href: string; label: string }) => {
-    notice.hidden = false;
-    notice.replaceChildren(document.createTextNode(text));
-    if (link) {
-      const a = document.createElement('a');
-      a.href = link.href;
-      a.className = 'btn primary gate-btn';
-      a.textContent = link.label;
-      notice.append(document.createElement('br'), a);
-    }
-  };
-  if (!me) {
-    show(s['login.unavailable']);
-    return { me, ready: false };
+  // O portal volta para esta página com ?auth_error=oauth quando o Google/GitHub falha.
+  const state = gateState(me, quotaKey, new URLSearchParams(location.search).has('auth_error'));
+  if (state.kind === 'ready') {
+    notice.hidden = true;
+    form.hidden = false;
+    if (remaining) remaining.textContent = state.remaining === null ? '' : `${s['live.remaining']} ${state.remaining}`;
+    return { me, ready: true };
   }
-  if (!me.user) {
-    // O portal volta para esta página com ?auth_error=oauth quando o Google/GitHub falha.
-    const failed = new URLSearchParams(location.search).has('auth_error');
-    show(failed ? s['login.oauthError'] : s['live.needLogin'], { href: `${root.dataset.login}?next=${encodeURIComponent(location.pathname)}`, label: s['login.title'] });
-    return { me, ready: false };
+  // Qualquer outro estado esconde o formulário: o resultado anterior continua na tela.
+  form.hidden = true;
+  if (remaining) remaining.textContent = '';
+  notice.hidden = false;
+  notice.replaceChildren(document.createTextNode(s[MESSAGE[state.kind]]));
+  if (state.kind === 'login' || state.kind === 'oauthError') {
+    const a = document.createElement('a');
+    a.href = `${root.dataset.login}?next=${encodeURIComponent(location.pathname)}`;
+    a.className = 'btn primary gate-btn';
+    a.textContent = s['login.title'];
+    notice.append(document.createElement('br'), a);
   }
-  const q = me.quotas[quotaKey];
-  if (q && q.remaining <= 0) {
-    show(s['live.quota']);
-    return { me, ready: false };
-  }
-  if (quotaKey === 'agents' && me.budget_exhausted) {
-    show(s['live.budget']);
-    return { me, ready: false };
-  }
-  notice.hidden = true;
-  form.hidden = false;
-  if (remaining && q) remaining.textContent = `${q.remaining} ${s['live.remaining']}`;
-  return { me, ready: true };
+  return { me, ready: false };
 }
 
 export const LIVE_KEYS = ['login.unavailable', 'live.needLogin', 'login.title', 'live.quota', 'live.budget', 'live.error', 'live.remaining', 'live.busy', 'live.invalid', 'login.oauthError'] as const;
