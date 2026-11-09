@@ -17,7 +17,7 @@ export interface Project {
   summary: T;
   highlights: Record<Lang, string[]>;
   tags: string[];
-  demo?: 'demoCnpj' | 'demoMcp' | 'demoAgents' | 'demoCredit' | 'demoDrift' | 'demoAttention';
+  demo?: 'demoCnpj' | 'demoMcp' | 'demoAgents' | 'demoCredit' | 'demoDrift' | 'demoAttention' | 'demoOcr';
   featured?: boolean;
 }
 
@@ -119,6 +119,29 @@ export const PROJECTS: Project[] = [
     tags: ['MLflow', 'MLOps', 'scikit-learn'],
     demo: 'demoCredit',
     featured: true,
+  },
+  {
+    slug: 'ocr-brasil',
+    name: 'ocr-brasil',
+    repo: 'https://github.com/vicgamelo/ocr-brasil',
+    summary: {
+      pt: 'OCR de documentos brasileiros no navegador: acha CPF, CNPJ e linha digitável numa foto e usa o dígito verificador para decidir no que confiar.',
+      en: 'In-browser OCR for Brazilian documents: finds CPF, CNPJ and boleto lines in a photo and uses the check digit to decide what to trust.',
+    },
+    highlights: {
+      pt: [
+        'Tesseract (WASM) com o modelo em português servido pelo próprio site; a imagem não sai do aparelho',
+        'Corrige O→0, l→1, S→5 só quando o dígito verificador confirma, e relê o trecho que falhou',
+        'Limiar adaptativo (Bradley-Roth) para foto com sombra',
+      ],
+      en: [
+        'Tesseract (WASM) with the Portuguese model served by the site itself; the image never leaves the device',
+        'Fixes O→0, l→1, S→5 only when the check digit agrees, and re-reads the strip that failed',
+        'Adaptive threshold (Bradley-Roth) for photos with shadows',
+      ],
+    },
+    tags: ['OCR', 'Computer vision', 'TypeScript'],
+    demo: 'demoOcr',
   },
   {
     slug: 'ml-from-scratch',
@@ -274,7 +297,7 @@ export const STACK = [
 ];
 
 export interface Demo {
-  key: 'demoCnpj' | 'demoDrift' | 'demoAttention' | 'demoAgents' | 'demoCredit' | 'demoMcp';
+  key: 'demoCnpj' | 'demoDrift' | 'demoAttention' | 'demoAgents' | 'demoCredit' | 'demoMcp' | 'demoOcr';
   live: boolean;
   title: T;
   text: T;
@@ -310,6 +333,16 @@ export const DEMOS: Demo[] = [
     text: {
       pt: 'Preencha um perfil e veja a probabilidade de inadimplência dada pelo modelo campeão do MLflow.',
       en: 'Fill in a profile and get the default probability from the champion model in MLflow.',
+    },
+  },
+  {
+    key: 'demoOcr',
+    live: false,
+    project: 'ocr-brasil',
+    title: { pt: 'OCR de boleto, CPF e CNPJ', en: 'OCR for boletos, CPF and CNPJ' },
+    text: {
+      pt: 'Mande a foto de um boleto, nota ou cartão CNPJ e veja o OCR achar os números e conferir cada dígito, tudo no seu navegador.',
+      en: 'Upload a photo of a boleto, invoice or CNPJ card and watch the OCR find the numbers and check every digit, all in your browser.',
     },
   },
   {

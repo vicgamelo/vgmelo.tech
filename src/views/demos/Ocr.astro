@@ -1,0 +1,546 @@
+---
+import DemoShell from '../../components/DemoShell.astro';
+import { route, type Lang } from '../../i18n/routes';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const L =
+  lang === 'pt'
+    ? {
+        upload: 'Escolher foto',
+        examples: 'ou teste com um exemplo:',
+        ex: {
+          boleto: 'Boleto',
+          'boleto-foto': 'Boleto (foto ruim)',
+          'nota-foto': 'Nota fiscal (foto com sombra)',
+          'conta-luz': 'Conta de luz',
+          'cartao-escuro': 'Cartão CNPJ (fundo escuro)',
+        },
+        binarize: 'Limpar a imagem (limiar adaptativo)',
+        reread: 'Reler o trecho que falhar no dígito',
+        original: 'Mostrar a foto original',
+        loading: 'Baixando o motor de OCR e o modelo em português (uns 5 MB, só na primeira vez)…',
+        core: 'Carregando o motor (WebAssembly)…',
+        lang: 'Carregando o modelo em português…',
+        init: 'Preparando o Tesseract…',
+        reading: 'Lendo a imagem…',
+        cleaning: 'Limpando a imagem…',
+        done: 'Leitura em {ms} ms · confiança média {conf}%',
+        rereadDone: ' · {n} trecho(s) relido(s)',
+        nothing: 'Não achei CPF, CNPJ nem linha digitável nesta imagem. Tente uma foto mais de perto, reta e com boa luz.',
+        error: 'Não deu para rodar o OCR neste navegador: ',
+        wasm: 'este navegador não deixa a página rodar WebAssembly, que é onde o Tesseract roda.',
+        badImage: 'Não consegui abrir esse arquivo como imagem.',
+        valid: 'válido',
+        invalid: 'inválido',
+        expected: 'Dígitos esperados',
+        corrected: 'Corrigido porque o dígito verificador confirmou',
+        reread_: 'A primeira leitura falhou no dígito; relendo só esse trecho, como números, deu',
+        minConf: 'Menor confiança de um caractere',
+        seeMath: 'Ver a conta do dígito',
+        bancario: 'Boleto bancário',
+        arrecadacao: 'Arrecadação (contas e tributos)',
+        bank: 'Banco',
+        segment: 'Segmento',
+        amount: 'Valor',
+        open: 'em aberto',
+        due: 'Vencimento',
+        noDue: 'sem vencimento',
+        field: 'Campo',
+        block: 'Bloco',
+        digits: 'Dígitos',
+        got: 'Lido',
+        exp: 'Esperado',
+        general: 'Dígito geral',
+        count: '{n} dígitos; a linha digitável tem 47 (bancário) ou 48 (arrecadação). Faltou ou sobrou algum na leitura.',
+        valueId: 'Identificador de valor {id}: só existem 6, 7, 8 e 9.',
+        segments: '',
+        text: 'Texto que o Tesseract leu',
+        canvas: 'Imagem lida, com as palavras marcadas',
+        privacy: 'A imagem não sai do seu navegador: o OCR roda aqui, com o Tesseract em WebAssembly e o modelo servido por este site. Os exemplos são fictícios.',
+      }
+    : {
+        upload: 'Choose a photo',
+        examples: 'or try an example:',
+        ex: {
+          boleto: 'Boleto',
+          'boleto-foto': 'Boleto (poor photo)',
+          'nota-foto': 'Invoice (photo with shadow)',
+          'conta-luz': 'Electricity bill',
+          'cartao-escuro': 'CNPJ card (dark background)',
+        },
+        binarize: 'Clean up the image (adaptive threshold)',
+        reread: 'Re-read any strip that fails its check digit',
+        original: 'Show the original photo',
+        loading: 'Downloading the OCR engine and the Portuguese model (about 5 MB, first time only)…',
+        core: 'Loading the engine (WebAssembly)…',
+        lang: 'Loading the Portuguese model…',
+        init: 'Starting Tesseract…',
+        reading: 'Reading the image…',
+        cleaning: 'Cleaning up the image…',
+        done: 'Read in {ms} ms · mean confidence {conf}%',
+        rereadDone: ' · {n} strip(s) re-read',
+        nothing: "No CPF, CNPJ or boleto line found in this image. Try a closer, straighter photo with good light.",
+        error: "Couldn't run the OCR in this browser: ",
+        wasm: "this browser doesn't let the page run WebAssembly, which is what Tesseract runs on.",
+        badImage: "Couldn't open that file as an image.",
+        valid: 'valid',
+        invalid: 'invalid',
+        expected: 'Expected check digits',
+        corrected: 'Fixed because the check digit agreed',
+        reread_: 'The first read failed the check digit; re-reading just that strip as digits gave',
+        minConf: 'Lowest character confidence',
+        seeMath: 'See the check digit math',
+        bancario: 'Bank boleto',
+        arrecadacao: 'Utility / tax slip (arrecadação)',
+        bank: 'Bank',
+        segment: 'Segment',
+        amount: 'Amount',
+        open: 'open',
+        due: 'Due date',
+        noDue: 'no due date',
+        field: 'Field',
+        block: 'Block',
+        digits: 'Digits',
+        got: 'Read',
+        exp: 'Expected',
+        general: 'General digit',
+        count: '{n} digits; a boleto line has 47 (bank) or 48 (arrecadação). The read missed or added some.',
+        valueId: 'Value identifier {id}: only 6, 7, 8 and 9 exist.',
+        segments: 'City halls|Water and sewage|Electricity and gas|Telecom|Government agencies|Payment books|Traffic fines||Bank use only',
+        text: 'Text Tesseract read',
+        canvas: 'Image as read, with the words marked',
+        privacy: 'The image never leaves your browser: the OCR runs here, with Tesseract in WebAssembly and the model served by this site. The examples are fictitious.',
+      };
+const examples = Object.entries(L.ex).map(([key, label]) => ({
+  label,
+  src: `/ocr/exemplos/${key}.${key.endsWith('foto') ? 'jpg' : 'png'}`,
+}));
+---
+
+<DemoShell lang={lang} demo="demoOcr">
+  <div class="demo" id="ocr" data-l={JSON.stringify(L)} data-lang={lang} data-cnpj={route('demoCnpj', lang)}>
+    <div class="pick">
+      <label class="btn primary upload">
+        {L.upload}
+        <input id="file" type="file" accept="image/*" />
+      </label>
+      <span class="muted small">{L.examples}</span>
+      <div class="examples">
+        {examples.map((e) => <button type="button" class="btn ex" data-src={e.src}>{e.label}</button>)}
+      </div>
+    </div>
+    <div class="opts small">
+      <label><input id="bin" type="checkbox" checked /> {L.binarize}</label>
+      <label><input id="reread" type="checkbox" checked /> {L.reread}</label>
+      <label><input id="orig" type="checkbox" /> {L.original}</label>
+    </div>
+    <div class="status">
+      <p id="status" class="muted small" aria-live="polite"></p>
+      <progress id="progress" max="1" value="0" hidden></progress>
+    </div>
+    <canvas id="view" hidden role="img" aria-label={L.canvas}></canvas>
+    <div id="results" aria-live="polite"></div>
+    <details id="raw" hidden>
+      <summary class="small">{L.text}</summary>
+      <pre id="text"></pre>
+    </details>
+    <p class="muted small">{L.privacy}</p>
+  </div>
+</DemoShell>
+
+<script>
+  import type { Boleto } from '../../lib/ocr/boleto';
+  import type { Finding } from '../../lib/ocr/extract';
+  import { wordsInSpan, minConfidence } from '../../lib/ocr/layout';
+  import { createReader, type ReadResult, type Reader } from '../../lib/ocr/ocr';
+  import { grayToRgba, prepare, targetSize, toPgm } from '../../lib/ocr/preprocess';
+
+  const VENDOR = '/ocr/vendor';
+  const root = document.getElementById('ocr');
+  if (root) {
+    type Labels = Record<string, string>;
+    const L = JSON.parse(root.dataset.l!) as Labels;
+    const pt = root.dataset.lang === 'pt';
+    const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+    const file = $<HTMLInputElement>('file');
+    const bin = $<HTMLInputElement>('bin');
+    const reread = $<HTMLInputElement>('reread');
+    const orig = $<HTMLInputElement>('orig');
+    const status = $('status');
+    const progress = $<HTMLProgressElement>('progress');
+    const view = $<HTMLCanvasElement>('view');
+    const results = $('results');
+    const raw = $<HTMLDetailsElement>('raw');
+    const text = $('text');
+    const buttons = [...root.querySelectorAll<HTMLButtonElement>('button.ex')];
+
+    const money = new Intl.NumberFormat(pt ? 'pt-BR' : 'en', { style: 'currency', currency: 'BRL' });
+    const day = new Intl.DateTimeFormat(pt ? 'pt-BR' : 'en', { dateStyle: 'medium', timeZone: 'UTC' });
+    const fill = (s: string, v: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k) => String(v[k]));
+
+    const el = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string | number, cls?: string) => {
+      const e = document.createElement(tag);
+      if (text !== undefined) e.textContent = String(text);
+      if (cls) e.className = cls;
+      return e;
+    };
+
+    let readerP: Promise<Reader> | null = null;
+    let bitmap: ImageBitmap | null = null;
+    let last: { result: ReadResult; color: HTMLCanvasElement; gray: ImageData } | null = null;
+    let busy = false;
+
+    const STATUS: Record<string, string> = {
+      'loading tesseract core': L.core,
+      'loading language traineddata': L.lang,
+      'initializing api': L.init,
+      'recognizing text': L.reading,
+    };
+
+    // Se a CSP ou o navegador bloquear o WebAssembly, o Tesseract aborta dentro do worker sem rejeitar
+    // a promise e a demo ficaria girando. Um worker mínimo, com a mesma CSP, pergunta antes.
+    function wasmAllowed(): Promise<boolean> {
+      return new Promise((resolve) => {
+        const w = new Worker('/ocr/wasm-check.js');
+        const done = (ok: boolean) => {
+          resolve(ok);
+          w.terminate();
+        };
+        w.onmessage = (e) => done(e.data === true);
+        w.onerror = () => done(false);
+      });
+    }
+
+    function getReader(): Promise<Reader> {
+      readerP ??= wasmAllowed()
+        .then((ok) => {
+          if (!ok) throw new Error(L.wasm);
+          return createReader({
+            workerPath: `${VENDOR}/worker.min.js`,
+            corePath: `${VENDOR}/core/`,
+            langPath: `${VENDOR}/lang/`,
+            logger: (m) => {
+              if (STATUS[m.status]) status.textContent = STATUS[m.status];
+              progress.hidden = false;
+              progress.value = m.progress;
+            },
+          });
+        })
+        .catch((e) => {
+          readerP = null;
+          throw e;
+        });
+      return readerP;
+    }
+
+    function setBusy(b: boolean) {
+      busy = b;
+      for (const x of [file, bin, reread, ...buttons]) x.disabled = b;
+      root!.setAttribute('aria-busy', String(b));
+    }
+
+    async function run() {
+      if (!bitmap || busy) return;
+      setBusy(true);
+      results.replaceChildren();
+      try {
+        status.textContent = readerP ? L.cleaning : L.loading;
+        const reader = await getReader();
+        status.textContent = L.cleaning;
+        // Desenha já no tamanho que o Tesseract lê melhor (o navegador reduz a foto com boa qualidade).
+        const { width, height } = targetSize(bitmap.width, bitmap.height);
+        const color = document.createElement('canvas');
+        color.width = width;
+        color.height = height;
+        const ctx = color.getContext('2d', { willReadFrequently: true })!;
+        ctx.drawImage(bitmap, 0, 0, width, height);
+        const { image } = prepare(ctx.getImageData(0, 0, width, height).data, width, height, {
+          binarize: bin.checked,
+          resize: false,
+        });
+        const gray = new ImageData(grayToRgba(image), width, height);
+        const result = await reader.read(new Blob([toPgm(image)]), { reread: reread.checked });
+        last = { result, color, gray };
+        let msg = fill(L.done, { ms: result.ms, conf: Math.round(result.confidence) });
+        if (result.reread) msg += fill(L.rereadDone, { n: result.reread });
+        status.textContent = msg;
+        draw();
+        show(result);
+      } catch (e) {
+        status.textContent = L.error + (e instanceof Error ? e.message : String(e));
+      } finally {
+        progress.hidden = true;
+        setBusy(false);
+      }
+    }
+
+    // Cores fixas: o canvas mostra a foto (clara), não a página, então não segue o tema.
+    const INK = { word: '#64748b', ok: '#047857', bad: '#b91c1c' };
+
+    function draw() {
+      if (!last) return;
+      const { result, color, gray } = last;
+      view.width = color.width;
+      view.height = color.height;
+      const ctx = view.getContext('2d')!;
+      if (orig.checked) ctx.drawImage(color, 0, 0);
+      else ctx.putImageData(gray, 0, 0);
+      const line = Math.max(2, Math.round(view.width / 500));
+      ctx.lineWidth = line;
+      ctx.strokeStyle = INK.word;
+      ctx.globalAlpha = 0.45;
+      for (const w of result.words) ctx.strokeRect(w.bbox.x0, w.bbox.y0, w.bbox.x1 - w.bbox.x0, w.bbox.y1 - w.bbox.y0);
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = line * 2;
+      for (const f of result.findings) {
+        ctx.strokeStyle = f.valid ? INK.ok : INK.bad;
+        for (const w of wordsInSpan(result.words, f.start, f.end)) {
+          ctx.strokeRect(w.bbox.x0 - line, w.bbox.y0 - line, w.bbox.x1 - w.bbox.x0 + 2 * line, w.bbox.y1 - w.bbox.y0 + 2 * line);
+        }
+      }
+      view.hidden = false;
+    }
+
+    function fieldTable(b: Boleto): HTMLElement {
+      const wrap = el('div', undefined, 'table-wrap');
+      const t = el('table');
+      const head = el('tr');
+      head.append(...[b.kind === 'bancario' ? L.field : L.block, L.digits, L.got, L.exp, ''].map((h) => el('th', h)));
+      t.append(head);
+      for (const f of b.fields) {
+        const tr = el('tr', undefined, f.ok ? '' : 'bad');
+        tr.append(el('td', f.field), el('td', f.digits, 'mono'), el('td', f.got, 'mono'), el('td', f.expected, 'mono'), el('td', f.ok ? '✓' : '✗'));
+        t.append(tr);
+      }
+      const g = el('tr', undefined, b.general.ok ? '' : 'bad');
+      const name = el('td', L.general);
+      name.colSpan = 2;
+      g.append(name, el('td', b.general.got, 'mono'), el('td', b.general.expected, 'mono'), el('td', b.general.ok ? '✓' : '✗'));
+      t.append(g);
+      wrap.append(t);
+      return wrap;
+    }
+
+    function card(f: Finding, r: ReadResult): HTMLElement {
+      const c = el('article', undefined, `finding ${f.valid ? 'ok' : 'bad'}`);
+      const head = el('header');
+      const kind = f.type === 'BOLETO' ? (f.boleto ? L[f.boleto.kind] : 'Boleto') : f.doc.alphanumeric ? `${f.type} (A-Z)` : f.type;
+      head.append(el('strong', kind), el('span', f.valid ? L.valid : L.invalid, 'verdict'));
+      c.append(head);
+      const value = f.type === 'BOLETO' ? (f.boleto?.formatted ?? f.raw) : f.doc.formatted;
+      c.append(el('p', value, 'mono value'));
+
+      if (f.type !== 'BOLETO' && !f.valid && f.doc.expected) {
+        const p = el('p', `${L.expected}: `);
+        p.append(el('span', f.doc.expected, 'mono'), ' · ');
+        const a = el('a', L.seeMath);
+        a.href = root!.dataset.cnpj!;
+        p.append(a);
+        c.append(p);
+      }
+      if (f.type === 'BOLETO' && f.digitCount) c.append(el('p', fill(L.count, { n: f.digitCount })));
+      if (f.type === 'BOLETO' && f.boleto) {
+        const b = f.boleto;
+        const dl = el('dl');
+        const row = (k: string, v: string) => dl.append(el('dt', k), el('dd', v));
+        if (b.bank) row(L.bank, b.bank.name ? `${b.bank.code} · ${b.bank.name}` : b.bank.code);
+        if (b.segment) {
+          const en = L.segments ? L.segments.split('|')[Number(b.segment.code) - 1] : '';
+          row(L.segment, `${b.segment.code} · ${en || b.segment.name}`);
+        }
+        row(L.amount, b.amountCents === null ? L.open : money.format(b.amountCents / 100));
+        if (b.kind === 'bancario') row(L.due, b.dueDate ? day.format(new Date(`${b.dueDate}T00:00:00Z`)) : L.noDue);
+        c.append(dl, fieldTable(b));
+        if (b.badValueId) c.append(el('p', fill(L.valueId, { id: b.badValueId })));
+      }
+      if (f.corrections.length) {
+        const p = el('p', `${L.corrected}: `, 'small');
+        p.append(el('span', f.corrections.map((x) => `${x.from}→${x.to}`).join(' '), 'mono'));
+        c.append(p);
+      }
+      if (f.reread) {
+        const p = el('p', `${L.reread_}: `, 'small');
+        p.append(el('span', f.reread, 'mono'));
+        c.append(p);
+      }
+      const conf = minConfidence(r.words, f.start, f.end);
+      if (conf !== null && !f.reread) c.append(el('p', `${L.minConf}: ${Math.round(conf)}%`, 'small muted'));
+      return c;
+    }
+
+    function show(r: ReadResult) {
+      results.replaceChildren(...(r.findings.length ? r.findings.map((f) => card(f, r)) : [el('p', L.nothing)]));
+      text.textContent = r.text;
+      raw.hidden = false;
+    }
+
+    async function load(src: Blob) {
+      try {
+        bitmap?.close();
+        bitmap = await createImageBitmap(src, { imageOrientation: 'from-image' });
+      } catch {
+        status.textContent = L.badImage;
+        return;
+      }
+      await run();
+    }
+
+    file.addEventListener('change', () => {
+      const f = file.files?.[0];
+      if (f) void load(f);
+    });
+    for (const b of buttons) {
+      b.addEventListener('click', async () => {
+        const res = await fetch(b.dataset.src!);
+        if (res.ok) await load(await res.blob());
+      });
+    }
+    bin.addEventListener('change', () => void run());
+    reread.addEventListener('change', () => void run());
+    orig.addEventListener('change', draw);
+  }
+</script>
+
+<style>
+  .demo {
+    max-width: 860px;
+    display: grid;
+    gap: 16px;
+  }
+  .demo > * {
+    min-width: 0;
+  }
+  .pick {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .examples {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .upload {
+    position: relative;
+    cursor: pointer;
+  }
+  /* o input fica por cima do botão, invisível, e continua acessível pelo teclado */
+  .upload input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+  }
+  .upload:focus-within {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .btn.ex {
+    font-size: 14px;
+    padding: 6px 12px;
+  }
+  .opts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+  }
+  .opts label {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .opts input {
+    width: auto;
+  }
+  .status p {
+    margin: 0 0 6px;
+  }
+  progress {
+    width: 100%;
+    accent-color: var(--accent);
+  }
+  canvas {
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--panel);
+  }
+  #results {
+    display: grid;
+    gap: 12px;
+  }
+  #results :global(.finding) {
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--ok);
+    border-radius: var(--radius);
+    background: var(--panel);
+    padding: 14px 16px;
+    min-width: 0;
+  }
+  #results :global(.finding.bad) {
+    border-left-color: var(--danger);
+  }
+  #results :global(.finding header) {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  #results :global(.verdict) {
+    font-weight: 700;
+    color: var(--ok);
+  }
+  #results :global(.finding.bad .verdict) {
+    color: var(--danger);
+  }
+  #results :global(.value) {
+    font-size: 17px;
+    margin: 6px 0 10px;
+    overflow-wrap: anywhere;
+  }
+  #results :global(p) {
+    margin: 6px 0;
+  }
+  #results :global(dl) {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 4px 14px;
+    margin: 8px 0;
+    font-size: 15px;
+  }
+  #results :global(dt) {
+    color: var(--muted);
+  }
+  #results :global(dd) {
+    margin: 0;
+  }
+  #results :global(td),
+  #results :global(th) {
+    padding: 4px 8px;
+    font-size: 14px;
+    text-align: left;
+    white-space: nowrap;
+  }
+  #results :global(th) {
+    color: var(--muted);
+    font-weight: 500;
+  }
+  #results :global(tr.bad td) {
+    color: var(--danger);
+    font-weight: 600;
+  }
+  pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 13px;
+  }
+  .small,
+  #results :global(.small) {
+    font-size: 14px;
+  }
+</style>
