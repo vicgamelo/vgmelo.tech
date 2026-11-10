@@ -1,6 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
-import { DEMOS, PROJECTS, type Demo } from '../data/site';
+import { DEMOS, LINKS, PROJECTS, type Demo } from '../data/site';
 import { ROUTES, route, type Lang } from '../i18n/routes';
 import { useT } from '../i18n/ui';
 
@@ -11,7 +11,10 @@ interface Props {
 const { lang, demo } = Astro.props;
 const t = useT(lang);
 const d = DEMOS.find((x) => x.key === demo)!;
-const project = PROJECTS.find((p) => p.slug === d.project)!;
+// Demo sem projeto próprio aponta para a pasta do código no repositório do site.
+const project = d.project
+  ? PROJECTS.find((p) => p.slug === d.project)!
+  : { name: `vgmelo.tech/${d.source}`, repo: `${LINKS.siteRepo}/tree/main/${d.source}` };
 ---
 
 <Base lang={lang} title={d.title[lang]} description={d.text[lang]} alt={ROUTES[demo]}>

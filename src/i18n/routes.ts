@@ -25,6 +25,7 @@ export const ROUTES = {
   demoMcp: { pt: '/demos/mcp/', en: '/en/demos/mcp/' },
   demoOcr: { pt: '/demos/ocr/', en: '/en/demos/ocr/' },
   demoPca: { pt: '/demos/pca/', en: '/en/demos/pca/' },
+  demoVision: { pt: '/demos/visao/', en: '/en/demos/vision/' },
   projectAgentAuth: { pt: '/projetos/agent-auth/', en: '/en/projects/agent-auth/' },
   projectRag: { pt: '/projetos/rag-normas/', en: '/en/projects/rag-normas/' },
 } as const satisfies Record<string, Record<Lang, string>>;

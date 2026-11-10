@@ -8,3 +8,5 @@ dist/
 
 # Gerado pelo scripts/copy-ocr.mjs a partir de node_modules
 public/ocr/vendor/
+# Gerado pelo scripts/copy-visao.mjs
+public/visao/vendor/

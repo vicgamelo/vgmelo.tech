@@ -1,0 +1,880 @@
+---
+import DemoShell from '../../components/DemoShell.astro';
+import type { Lang } from '../../i18n/routes';
+import { labels } from '../../lib/vision/coco';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const L =
+  lang === 'pt'
+    ? {
+        tabDetect: 'Objetos',
+        tabCount: 'Contar pessoas',
+        tabAr: 'Cabelo e olhos (AR)',
+        upload: 'Escolher foto',
+        camera: 'Usar a câmera',
+        stop: 'Parar a câmera',
+        examples: 'ou um exemplo:',
+        ex: { rua: 'Rua', multidao: 'Multidão', gato: 'Gato', mesa: 'Café', retrato: 'Retrato' },
+        minScore: 'Confiança mínima',
+        tile: 'Mosaico: roda o modelo também em pedaços da foto, para achar gente pequena (mais lento; o que só um pedaço viu precisa de 10 pontos a mais de confiança)',
+        counted: '{n} pessoa(s) · {ms} ms · {p} passada(s) do modelo',
+        countedLive: '{n} pessoa(s) · {ms} ms por quadro · {fps} quadros/s na tela',
+        loadingDetector: 'Baixando o YOLOX-Nano (3,7 MB) e o ONNX Runtime (uns 4 MB), só na primeira vez…',
+        loadingAr: 'Baixando o MediaPipe e os modelos de cabelo e rosto (uns 8 MB), só na primeira vez…',
+        detected: '{n} objeto(s) em {ms} ms',
+        detectedLive: '{n} objeto(s) · {ms} ms por quadro · {fps} quadros/s na tela',
+        nothing: 'Nada acima da confiança mínima. Tente baixar o limite.',
+        people: 'pessoas',
+        person: 'pessoa',
+        peak: 'máximo visto agora há pouco: {n}',
+        countNote:
+          'Cada caixa é uma pessoa que o YOLOX-Nano achou. Em multidão ele erra para menos: o modelo é pequeno (0,9 M de parâmetros) e quem está longe ou coberto some.',
+        hair: 'Cabelo',
+        eyes: 'Olhos',
+        off: 'sem cor',
+        custom: 'outra cor',
+        arLive: 'Cabelo {hp} px · íris {ep} px · {ms} ms por quadro · {fps} quadros/s',
+        arStill: 'Cabelo {hp} px · íris {ep} px · {ms} ms',
+        noFace: 'Não achei um rosto para pintar os olhos. Chegue mais perto, de frente para a câmera.',
+        arDelegate: 'MediaPipe rodando na {d}.',
+        gpu: 'GPU (WebGL)',
+        cpu: 'CPU',
+        error: 'Não deu para rodar a demo neste navegador: ',
+        wasm: 'este navegador não deixa a página rodar WebAssembly, que é onde os modelos rodam.',
+        badImage: 'Não consegui abrir esse arquivo como imagem.',
+        camDenied: 'A câmera foi bloqueada: a permissão foi negada ou o navegador não libera a câmera nesta página.',
+        camMissing: 'Não achei nenhuma câmera neste aparelho.',
+        camOther: 'Não consegui abrir a câmera: ',
+        canvas: 'Imagem analisada, com as caixas e os rótulos',
+        privacy:
+          'Nada sai do seu navegador: a foto e a câmera são processadas aqui, com o YOLOX no ONNX Runtime (WebAssembly) e o MediaPipe, e os modelos são servidos por este site. Os exemplos são fotos CC0 do Wikimedia Commons.',
+        credits: 'Modelos e fotos',
+      }
+    : {
+        tabDetect: 'Objects',
+        tabCount: 'Count people',
+        tabAr: 'Hair and eyes (AR)',
+        upload: 'Choose a photo',
+        camera: 'Use the camera',
+        stop: 'Stop the camera',
+        examples: 'or an example:',
+        ex: { rua: 'Street', multidao: 'Crowd', gato: 'Cat', mesa: 'Coffee', retrato: 'Portrait' },
+        minScore: 'Minimum confidence',
+        tile: 'Tiling: also runs the model on pieces of the photo, to find small people (slower; what only one piece saw needs 10 more points of confidence)',
+        counted: '{n} person(s) · {ms} ms · {p} model pass(es)',
+        countedLive: '{n} person(s) · {ms} ms per frame · {fps} frames/s on screen',
+        loadingDetector: 'Downloading YOLOX-Nano (3.7 MB) and ONNX Runtime (about 4 MB), first time only…',
+        loadingAr: 'Downloading MediaPipe and the hair and face models (about 8 MB), first time only…',
+        detected: '{n} object(s) in {ms} ms',
+        detectedLive: '{n} object(s) · {ms} ms per frame · {fps} frames/s on screen',
+        nothing: 'Nothing above the minimum confidence. Try lowering it.',
+        people: 'people',
+        person: 'person',
+        peak: 'most seen recently: {n}',
+        countNote:
+          'Each box is a person YOLOX-Nano found. In a crowd it undercounts: the model is small (0.9 M parameters) and people far away or covered are missed.',
+        hair: 'Hair',
+        eyes: 'Eyes',
+        off: 'no color',
+        custom: 'other color',
+        arLive: 'Hair {hp} px · iris {ep} px · {ms} ms per frame · {fps} frames/s',
+        arStill: 'Hair {hp} px · iris {ep} px · {ms} ms',
+        noFace: "Couldn't find a face to color the eyes. Move closer and face the camera.",
+        arDelegate: 'MediaPipe running on the {d}.',
+        gpu: 'GPU (WebGL)',
+        cpu: 'CPU',
+        error: "Couldn't run the demo in this browser: ",
+        wasm: "this browser doesn't let the page run WebAssembly, which is what the models run on.",
+        badImage: "Couldn't open that file as an image.",
+        camDenied: "The camera was blocked: permission was denied or the browser doesn't allow the camera on this page.",
+        camMissing: 'No camera found on this device.',
+        camOther: "Couldn't open the camera: ",
+        canvas: 'Analyzed image, with boxes and labels',
+        privacy:
+          'Nothing leaves your browser: the photo and the camera are processed here, with YOLOX on ONNX Runtime (WebAssembly) and MediaPipe, and the models are served by this site. The examples are CC0 photos from Wikimedia Commons.',
+        credits: 'Models and photos',
+      };
+
+const EXAMPLES = [
+  { key: 'rua', tabs: 'detect count' },
+  { key: 'multidao', tabs: 'count' },
+  { key: 'gato', tabs: 'detect' },
+  { key: 'mesa', tabs: 'detect' },
+  { key: 'retrato', tabs: 'ar' },
+] as const;
+const HAIR = ['#b5179e', '#2563eb', '#e85d04', '#f4d35e', '#2dd4bf'];
+const EYES = ['#1d4ed8', '#16a34a', '#a16207', '#7c3aed', '#9ca3af'];
+const CREDITS = [
+  ['YOLOX-Nano', 'Megvii, Apache-2.0', 'https://github.com/Megvii-BaseDetection/YOLOX'],
+  ['MediaPipe Hair Segmentation e Face Landmarker', 'Google, Apache-2.0', 'https://ai.google.dev/edge/mediapipe/solutions/vision/image_segmenter'],
+  ['ONNX Runtime Web', 'Microsoft, MIT', 'https://github.com/microsoft/onnxruntime'],
+  [L.ex.rua, 'Gabriel Santiago (Unsplash), CC0', 'https://commons.wikimedia.org/wiki/File:Pedestrians_on_a_crosswalk_(Unsplash).jpg'],
+  [L.ex.multidao, 'Mx. Granger, CC0', "https://commons.wikimedia.org/wiki/File:Crowds_in_St._Peter's_Square.jpg"],
+  [L.ex.gato, 'Gerda Arendt, CC0', 'https://commons.wikimedia.org/wiki/File:Cat_with_an_eye_on_the_breakfast_table,_Pou_des_Lle%C3%B3._Ibiza.jpg'],
+  [L.ex.mesa, 'Katerina Pavlickova (Unsplash), CC0', 'https://commons.wikimedia.org/wiki/File:Breakfast_on_a_table_(Unsplash).jpg'],
+  [L.ex.retrato, 'Christopher Campbell (Unsplash), CC0', 'https://commons.wikimedia.org/wiki/File:Brunette_woman_portrait_(Unsplash).jpg'],
+];
+---
+
+<DemoShell lang={lang} demo="demoVision">
+  <div class="demo" id="vision" data-l={JSON.stringify(L)} data-labels={JSON.stringify(labels(lang))}>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" class="tab" id="tab-detect" data-tab="detect" aria-selected="true" aria-controls="stage">{L.tabDetect}</button>
+      <button type="button" role="tab" class="tab" id="tab-count" data-tab="count" aria-selected="false" aria-controls="stage">{L.tabCount}</button>
+      <button type="button" role="tab" class="tab" id="tab-ar" data-tab="ar" aria-selected="false" aria-controls="stage">{L.tabAr}</button>
+    </div>
+
+    <div class="pick">
+      <label class="btn primary upload">
+        {L.upload}
+        <input id="file" type="file" accept="image/*" />
+      </label>
+      <button type="button" class="btn" id="cam">{L.camera}</button>
+      <span class="muted small">{L.examples}</span>
+      <div class="examples">
+        {EXAMPLES.map((e) => <button type="button" class="btn ex" data-src={`/visao/exemplos/${e.key}.jpg`} data-tabs={e.tabs}>{L.ex[e.key]}</button>)}
+      </div>
+    </div>
+
+    <div class="controls" data-for="detect count">
+      <label class="small range">
+        {L.minScore} <output id="score-out" class="mono">40%</output>
+        <input id="score" type="range" min="10" max="90" step="5" value="40" />
+      </label>
+    </div>
+    <div class="controls" data-for="count" hidden>
+      <label class="small check"><input id="tile" type="checkbox" checked /> {L.tile}</label>
+    </div>
+    <div class="controls ar" data-for="ar" hidden>
+      <fieldset class="swatches" data-part="hair">
+        <legend class="small">{L.hair}</legend>
+        <button type="button" class="sw none" data-color="" aria-pressed="false" aria-label={L.off}></button>
+        {HAIR.map((c, i) => <button type="button" class={`sw c-${c.slice(1)}`} data-color={c} aria-pressed={i === 0 ? "true" : "false"} aria-label={c}></button>)}
+        <label class="custom small">
+          <input type="color" value="#b5179e" aria-label={`${L.hair}: ${L.custom}`} />
+        </label>
+      </fieldset>
+      <fieldset class="swatches" data-part="eyes">
+        <legend class="small">{L.eyes}</legend>
+        <button type="button" class="sw none" data-color="" aria-pressed="false" aria-label={L.off}></button>
+        {EYES.map((c, i) => <button type="button" class={`sw c-${c.slice(1)}`} data-color={c} aria-pressed={i === 1 ? "true" : "false"} aria-label={c}></button>)}
+        <label class="custom small">
+          <input type="color" value="#16a34a" aria-label={`${L.eyes}: ${L.custom}`} />
+        </label>
+      </fieldset>
+    </div>
+
+    <div class="status">
+      <p id="status" class="muted small" aria-live="polite"></p>
+      <progress id="progress" hidden></progress>
+    </div>
+
+    <div id="stage" role="tabpanel" aria-labelledby="tab-detect">
+      <div class="counter" id="counter" hidden>
+        <strong id="count" class="mono">0</strong>
+        <span id="count-label">{L.people}</span>
+        <span id="peak" class="muted small"></span>
+      </div>
+      <canvas id="view" hidden role="img" aria-label={L.canvas}></canvas>
+      <ul id="tally" class="tally"></ul>
+      <p id="note" class="muted small" hidden>{L.countNote}</p>
+    </div>
+
+    <p class="muted small">{L.privacy}</p>
+    <details class="credits small">
+      <summary>{L.credits}</summary>
+      <ul>
+        {
+          CREDITS.map(([name, who, href]) => (
+            <li>
+              <a href={href} rel="noopener">
+                {name}
+              </a>{' '}
+              · {who}
+            </li>
+          ))
+        }
+      </ul>
+    </details>
+  </div>
+</DemoShell>
+
+<script>
+  import { passes, tally, type Box } from '../../lib/vision/detect';
+  import { PERSON } from '../../lib/vision/coco';
+  import { parseHex, type Rgb } from '../../lib/vision/recolor';
+  import type { Ar } from '../../lib/vision/ar';
+  import type { Reply, Request } from '../../lib/vision/detector.worker';
+
+  type Tab = 'detect' | 'count' | 'ar';
+  type Labels = Record<string, string>;
+  const root = document.getElementById('vision');
+  if (root) {
+    const L = JSON.parse(root.dataset.l!) as Labels;
+    const NAMES = JSON.parse(root.dataset.labels!) as string[];
+    const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+    const file = $<HTMLInputElement>('file');
+    const camBtn = $<HTMLButtonElement>('cam');
+    const score = $<HTMLInputElement>('score');
+    const tileBox = $<HTMLInputElement>('tile');
+    const scoreOut = $<HTMLOutputElement>('score-out');
+    const status = $('status');
+    const progress = $<HTMLProgressElement>('progress');
+    const view = $<HTMLCanvasElement>('view');
+    const stage = $('stage');
+    const counter = $('counter');
+    const countEl = $('count');
+    const countLabel = $('count-label');
+    const peakEl = $('peak');
+    const tallyEl = $('tally');
+    const note = $('note');
+    const tabs = [...root.querySelectorAll<HTMLButtonElement>('[role=tab]')];
+    const examples = [...root.querySelectorAll<HTMLButtonElement>('button.ex')];
+    const controls = [...root.querySelectorAll<HTMLElement>('.controls')];
+    const ctx = view.getContext('2d', { willReadFrequently: true })!;
+    const fill = (s: string, v: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k) => String(v[k]));
+    const el = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string | number, cls?: string) => {
+      const e = document.createElement(tag);
+      if (text !== undefined) e.textContent = String(text);
+      if (cls) e.className = cls;
+      return e;
+    };
+
+    let tab: Tab = 'detect';
+    let image: ImageBitmap | null = null;
+    let video: HTMLVideoElement | null = null;
+    let stream: MediaStream | null = null;
+    let mirror = false;
+    let raf = 0;
+    let boxes: Box[] = []; // tudo acima de 10%; o controle de confiança só filtra na tela
+    let lastMs = 0;
+    let lastPasses = 1;
+    let boxesKey = ''; // 'plain' ou 'tile': com que modo as caixas da foto atual foram calculadas
+    const wantKey = () => (tab === 'count' && tileBox.checked ? 'tile' : 'plain');
+    const peaks: { t: number; n: number }[] = [];
+    const fps = { frames: 0, since: performance.now(), value: 0 };
+
+    // ---------- detector (worker) ----------
+    let worker: Worker | null = null;
+    let ready: Promise<void> | null = null;
+    let busy = false;
+    let seq = 0;
+    const pending = new Map<number, (r: Reply) => void>();
+
+    function getDetector(): Promise<void> {
+      ready ??= new Promise<void>((resolve, reject) => {
+        status.textContent = L.loadingDetector;
+        progress.hidden = false;
+        worker = new Worker(new URL('../../lib/vision/detector.worker.ts', import.meta.url), { type: 'module' });
+        worker.onmessage = (e: MessageEvent<Reply>) => {
+          const r = e.data;
+          if (r.type === 'ready') resolve();
+          else if (r.type === 'error' && r.id === undefined) reject(new Error(r.reason === 'wasm' ? L.wasm : r.message));
+          else if ('id' in r && r.id !== undefined) {
+            pending.get(r.id)?.(r);
+            pending.delete(r.id);
+          }
+        };
+        worker.onerror = (e) => {
+          const message = e.message || 'worker';
+          reject(new Error(message));
+          for (const done of pending.values()) done({ type: 'error', reason: 'other', message });
+          pending.clear();
+        };
+        worker.postMessage({ type: 'init' } satisfies Request);
+      }).finally(() => (progress.hidden = true));
+      ready.catch(() => {
+        worker?.terminate();
+        worker = null;
+        ready = null;
+      });
+      return ready;
+    }
+
+    async function detect(src: ImageBitmapSource, tile?: number): Promise<{ boxes: Box[]; ms: number; passes: number }> {
+      await getDetector();
+      const bitmap = await createImageBitmap(src);
+      const id = ++seq;
+      const reply = await new Promise<Reply>((resolve) => {
+        pending.set(id, resolve);
+        worker!.postMessage({ type: 'detect', id, bitmap, minScore: 0.1, tile } satisfies Request, [bitmap]);
+      });
+      if (reply.type === 'error') throw new Error(reply.message);
+      if (reply.type !== 'result') throw new Error('resposta inesperada');
+      return { boxes: reply.boxes, ms: reply.ms, passes: reply.passes };
+    }
+
+    // ---------- AR (MediaPipe, carregado sob demanda) ----------
+    let arP: Promise<Ar> | null = null;
+    const colors: Record<'hair' | 'eyes', Rgb | null> = { hair: parseHex('#b5179e'), eyes: parseHex('#16a34a') };
+
+    function getAr(): Promise<Ar> {
+      arP ??= (async () => {
+        status.textContent = L.loadingAr;
+        progress.hidden = false;
+        try {
+          // Sem isso, com a CSP sem 'wasm-unsafe-eval', o erro que chega é o do Emscripten, ilegível.
+          try {
+            new WebAssembly.Module(Uint8Array.of(0, 97, 115, 109, 1, 0, 0, 0));
+          } catch {
+            throw new Error(L.wasm);
+          }
+          const { createAr } = await import('../../lib/vision/ar');
+          const ar = await createAr();
+          status.textContent = fill(L.arDelegate, { d: ar.delegate === 'GPU' ? L.gpu : L.cpu });
+          return ar;
+        } finally {
+          progress.hidden = true;
+        }
+      })();
+      arP.catch(() => (arP = null));
+      return arP;
+    }
+
+    // ---------- desenho ----------
+    const PALETTE = ['#0d9488', '#2563eb', '#db2777', '#d97706', '#7c3aed', '#059669', '#dc2626', '#0891b2'];
+    const visible = () => {
+      const min = Number(score.value) / 100;
+      return boxes.filter((b) => passes(b, min) && (tab !== 'count' || b.cls === PERSON));
+    };
+
+    function sizeCanvas(w: number, h: number, max: number) {
+      const s = Math.min(1, max / Math.max(w, h));
+      const cw = Math.round(w * s);
+      const ch = Math.round(h * s);
+      if (view.width !== cw || view.height !== ch) {
+        view.width = cw;
+        view.height = ch;
+      }
+      return s;
+    }
+
+    function drawSource(src: CanvasImageSource) {
+      ctx.save();
+      if (mirror) {
+        ctx.translate(view.width, 0);
+        ctx.scale(-1, 1);
+      }
+      ctx.drawImage(src, 0, 0, view.width, view.height);
+      ctx.restore();
+    }
+
+    function drawBoxes(list: Box[], srcW: number) {
+      const k = view.width / srcW;
+      // tamanho fixo na tela (px CSS), não na foto: no celular a foto encolhe e o rótulo continua legível
+      const css = view.width / (view.clientWidth || view.width);
+      const line = Math.max(1, 2 * css);
+      const font = Math.round(12.5 * css);
+      ctx.lineWidth = line;
+      ctx.font = `600 ${font}px system-ui, sans-serif`;
+      ctx.textBaseline = 'top';
+      list.forEach((b, i) => {
+        const x = mirror ? view.width - (b.x + b.w) * k : b.x * k;
+        const y = b.y * k;
+        const w = b.w * k;
+        const h = b.h * k;
+        const color = tab === 'count' ? '#f59e0b' : PALETTE[b.cls % PALETTE.length];
+        ctx.strokeStyle = color;
+        ctx.strokeRect(x, y, w, h);
+        const text = tab === 'count' ? String(i + 1) : `${NAMES[b.cls]} ${Math.round(b.score * 100)}%`;
+        const tw = ctx.measureText(text).width + font * 0.6;
+        const tx = Math.max(0, Math.min(x - line / 2, view.width - tw)); // o rótulo não sai da foto
+        const ty = y >= font * 1.4 ? y - font * 1.4 : y;
+        ctx.fillStyle = color;
+        ctx.fillRect(tx, ty, tw, font * 1.4);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(text, tx + font * 0.3, ty + font * 0.2);
+      });
+    }
+
+    function renderInfo(list: Box[]) {
+      if (tab === 'count') {
+        const n = list.length;
+        countEl.textContent = String(n);
+        countLabel.textContent = n === 1 ? L.person : L.people;
+        if (stream) {
+          const now = performance.now();
+          peaks.push({ t: now, n });
+          while (peaks.length && now - peaks[0].t > 10_000) peaks.shift();
+          peakEl.textContent = fill(L.peak, { n: Math.max(...peaks.map((p) => p.n)) });
+        } else peakEl.textContent = '';
+        tallyEl.replaceChildren();
+        return;
+      }
+      if (tab === 'detect') {
+        tallyEl.replaceChildren(
+          ...tally(list).map(([cls, n]) => {
+            const li = el('li');
+            li.append(el('span', NAMES[cls]), el('strong', n, 'mono'));
+            return li;
+          }),
+        );
+      }
+    }
+
+    function paintStill() {
+      if (!image || stream) return;
+      sizeCanvas(image.width, image.height, 1280);
+      drawSource(image);
+      if (tab === 'ar') return;
+      const list = visible();
+      drawBoxes(list, image.width);
+      renderInfo(list);
+      if (tab === 'count') status.textContent = fill(L.counted, { n: list.length, ms: lastMs, p: lastPasses });
+      else if (!list.length) status.textContent = L.nothing;
+      else status.textContent = fill(L.detected, { n: list.length, ms: lastMs });
+    }
+
+    // ---------- fontes ----------
+    async function runStill() {
+      if (!image) return;
+      view.hidden = false;
+      try {
+        if (tab === 'ar') {
+          const ar = await getAr();
+          sizeCanvas(image.width, image.height, 960);
+          drawSource(image);
+          const r = ar.apply(ctx, { hair: colors.hair, eyes: colors.eyes });
+          status.textContent = r.face || !colors.eyes ? fill(L.arStill, { hp: r.hairPixels, ep: r.eyePixels, ms: r.ms }) : L.noFace;
+        } else {
+          const key = wantKey();
+          const r = await detect(image, key === 'tile' ? 416 : undefined);
+          boxes = r.boxes;
+          lastMs = r.ms;
+          lastPasses = r.passes;
+          boxesKey = key;
+          paintStill();
+        }
+      } catch (e) {
+        status.textContent = L.error + (e instanceof Error ? e.message : String(e));
+      }
+    }
+
+    async function loadImage(src: Blob) {
+      stopCamera();
+      try {
+        image?.close();
+        image = await createImageBitmap(src, { imageOrientation: 'from-image' });
+      } catch {
+        status.textContent = L.badImage;
+        return;
+      }
+      boxes = [];
+      boxesKey = '';
+      await runStill();
+    }
+
+    // Cada abertura da câmera ganha um número; laço ou abertura de uma câmera anterior para sozinho.
+    let camGen = 0;
+    let opening = false;
+
+    function stopCamera() {
+      camGen++;
+      cancelAnimationFrame(raf);
+      stream?.getTracks().forEach((t) => t.stop());
+      stream = null;
+      video = null;
+      mirror = false;
+      camBtn.textContent = L.camera;
+      peaks.length = 0;
+    }
+
+    async function startCamera() {
+      if (opening) return;
+      const gen = ++camGen;
+      const facing = tab === 'ar' ? 'user' : 'environment';
+      opening = true;
+      camBtn.disabled = true;
+      let s: MediaStream;
+      try {
+        s = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: facing }, width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false,
+        });
+      } catch (e) {
+        opening = false;
+        camBtn.disabled = false;
+        const name = e instanceof DOMException ? e.name : '';
+        status.textContent =
+          name === 'NotAllowedError' || name === 'SecurityError'
+            ? L.camDenied
+            : name === 'NotFoundError' || name === 'OverconstrainedError'
+              ? L.camMissing
+              : L.camOther + (e instanceof Error ? e.message : String(e));
+        return;
+      }
+      opening = false;
+      camBtn.disabled = false;
+      if (gen !== camGen) {
+        s.getTracks().forEach((t) => t.stop()); // pararam (ou trocaram de aba) enquanto abria
+        return;
+      }
+      stream = s;
+      camBtn.textContent = L.stop;
+      const settings = s.getVideoTracks()[0]?.getSettings();
+      mirror = settings?.facingMode !== 'environment';
+      const v = document.createElement('video');
+      v.muted = true;
+      v.playsInline = true;
+      v.srcObject = s;
+      video = v;
+      try {
+        await v.play();
+      } catch (e) {
+        if (gen === camGen) {
+          stopCamera();
+          status.textContent = L.camOther + (e instanceof Error ? e.message : String(e));
+        }
+        return;
+      }
+      if (gen !== camGen) return;
+      image?.close();
+      image = null;
+      view.hidden = false;
+      boxes = [];
+      boxesKey = '';
+      loop(gen);
+    }
+
+    function loop(gen: number) {
+      if (gen !== camGen || !video || !stream) return;
+      const v = video;
+      if (v.videoWidth) {
+        sizeCanvas(v.videoWidth, v.videoHeight, tab === 'ar' ? 640 : 960);
+        drawSource(v);
+        fps.frames++;
+        const now = performance.now();
+        if (now - fps.since > 1000) {
+          fps.value = Math.round((fps.frames * 1000) / (now - fps.since));
+          fps.frames = 0;
+          fps.since = now;
+        }
+        if (tab === 'ar') {
+          if (arP) {
+            void arP.then((ar) => {
+              if (tab !== 'ar' || gen !== camGen) return;
+              const r = ar.apply(ctx, { hair: colors.hair, eyes: colors.eyes });
+              status.textContent =
+                r.face || !colors.eyes ? fill(L.arLive, { hp: r.hairPixels, ep: r.eyePixels, ms: r.ms, fps: fps.value }) : L.noFace;
+            });
+          } else void getAr().catch((e) => (status.textContent = L.error + e.message));
+        } else {
+          const list = visible();
+          drawBoxes(list, v.videoWidth);
+          renderInfo(list);
+          if (!busy) {
+            busy = true;
+            detect(v)
+              .then((r) => {
+                if (gen !== camGen) return;
+                boxes = r.boxes;
+                lastMs = r.ms;
+                const n = visible().length;
+                status.textContent = fill(tab === 'count' ? L.countedLive : L.detectedLive, { n, ms: r.ms, fps: fps.value });
+              })
+              .catch((e) => (status.textContent = L.error + e.message))
+              .finally(() => (busy = false));
+          }
+        }
+      }
+      raf = requestAnimationFrame(() => loop(gen));
+    }
+
+    // ---------- abas e controles ----------
+    function setTab(t: Tab) {
+      tab = t;
+      for (const b of tabs) b.setAttribute('aria-selected', String(b.dataset.tab === t));
+      stage.setAttribute('aria-labelledby', `tab-${t}`);
+      for (const c of controls) c.hidden = !c.dataset.for!.split(' ').includes(t);
+      for (const b of examples) b.hidden = !b.dataset.tabs!.split(' ').includes(t);
+      counter.hidden = t !== 'count';
+      note.hidden = t !== 'count';
+      tallyEl.hidden = t !== 'detect';
+      peaks.length = 0;
+      if (stream) {
+        // a câmera da frente serve para o AR; para objetos, a de trás (no celular)
+        const want = t === 'ar' ? 'user' : 'environment';
+        const has = stream.getVideoTracks()[0]?.getSettings().facingMode;
+        if (has && has !== want) {
+          stopCamera();
+          void startCamera();
+        }
+        return;
+      }
+      if (image) {
+        if (t === 'ar' || boxesKey !== wantKey()) void runStill();
+        else paintStill();
+      }
+    }
+
+    for (const b of tabs) b.addEventListener('click', () => setTab(b.dataset.tab as Tab));
+    setTab('detect');
+
+    file.addEventListener('change', () => {
+      const f = file.files?.[0];
+      if (f) void loadImage(f);
+    });
+    for (const b of examples) {
+      b.addEventListener('click', async () => {
+        const res = await fetch(b.dataset.src!);
+        if (res.ok) await loadImage(await res.blob());
+      });
+    }
+    camBtn.addEventListener('click', () => {
+      if (stream) stopCamera();
+      else void startCamera();
+    });
+    tileBox.addEventListener('change', () => {
+      if (image && !stream) void runStill();
+    });
+    score.addEventListener('input', () => {
+      scoreOut.textContent = `${score.value}%`;
+      paintStill();
+    });
+
+    for (const fs of root.querySelectorAll<HTMLFieldSetElement>('.swatches')) {
+      const part = fs.dataset.part as 'hair' | 'eyes';
+      const sws = [...fs.querySelectorAll<HTMLButtonElement>('.sw')];
+      const picker = fs.querySelector<HTMLInputElement>('input[type=color]')!;
+      const choose = (hex: string, from?: HTMLButtonElement) => {
+        colors[part] = hex ? parseHex(hex) : null;
+        for (const s of sws) s.setAttribute('aria-pressed', String(s === from));
+        if (!stream && image && tab === 'ar') void runStill();
+      };
+      for (const s of sws) s.addEventListener('click', () => choose(s.dataset.color!, s));
+      picker.addEventListener('input', () => choose(picker.value));
+    }
+
+    // Sai da página ou troca de aba do navegador: solta a câmera.
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && stream) stopCamera();
+    });
+  }
+</script>
+
+<style>
+  .demo {
+    max-width: 960px;
+    display: grid;
+    gap: 16px;
+  }
+  .demo > * {
+    min-width: 0;
+  }
+  .tabs {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-self: start;
+    padding: 4px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    box-shadow: var(--shadow);
+    max-width: 100%;
+  }
+  .tab {
+    font: inherit;
+    font-weight: 600;
+    font-size: 14.5px;
+    background: none;
+    border: 0;
+    border-radius: 999px;
+    padding: 9px 16px;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .tab[aria-selected='true'] {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  @media (max-width: 560px) {
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      justify-self: stretch;
+      border-radius: 16px;
+    }
+    .tab {
+      font-size: 13.5px;
+      padding: 8px 6px;
+      border-radius: 12px;
+      line-height: 1.25;
+    }
+  }
+  .pick {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .examples {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .upload {
+    position: relative;
+    cursor: pointer;
+  }
+  .upload input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+  }
+  .upload:focus-within {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .btn.ex {
+    font-size: 14px;
+    padding: 6px 12px;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 28px;
+    align-items: center;
+  }
+  .controls[hidden] {
+    display: none;
+  }
+  .range {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 4px 10px;
+    align-items: center;
+  }
+  .check {
+    display: inline-flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .check input {
+    width: auto;
+    margin-top: 3px;
+  }
+  .range input {
+    grid-column: 1 / -1;
+    width: min(320px, 100%);
+    accent-color: var(--accent);
+  }
+  .swatches {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .swatches legend {
+    float: left;
+    min-width: 56px;
+    padding: 0;
+    margin-right: 4px;
+    color: var(--muted);
+  }
+  .sw {
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    border: 2px solid var(--line-strong);
+    cursor: pointer;
+    padding: 0;
+  }
+  .sw[aria-pressed='true'] {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .sw.none {
+    background: linear-gradient(135deg, var(--panel) 45%, var(--danger) 45% 55%, var(--panel) 55%);
+  }
+  .c-b5179e { background: #b5179e; }
+  .c-2563eb { background: #2563eb; }
+  .c-e85d04 { background: #e85d04; }
+  .c-f4d35e { background: #f4d35e; }
+  .c-2dd4bf { background: #2dd4bf; }
+  .c-1d4ed8 { background: #1d4ed8; }
+  .c-16a34a { background: #16a34a; }
+  .c-a16207 { background: #a16207; }
+  .c-7c3aed { background: #7c3aed; }
+  .c-9ca3af { background: #9ca3af; }
+  .custom input {
+    width: 36px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: none;
+    cursor: pointer;
+  }
+  .status p {
+    margin: 0 0 6px;
+  }
+  progress {
+    width: 100%;
+    accent-color: var(--accent);
+  }
+  #stage {
+    display: grid;
+    gap: 12px;
+  }
+  canvas {
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--panel);
+  }
+  .counter {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+  }
+  .counter[hidden] {
+    display: none;
+  }
+  .counter strong {
+    font-size: 44px;
+    line-height: 1;
+    color: var(--accent);
+  }
+  .counter span:first-of-type {
+    font-size: 18px;
+    font-weight: 600;
+  }
+  .tally {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .tally[hidden] {
+    display: none;
+  }
+  .tally :global(li) {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    padding: 4px 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--panel);
+    font-size: 14px;
+  }
+  .small {
+    font-size: 14px;
+  }
+  .credits ul {
+    margin: 8px 0 0;
+    padding-left: 18px;
+  }
+</style>
