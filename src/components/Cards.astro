@@ -34,6 +34,7 @@ const t = useT(props.lang);
         <a href={props.item.repo} rel="noopener">
           {t('projects.repo')}
         </a>
+        {props.item.detail && <a href={route(props.item.detail, props.lang)}>{t('projects.details')} →</a>}
         {props.item.demo && <a href={route(props.item.demo, props.lang)}>{t('projects.demo')} →</a>}
       </div>
     </article>
