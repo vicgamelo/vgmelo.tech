@@ -1,6 +1,7 @@
 // Roda depois do build. Falha se:
 // - existir <script> inline executável (a CSP do Caddy é script-src 'self');
 // - existir handler inline (onclick=...) ou href javascript:;
+// - existir atributo style="..." (a CSP é style-src 'self': o navegador ignora o estilo);
 // - algum link interno apontar para página ou arquivo que não existe.
 import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -40,6 +41,7 @@ for (const file of files) {
   }
   for (const m of html.matchAll(/\s(on[a-z]+)=["']/gi)) errors.push(`${file}: handler inline ${m[1]}`);
   if (/href=["']\s*javascript:/i.test(html)) errors.push(`${file}: href javascript:`);
+  for (const m of html.matchAll(/<[a-z][^>]*\sstyle=["'][^"']+/gi)) errors.push(`${file}: style inline (${m[0].slice(0, 60)}…)`);
   for (const m of html.matchAll(/\s(?:href|src)="(\/[^"]*)"/g)) {
     if (m[1].startsWith('//')) continue;
     if (!exists(m[1])) errors.push(`${file}: link quebrado ${m[1]}`);

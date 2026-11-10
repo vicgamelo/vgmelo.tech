@@ -3,6 +3,7 @@ import DemoShell from '../../components/DemoShell.astro';
 import { route, type Lang } from '../../i18n/routes';
 import { uiStrings } from '../../i18n/ui';
 import { LIVE_KEYS } from '../../lib/live';
+import { AGENT_LABEL } from '../../lib/agentRun';
 
 interface Props {
   lang: Lang;
@@ -12,6 +13,8 @@ const s = uiStrings(lang, [...LIVE_KEYS]);
 const L =
   lang === 'pt'
     ? {
+        askTitle: 'Pergunte ao time',
+        askHint: 'Um coordenador divide a pergunta e manda cada parte para um especialista.',
         question: 'Sua pergunta',
         placeholder: 'Ex.: Qual a Selic hoje e quantos dias úteis tem dezembro de 2026?',
         examples: [
@@ -21,17 +24,47 @@ const L =
         ],
         run: 'Perguntar',
         running: 'Rodando…',
+        note: 'Não envie dados pessoais: a pergunta vai para um provedor de LLM gratuito.',
+        sample: 'Ver um exemplo',
+        sampleHint: 'Reproduz uma execução gravada, sem login e sem gastar cota.',
+        teamTitle: 'O time',
+        teamHint: 'Três agentes, cada um com as próprias ferramentas.',
+        tools: 'ferramentas',
+        otel: 'Cada passo vira um span OpenTelemetry no genai-lens: é o trace que aparece no fim.',
         answer: 'Resposta',
-        timeline: 'O que aconteceu',
+        emptyTitle: 'Nenhuma pergunta ainda',
+        emptyText: 'Faça uma pergunta ou veja o exemplo para acompanhar os agentes trabalhando.',
+        working: 'Os agentes estão trabalhando…',
+        idle: 'aguardando',
+        live: 'rodando',
+        ready: 'pronto',
+        failed: 'falhou',
+        sampleTag: 'exemplo',
+        copy: 'Copiar',
+        copied: 'Copiado',
+        kTime: 'tempo total',
+        kTokens: 'tokens',
+        kLlm: 'chamadas ao LLM',
+        kTools: 'ferramentas',
+        kAgents: 'agentes',
+        steps: 'Passo a passo',
+        stepsHint: 'Ao vivo: quem decidiu o quê, com quais argumentos e o que voltou.',
+        decided: 'decidiu chamar',
+        wrote: 'escreveu a resposta',
+        cutoff: 'parou por limite de tokens',
+        thinking: 'pensando…',
+        delegated: 'delegou para',
+        result: 'resultado',
+        answerOf: 'resposta de',
+        error: 'erro',
         trace: 'Trace no genai-lens',
-        tokens: 'tokens',
-        tools: 'chamadas de ferramenta',
-        start: 'começou',
-        delegates: 'chamou',
-        result: 'resultado de',
-        note: 'Não envie dados pessoais: a pergunta é processada por um provedor de LLM gratuito.',
+        traceHint: 'Cada barra é um span: agente, chamada ao LLM ou ferramenta. Clique numa linha para ver os detalhes.',
+        traceWait: 'Buscando o trace…',
+        traceMissing: 'O trace desta execução não ficou disponível.',
       }
     : {
+        askTitle: 'Ask the team',
+        askHint: 'A coordinator splits the question and sends each part to a specialist.',
         question: 'Your question',
         placeholder: "E.g. What's the Selic rate today and how many business days are in December 2026?",
         examples: [
@@ -41,62 +74,225 @@ const L =
         ],
         run: 'Ask',
         running: 'Running…',
+        note: "Don't send personal data: the question goes to a free LLM provider.",
+        sample: 'See an example',
+        sampleHint: 'Replays a recorded run, no sign-in and no quota used.',
+        teamTitle: 'The team',
+        teamHint: 'Three agents, each with its own tools.',
+        tools: 'tools',
+        otel: 'Every step becomes an OpenTelemetry span in genai-lens: that is the trace shown at the end.',
         answer: 'Answer',
-        timeline: 'What happened',
+        emptyTitle: 'No question yet',
+        emptyText: 'Ask something or watch the example to follow the agents at work.',
+        working: 'The agents are working…',
+        idle: 'waiting',
+        live: 'running',
+        ready: 'done',
+        failed: 'failed',
+        sampleTag: 'example',
+        copy: 'Copy',
+        copied: 'Copied',
+        kTime: 'total time',
+        kTokens: 'tokens',
+        kLlm: 'LLM calls',
+        kTools: 'tools',
+        kAgents: 'agents',
+        steps: 'Step by step',
+        stepsHint: 'Live: who decided what, with which arguments and what came back.',
+        decided: 'decided to call',
+        wrote: 'wrote the answer',
+        cutoff: 'stopped at the token limit',
+        thinking: 'thinking…',
+        delegated: 'delegated to',
+        result: 'result',
+        answerOf: 'answer from',
+        error: 'error',
         trace: 'Trace in genai-lens',
-        tokens: 'tokens',
-        tools: 'tool calls',
-        start: 'started',
-        delegates: 'called',
-        result: 'result from',
-        note: "Don't send personal data: the question is processed by a free LLM provider.",
+        traceHint: 'Each bar is a span: agent, LLM call or tool. Click a row for the details.',
+        traceWait: 'Fetching the trace…',
+        traceMissing: "This run's trace isn't available.",
       };
+
+const TEAM = [
+  { name: 'coordinator', model: 'gpt-oss-120b', tools: ['current_datetime'] },
+  { name: 'economist', model: 'gpt-oss-20b', tools: ['indicador_economico', 'calculator'] },
+  { name: 'company_researcher', model: 'gpt-oss-20b', tools: ['consultar_cnpj', 'consultar_cep', 'validar_documento', 'dias_uteis'] },
+].map((a) => ({ ...a, label: AGENT_LABEL[a.name][lang], role: AGENT_LABEL[a.name].role[lang] }));
+const [lead, ...workers] = TEAM;
 ---
 
 <DemoShell lang={lang} demo="demoAgents">
-  <div class="demo" id="agents" data-s={JSON.stringify(s)} data-l={JSON.stringify(L)} data-login={route('login', lang)}>
-    <p class="notice" data-gate>…</p>
-    <form class="form wide" data-live hidden>
-      <div class="field">
-        <label for="q">{L.question} <span class="muted" data-remaining></span></label>
+  <div class="agents" id="agents" data-s={JSON.stringify(s)} data-l={JSON.stringify(L)} data-lang={lang} data-login={route('login', lang)}>
+    <section class="panel ask">
+      <div class="panel-head">
+        <div>
+          <h2>{L.askTitle}</h2>
+          <p class="hint">{L.askHint}</p>
+        </div>
+        <span class="quota mono" data-remaining></span>
+      </div>
+      <p class="notice" data-gate>…</p>
+      <form class="ask-form" data-live hidden>
+        <label class="sr-only" for="q">{L.question}</label>
         <textarea id="q" name="question" maxlength="600" required placeholder={L.placeholder}></textarea>
+        <div class="chips">
+          {L.examples.map((e) => <button type="button" class="chip" data-example={e}>{e}</button>)}
+        </div>
+        <div class="ask-actions">
+          <button class="btn primary" type="submit">{L.run}</button>
+          <p class="hint small">{L.note}</p>
+        </div>
+      </form>
+      <div class="sample-row">
+        <button type="button" class="btn" id="a-sample">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"></path></svg>
+          {L.sample}
+        </button>
+        <span class="hint small">{L.sampleHint}</span>
       </div>
-      <div class="examples">
-        {L.examples.map((e) => <button type="button" class="chip" data-example={e}>{e}</button>)}
+    </section>
+
+    <aside class="panel team">
+      <h2>{L.teamTitle}</h2>
+      <p class="hint">{L.teamHint}</p>
+      <div class="org">
+        <div class="member m-lead">
+          <div class="m-head">
+            <span class="avatar a-coordinator">{lead.label[0]}</span>
+            <div>
+              <strong>{lead.label}</strong>
+              <span class="m-role">{lead.role}</span>
+            </div>
+          </div>
+          <div class="m-meta"><span class="pill model">{lead.model}</span>{lead.tools.map((t) => <span class="pill">{t}</span>)}</div>
+        </div>
+        <div class="links" aria-hidden="true"><span></span><span></span></div>
+        <div class="workers">
+          {
+            workers.map((w) => (
+              <div class="member">
+                <div class="m-head">
+                  <span class={`avatar a-${w.name}`}>{w.label[0]}</span>
+                  <div>
+                    <strong>{w.label}</strong>
+                    <span class="m-role">{w.role}</span>
+                  </div>
+                </div>
+                <div class="m-meta">
+                  <span class="pill model">{w.model}</span>
+                  {w.tools.map((t) => <span class="pill">{t}</span>)}
+                </div>
+              </div>
+            ))
+          }
+        </div>
       </div>
-      <div class="actions"><button class="btn primary" type="submit">{L.run}</button></div>
-      <p class="muted small">{L.note}</p>
-    </form>
-    <p class="notice error" id="a-error" hidden></p>
-    <section id="a-answer" hidden>
-      <h2>{L.answer}</h2>
-      <div class="card answer" id="a-text"></div>
-      <p class="muted small mono" id="a-stats"></p>
+      <p class="otel">{L.otel}</p>
+    </aside>
+
+    <section class="panel full answer-panel">
+      <div class="panel-head">
+        <div class="grow">
+          <h2>{L.answer}</h2>
+          <p class="hint q-echo" id="a-question" hidden></p>
+        </div>
+        <div class="head-actions">
+          <span class="status" id="a-status" data-state="idle"><span class="st-dot"></span><span id="a-status-text">{L.idle}</span></span>
+          <button type="button" class="btn copy" id="a-copy" hidden>{L.copy}</button>
+        </div>
+      </div>
+      <div class="kpis" id="a-kpis" hidden>
+        <div class="kpi"><strong id="k-time"></strong><span>{L.kTime}</span></div>
+        <div class="kpi"><strong id="k-tokens"></strong><span>{L.kTokens}</span></div>
+        <div class="kpi"><strong id="k-llm"></strong><span>{L.kLlm}</span></div>
+        <div class="kpi"><strong id="k-tools"></strong><span>{L.kTools}</span></div>
+        <div class="kpi"><strong id="k-agents"></strong><span>{L.kAgents}</span></div>
+      </div>
+      <p class="notice error" id="a-error" hidden></p>
+      <div class="empty" id="a-empty">
+        <svg viewBox="0 0 120 70" aria-hidden="true">
+          <line x1="60" y1="18" x2="24" y2="52"></line>
+          <line x1="60" y1="18" x2="96" y2="52"></line>
+          <circle class="n1" cx="60" cy="16" r="10"></circle>
+          <circle class="n2" cx="24" cy="54" r="9"></circle>
+          <circle class="n3" cx="96" cy="54" r="9"></circle>
+        </svg>
+        <strong>{L.emptyTitle}</strong>
+        <span>{L.emptyText}</span>
+      </div>
+      <div class="working" id="a-working" hidden><span class="spinner"></span>{L.working}</div>
+      <div class="md" id="a-text" hidden></div>
     </section>
-    <section id="a-timeline" hidden>
-      <h2>{L.timeline}</h2>
-      <ol class="events" id="a-events"></ol>
+
+    <section class="panel full" id="a-run" hidden>
+      <div class="panel-head">
+        <div>
+          <h2>{L.steps}</h2>
+          <p class="hint">{L.stepsHint}</p>
+        </div>
+      </div>
+      <div class="run-tree" id="a-tree"></div>
     </section>
-    <section id="a-trace" hidden>
-      <h2>{L.trace}</h2>
+
+    <section class="panel full" id="a-trace" hidden>
+      <div class="panel-head">
+        <div>
+          <h2>{L.trace}</h2>
+          <p class="hint">{L.traceHint}</p>
+        </div>
+      </div>
+      <p class="hint" id="a-trace-wait" hidden></p>
       <div class="waterfall" id="a-waterfall"></div>
     </section>
   </div>
 </DemoShell>
 
 <script>
+  import { sampleRun } from '../../data/agentsSample';
+  import {
+    agentLabel,
+    applyEvent,
+    argsLine,
+    DELEGATE_PREFIX,
+    newRun,
+    prettyResult,
+    runCounts,
+    toolLabel,
+    type AgentNode,
+    type RunState,
+    type Step,
+  } from '../../lib/agentRun';
   import { errorFrom, fetchTrace, liveError, readSse } from '../../lib/api';
   import { gate } from '../../lib/live';
-  import { renderWaterfall, type Span } from '../../lib/waterfall';
+  import { renderMarkdown } from '../../lib/markdown';
+  import { fmtMs, renderWaterfall, type Span } from '../../lib/waterfall';
 
   const root = document.getElementById('agents');
   if (root) {
     const s = JSON.parse(root.dataset.s!) as Record<string, string>;
     const L = JSON.parse(root.dataset.l!) as Record<string, string>;
-    const $ = (id: string) => document.getElementById(id)!;
+    const lang = root.dataset.lang === 'en' ? 'en' : 'pt';
+    const nf = new Intl.NumberFormat(lang === 'pt' ? 'pt-BR' : 'en-US');
+    const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
     const form = root.querySelector<HTMLFormElement>('form')!;
-    const button = form.querySelector<HTMLButtonElement>('button[type=submit]')!;
+    const submit = form.querySelector<HTMLButtonElement>('button[type=submit]')!;
     const textarea = form.querySelector<HTMLTextAreaElement>('textarea')!;
+    const sampleBtn = $<HTMLButtonElement>('a-sample');
+    const copyBtn = $<HTMLButtonElement>('a-copy');
+
+    // O texto de "restam hoje" vem com "· " na frente (feito para ir depois de um rótulo); aqui é uma pílula.
+    const refreshGate = async () => {
+      await gate(root, 'agents', s);
+      const r = root.querySelector<HTMLElement>('[data-remaining]');
+      if (r) r.textContent = (r.textContent ?? '').replace(/^·\s*/, '');
+    };
+
+    const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string) => {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text !== undefined) e.textContent = text;
+      return e;
+    };
 
     root.querySelectorAll<HTMLButtonElement>('[data-example]').forEach((b) =>
       b.addEventListener('click', () => {
@@ -105,23 +301,208 @@ const L =
       }),
     );
 
-    const addEvent = (text: string, depth: number, cls = '') => {
-      const li = document.createElement('li');
-      li.className = cls;
-      li.style.marginLeft = `${depth * 18}px`;
-      li.textContent = text;
-      $('a-events').append(li);
+    // ------------------------------------------------------------ status e cronômetro
+    let timer: number | undefined;
+    let t0 = 0;
+    const setStatus = (state: 'idle' | 'live' | 'ready' | 'failed', extra = '') => {
+      $('a-status').dataset.state = state;
+      $('a-status-text').textContent = `${L[state]}${extra ? ` · ${extra}` : ''}`;
+    };
+    const startClock = () => {
+      t0 = performance.now();
+      window.clearInterval(timer);
+      timer = window.setInterval(() => setStatus('live', fmtMs(performance.now() - t0)), 100);
+    };
+    const stopClock = () => window.clearInterval(timer);
+
+    // ------------------------------------------------------------ árvore ao vivo
+    const open = new Set<string>(); // <details> abertos sobrevivem aos re-renders
+    const details = (key: string, summary: string, body: HTMLElement) => {
+      const d = el('details', 'st-details');
+      d.open = open.has(key);
+      d.addEventListener('toggle', () => (d.open ? open.add(key) : open.delete(key)));
+      d.append(el('summary', '', summary), body);
+      return d;
+    };
+    const dur = (from: number, to?: number) => (to === undefined ? '' : fmtMs(to - from));
+
+    function stepNode(step: Step, node: AgentNode): HTMLElement {
+      if (step.kind === 'llm') {
+        const li = el('li', 'st st-llm');
+        li.append(el('span', 'st-icon'));
+        const body = el('div', 'st-body');
+        const line = el('div', 'st-line');
+        line.append(el('span', 'st-kind', 'LLM'));
+        if (step.calls.length) {
+          line.append(document.createTextNode(`${L.decided} `));
+          step.calls.forEach((c, k) => {
+            if (k) line.append(document.createTextNode(', '));
+            line.append(
+              el('code', '', c.startsWith(DELEGATE_PREFIX) ? agentLabel(c.slice(DELEGATE_PREFIX.length), lang) : toolLabel(c)),
+            );
+          });
+        } else {
+          line.append(document.createTextNode(step.stop === 'max_tokens' ? L.cutoff : L.wrote));
+        }
+        body.append(line);
+        if (step.calls.length && step.text.trim()) body.append(el('p', 'st-thought', step.text.trim().slice(0, 400)));
+        li.append(body);
+        return li;
+      }
+      if (step.kind === 'error') {
+        const li = el('li', 'st st-err');
+        li.append(el('span', 'st-icon'), el('div', 'st-body', `${L.error}: ${step.message}`));
+        return li;
+      }
+      if (step.child) {
+        const li = el('li', 'st st-deleg');
+        li.append(el('span', 'st-icon'));
+        const body = el('div', 'st-body');
+        const line = el('div', 'st-line');
+        line.append(el('span', 'st-kind', L.delegated), el('strong', '', agentLabel(step.child.name, lang)));
+        body.append(line, agentCard(step.child));
+        li.append(body);
+        return li;
+      }
+      const li = el('li', `st st-tool${step.failed ? ' is-failed' : ''}${step.result === undefined ? ' is-running' : ''}`);
+      li.append(el('span', 'st-icon'));
+      const body = el('div', 'st-body');
+      const line = el('div', 'st-line');
+      line.append(el('code', 'st-tool-name', toolLabel(step.tool)));
+      const args = argsLine(step.args);
+      if (args) line.append(el('span', 'st-args', args));
+      const meta = el('span', 'st-meta');
+      if (step.result === undefined) meta.append(el('span', 'spinner'));
+      else meta.textContent = step.failed ? L.error : dur(step.startedAt, step.endedAt);
+      line.append(meta);
+      body.append(line);
+      if (step.result !== undefined) body.append(details(`r${node.id}-${step.id}`, L.result, el('pre', 'st-pre', prettyResult(step.result))));
+      li.append(body);
+      return li;
+    }
+
+    function agentCard(n: AgentNode): HTMLElement {
+      const card = el('div', `ag ag-${n.name}`);
+      card.dataset.status = n.status;
+      const head = el('div', 'ag-head');
+      const who = el('div', 'ag-who');
+      who.append(el('span', `avatar a-${n.name}`, agentLabel(n.name, lang)[0]), el('strong', '', agentLabel(n.name, lang)));
+      const right = el('span', 'ag-state');
+      if (n.status === 'running') right.append(el('span', 'spinner'), document.createTextNode(L.thinking));
+      else right.textContent = dur(n.startedAt, n.endedAt);
+      head.append(who, right);
+      card.append(head);
+      if (n.depth > 0 && n.task) card.append(el('p', 'ag-task', n.task));
+      const ol = el('ol', 'ag-steps');
+      for (const st of n.steps) ol.append(stepNode(st, n));
+      if (ol.childElementCount) card.append(ol);
+      if (n.depth > 0 && n.output) {
+        const md = el('div', 'md md-small');
+        renderMarkdown(md, n.output);
+        card.append(details(`o${n.id}`, `${L.answerOf} ${agentLabel(n.name, lang)}`, md));
+      }
+      return card;
+    }
+
+    let state: RunState = newRun();
+    let frame = 0;
+    const renderTree = () => {
+      frame = 0;
+      $('a-tree').replaceChildren(...(state.root ? [agentCard(state.root)] : []));
+    };
+    const scheduleTree = () => {
+      if (!frame) frame = requestAnimationFrame(renderTree);
     };
 
+    // ------------------------------------------------------------ início e fim de uma execução
+    let lastOutput = '';
+    const begin = (question: string) => {
+      state = newRun();
+      open.clear();
+      lastOutput = '';
+      submit.disabled = true;
+      sampleBtn.disabled = true;
+      submit.textContent = L.running;
+      for (const id of ['a-error', 'a-kpis', 'a-text', 'a-empty', 'a-trace', 'a-trace-wait']) $(id).hidden = true;
+      copyBtn.hidden = true;
+      $('a-working').hidden = false;
+      $('a-question').hidden = false;
+      $('a-question').textContent = `“${question}”`;
+      $('a-run').hidden = false;
+      $('a-waterfall').replaceChildren();
+      renderTree();
+      startClock();
+    };
+    const finish = () => {
+      stopClock();
+      submit.disabled = false;
+      sampleBtn.disabled = false;
+      submit.textContent = L.run;
+      $('a-working').hidden = true;
+      renderTree();
+    };
+    const showDone = (sample: boolean) => {
+      const d = state.done;
+      if (!d) return;
+      const c = runCounts(state);
+      $('k-time').textContent = fmtMs(d.durationMs);
+      $('k-tokens').textContent = nf.format(d.inputTokens + d.outputTokens);
+      $('k-llm').textContent = String(c.llm);
+      $('k-tools').textContent = String(c.tools);
+      $('k-agents').textContent = String(c.agents);
+      $('a-kpis').hidden = false;
+      lastOutput = d.output;
+      renderMarkdown($('a-text'), d.output);
+      $('a-text').hidden = !d.output;
+      copyBtn.hidden = !d.output;
+      $('a-working').hidden = true;
+      const ok = d.status === 'ok' || d.status === 'completed';
+      setStatus(ok ? 'ready' : 'failed', sample ? L.sampleTag : fmtMs(d.durationMs));
+    };
+    const onEvent = (event: string, data: unknown, at: number) => {
+      applyEvent(state, event, data, at);
+      if (event === 'done') {
+        stopClock();
+        showDone(false);
+      }
+      scheduleTree();
+    };
+
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(lastOutput);
+        copyBtn.textContent = L.copied;
+        window.setTimeout(() => (copyBtn.textContent = L.copy), 1500);
+      } catch {
+        /* sem permissão de clipboard: nada a fazer */
+      }
+    });
+
+    // ------------------------------------------------------------ exemplo gravado
+    sampleBtn.addEventListener('click', async () => {
+      const run = sampleRun(lang);
+      begin(run.question);
+      const SLOW = 1.6; // um pouco mais devagar que a execução real, para dar para acompanhar
+      let prev = 0;
+      for (const e of run.events) {
+        await new Promise((r) => setTimeout(r, (e.at - prev) * SLOW));
+        prev = e.at;
+        applyEvent(state, e.event, e.data, e.at);
+        scheduleTree();
+      }
+      finish();
+      showDone(true);
+      $('a-trace').hidden = false;
+      renderWaterfall($('a-waterfall'), run.spans, lang);
+    });
+
+    // ------------------------------------------------------------ execução de verdade
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const question = textarea.value.trim();
       if (!question) return;
-      button.disabled = true;
-      button.textContent = L.running;
-      for (const id of ['a-error', 'a-answer', 'a-trace']) $(id).hidden = true;
-      $('a-events').replaceChildren();
-      $('a-timeline').hidden = false;
+      begin(question);
+      let failed = false;
       try {
         const res = await fetch('/api/demo/agents/stream', {
           method: 'POST',
@@ -130,50 +511,113 @@ const L =
           body: JSON.stringify({ question }),
         });
         if (!res.ok) throw await errorFrom(res);
-        let traceId: string | null = null;
-        await readSse(res, (event, raw) => {
-          const ev = raw as { agent?: string; depth?: number; data?: Record<string, unknown> } & Record<string, unknown>;
-          const depth = ev.depth ?? 0;
-          if (event === 'agent_start') addEvent(`▶ ${ev.agent} ${L.start}`, depth);
-          else if (event === 'tool_call') addEvent(`→ ${ev.agent} ${L.delegates} ${String(ev.data?.tool)}`, depth, 'tool');
-          else if (event === 'tool_result') addEvent(`← ${L.result} ${String(ev.data?.tool)}`, depth, 'muted');
-          else if (event === 'error') addEvent(`⚠ ${String(ev.data?.message ?? '')}`, depth, 'err');
-          else if (event === 'done') {
-            $('a-answer').hidden = false;
-            $('a-text').textContent = String(ev.output ?? '');
-            $('a-stats').textContent = `${Number(ev.input_tokens) + Number(ev.output_tokens)} ${L.tokens} · ${ev.tool_calls} ${L.tools} · ${Math.round(Number(ev.duration_ms))} ms`;
-            traceId = (ev.trace_id as string | null) ?? null;
-          }
-        });
-        if (traceId) {
-          const spans = await fetchTrace<Span[]>(traceId);
-          renderWaterfall($('a-waterfall'), spans);
-          $('a-trace').hidden = false;
-        }
-        await gate(root, 'agents', s);
+        await readSse(res, (event, raw) => onEvent(event, raw, performance.now() - t0));
+        if (!state.done) throw { status: 502 };
       } catch (err) {
+        failed = true;
         $('a-error').hidden = false;
         $('a-error').textContent = liveError(err, s);
+        setStatus('failed');
       } finally {
-        button.disabled = false;
-        button.textContent = L.run;
+        finish();
+        if (!failed && state.done) showDone(false);
       }
+      const traceId = state.done?.traceId;
+      if (!failed && traceId) {
+        $('a-trace').hidden = false;
+        $('a-trace-wait').hidden = false;
+        $('a-trace-wait').textContent = L.traceWait;
+        try {
+          const spans = await fetchTrace<Span[]>(traceId);
+          $('a-trace-wait').hidden = true;
+          renderWaterfall($('a-waterfall'), spans, lang);
+        } catch {
+          $('a-trace-wait').textContent = L.traceMissing;
+        }
+      }
+      await refreshGate();
     });
 
-    void gate(root, 'agents', s);
+    void refreshGate();
   }
 </script>
 
 <style>
-  .demo {
-    max-width: 900px;
+  .agents > * {
+    min-width: 0;
+  }
+  .agents {
     display: grid;
-    gap: 18px;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 16px;
+    padding-bottom: 48px;
   }
-  .wide {
-    max-width: none;
+  .full {
+    grid-column: 1 / -1;
   }
-  .examples {
+  .panel {
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    min-width: 0;
+  }
+  h2 {
+    font-size: 17px;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .hint {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 4px 0 0;
+  }
+  .small {
+    font-size: 13px;
+  }
+  .panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px 16px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .grow {
+    flex: 1 1 260px;
+    min-width: 0;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  /* Pergunta */
+  .quota:not(:empty) {
+    font-size: 12.5px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-radius: 999px;
+    padding: 4px 10px;
+  }
+  .ask {
+    display: grid;
+    align-content: start;
+  }
+  .ask-form {
+    display: grid;
+    gap: 12px;
+  }
+  .ask-form textarea {
+    width: 100%;
+    min-height: 96px;
+  }
+  .chips {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
@@ -181,45 +625,587 @@ const L =
   .chip {
     font: inherit;
     font-size: 13px;
-    color: var(--text);
-    background: var(--bg-soft);
-    border: 1px solid var(--line);
-    border-radius: 999px;
     padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    background: var(--panel);
+    color: var(--text);
     cursor: pointer;
     text-align: left;
   }
   .chip:hover {
     border-color: var(--accent);
   }
-  .small {
-    font-size: 14px;
+  .ask-actions,
+  .sample-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+  }
+  .ask-actions .hint,
+  .sample-row .hint {
     margin: 0;
+    flex: 1 1 200px;
   }
-  h2 {
-    font-size: 20px;
-    margin: 8px 0 10px;
+  .sample-row {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--line-strong);
   }
-  .answer {
-    white-space: pre-wrap;
-    font-size: 16px;
-  }
-  .events {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    font-family: var(--mono);
-    font-size: 13px;
+
+  /* Time */
+  .team {
     display: grid;
+    align-content: start;
+  }
+  .org {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+  }
+  .member {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+  }
+  .member.m-lead {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  }
+  .m-head {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .m-head strong {
+    display: block;
+    font-size: 14.5px;
+  }
+  .m-role {
+    display: block;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .m-meta {
+    display: flex;
+    flex-wrap: wrap;
     gap: 4px;
   }
-  .events :global(.tool) {
-    color: var(--accent2);
+  .pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: var(--bg-soft);
+    color: var(--muted);
   }
-  .events :global(.err) {
+  .pill.model {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .links {
+    position: relative;
+    height: 22px;
+  }
+  .links span {
+    position: absolute;
+    top: 0;
+    width: 25%;
+    height: 100%;
+    border-top: 0;
+    border: 1.5px solid var(--line-strong);
+    border-bottom: 0;
+  }
+  .links span:first-child {
+    left: 25%;
+    border-right: 0;
+    border-radius: 8px 0 0 0;
+  }
+  .links span:last-child {
+    left: 50%;
+    border-left: 0;
+    border-radius: 0 8px 0 0;
+  }
+  .workers {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .otel {
+    margin: 14px 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    border-left: 3px solid var(--accent2);
+    padding-left: 10px;
+  }
+
+  /* Resposta */
+  .q-echo {
+    font-style: italic;
+    overflow-wrap: anywhere;
+  }
+  .head-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    font-family: var(--mono);
+    padding: 5px 11px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .st-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--line-strong);
+  }
+  .status[data-state='live'] {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  }
+  .status[data-state='live'] .st-dot {
+    background: var(--accent);
+    animation: pulse 1s ease-in-out infinite;
+  }
+  .status[data-state='ready'] .st-dot {
+    background: var(--ok);
+  }
+  .status[data-state='ready'] {
+    color: var(--ok);
+  }
+  .status[data-state='failed'] .st-dot {
+    background: var(--danger);
+  }
+  .status[data-state='failed'] {
     color: var(--danger);
   }
-  :global(.gate-btn) {
-    margin-top: 12px;
+  .copy {
+    min-height: 32px;
+    padding: 4px 12px;
+    font-size: 13px;
+  }
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .kpi {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    display: grid;
+    gap: 2px;
+  }
+  .kpi strong {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 600;
+  }
+  .kpi span {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .empty {
+    display: grid;
+    justify-items: center;
+    text-align: center;
+    gap: 6px;
+    padding: 18px 10px 10px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .empty strong {
+    color: var(--text);
+  }
+  .empty svg {
+    width: 120px;
+    height: 70px;
+    margin-bottom: 6px;
+  }
+  .empty line {
+    stroke: var(--line-strong);
+    stroke-width: 2;
+    stroke-dasharray: 4 4;
+  }
+  .empty .n1 {
+    fill: var(--accent);
+  }
+  .empty .n2 {
+    fill: var(--accent2);
+  }
+  .empty .n3 {
+    fill: var(--accent3);
+  }
+  .working {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    padding: 8px 0;
+  }
+  .empty[hidden],
+  .working[hidden],
+  .kpis[hidden] {
+    display: none;
+  }
+
+  @keyframes pulse {
+    50% {
+      opacity: 0.35;
+    }
+  }
+
+  @media (max-width: 860px) {
+    .agents {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .kpis {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 480px) {
+    .panel {
+      padding: 16px;
+    }
+    .workers {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .links {
+      display: none;
+    }
+    .org {
+      gap: 10px;
+    }
+    .kpis {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 8px;
+    }
+    /* 5 KPIs: 3 em cima e 2 embaixo, sem sobrar um sozinho */
+    .kpi {
+      grid-column: span 2;
+      padding: 8px 10px;
+    }
+    .kpi:nth-child(n + 4) {
+      grid-column: span 3;
+    }
+    .kpi strong {
+      font-size: 16px;
+    }
+  }
+</style>
+
+<style is:global>
+  /* Conteúdo criado pelo script (árvore e resposta): fica fora do escopo do Astro. */
+  #agents .avatar {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    flex: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--accent-ink);
+    background: var(--accent);
+  }
+  #agents .a-economist {
+    background: var(--accent2);
+    color: #fff;
+  }
+  #agents .a-company_researcher {
+    background: var(--accent3);
+    color: #1f1300;
+  }
+  #agents .spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    flex: none;
+    border-radius: 50%;
+    border: 2px solid color-mix(in srgb, var(--accent) 25%, transparent);
+    border-top-color: var(--accent);
+    animation: ag-spin 0.8s linear infinite;
+  }
+  @keyframes ag-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #agents .spinner {
+      animation-duration: 2.4s;
+    }
+  }
+
+  /* Árvore */
+  #agents .ag {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--panel);
+    padding: 12px 14px;
+    min-width: 0;
+  }
+  #agents .ag[data-status='running'] {
+    border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+  #agents .ag-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  #agents .ag-who {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+  }
+  #agents .ag-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  #agents .ag-task {
+    margin: 8px 0 0;
+    font-size: 13.5px;
+    color: var(--muted);
+    border-left: 2px solid var(--line-strong);
+    padding-left: 10px;
+  }
+  #agents .ag-steps {
+    list-style: none;
+    margin: 10px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+  }
+  #agents .st {
+    display: grid;
+    grid-template-columns: 14px minmax(0, 1fr);
+    gap: 8px;
+    align-items: start;
+    font-size: 13.5px;
+  }
+  #agents .st-icon {
+    width: 9px;
+    height: 9px;
+    margin: 6px 0 0 2px;
+    border-radius: 3px;
+    background: var(--accent);
+  }
+  #agents .st-tool .st-icon {
+    background: var(--accent3);
+  }
+  #agents .st-deleg .st-icon {
+    background: var(--accent2);
+  }
+  #agents .st-err .st-icon,
+  #agents .st-tool.is-failed .st-icon {
+    background: var(--danger);
+  }
+  #agents .st-err .st-body,
+  #agents .st-tool.is-failed .st-meta {
+    color: var(--danger);
+  }
+  #agents .st-body {
+    min-width: 0;
+    display: grid;
+    gap: 6px;
+  }
+  #agents .st-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 6px;
+    min-width: 0;
+  }
+  #agents .st-line code {
+    font-size: 12.5px;
+  }
+  #agents .st-kind {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+  #agents .st-tool-name {
+    color: var(--accent3);
+    font-weight: 600;
+  }
+  #agents .st-args {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+  #agents .st-meta {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  #agents .st-thought {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+    font-style: italic;
+  }
+  #agents .st-details summary {
+    cursor: pointer;
+    font-size: 12.5px;
+    color: var(--muted);
+    width: fit-content;
+  }
+  #agents .st-details summary:hover {
+    color: var(--accent);
+  }
+  #agents .st-details[open] summary {
+    margin-bottom: 6px;
+  }
+  #agents .st-pre {
+    margin: 0;
+    max-height: 240px;
+    overflow: auto;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  #agents .st-deleg > .st-body > .ag {
+    margin-top: 2px;
+  }
+  #agents .ag > .st-details {
+    margin-top: 10px;
+  }
+
+  /* Resposta em markdown */
+  #agents .md {
+    font-size: 15.5px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+  #agents .md-small {
+    font-size: 13.5px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--bg-soft);
+  }
+  #agents .md > :first-child {
+    margin-top: 0;
+  }
+  #agents .md > :last-child {
+    margin-bottom: 0;
+  }
+  #agents .md p,
+  #agents .md ul,
+  #agents .md ol,
+  #agents .md pre,
+  #agents .md blockquote,
+  #agents .md .md-table {
+    margin: 0 0 12px;
+  }
+  #agents .md ul,
+  #agents .md ol {
+    padding-left: 22px;
+  }
+  #agents .md li + li {
+    margin-top: 4px;
+  }
+  #agents .md li > ul,
+  #agents .md li > ol {
+    margin: 4px 0 0;
+  }
+  #agents .md h3,
+  #agents .md h4,
+  #agents .md h5,
+  #agents .md h6 {
+    font-size: 16px;
+    margin: 16px 0 8px;
+  }
+  #agents .md code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    padding: 1px 5px;
+    border-radius: 5px;
+    background: var(--bg-soft);
+  }
+  #agents .md pre {
+    padding: 12px 14px;
+    border-radius: 8px;
+    overflow-x: auto;
+  }
+  #agents .md pre code {
+    padding: 0;
+    background: none;
+  }
+  #agents .md blockquote {
+    border-left: 3px solid var(--line-strong);
+    padding-left: 12px;
+    color: var(--muted);
+  }
+  #agents .md hr {
+    border: 0;
+    border-top: 1px solid var(--line);
+    margin: 14px 0;
+  }
+  #agents .md-table {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  #agents .md-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  #agents .md-table th,
+  #agents .md-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    overflow-wrap: normal;
+  }
+  #agents .md-table tr:last-child td {
+    border-bottom: 0;
+  }
+  #agents .md-table th {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    background: var(--bg-soft);
+  }
+  #agents .md-table .al-right {
+    text-align: right;
+    white-space: nowrap;
+    font-family: var(--mono);
+  }
+  #agents .md-table .al-center {
+    text-align: center;
   }
 </style>

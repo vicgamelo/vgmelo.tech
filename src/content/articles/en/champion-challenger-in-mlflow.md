@@ -7,7 +7,7 @@ slug: champion-challenger-in-mlflow
 translation: champion-challenger-mlflow
 tags: ['MLOps', 'MLflow', 'Credit']
 project: mlops-platform
-draft: true
+draft: false
 ---
 
 Training a better model is the fun part. The part that causes trouble is **replacing the model in production**: who decides the new one is better, based on what, and how do you go back if it goes wrong?

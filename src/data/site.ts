@@ -17,7 +17,8 @@ export interface Project {
   summary: T;
   highlights: Record<Lang, string[]>;
   tags: string[];
-  demo?: 'demoCnpj' | 'demoMcp' | 'demoAgents' | 'demoCredit' | 'demoDrift' | 'demoAttention';
+  demo?: 'demoCnpj' | 'demoMcp' | 'demoAgents' | 'demoCredit' | 'demoDrift' | 'demoAttention' | 'demoOcr';
+  detail?: 'projectAgentAuth' | 'projectRag';
   featured?: boolean;
 }
 
@@ -73,6 +74,58 @@ export const PROJECTS: Project[] = [
     featured: true,
   },
   {
+    slug: 'agent-auth',
+    name: 'agent-auth',
+    repo: 'https://github.com/vicgamelo/agent-auth',
+    summary: {
+      pt: 'Autorização para agentes de IA e para conexão entre sistemas: servidor OAuth 2.1 leve no padrão do MCP, middleware que protege servidores MCP e APIs, e troca de token que registra qual agente agiu por qual usuário.',
+      en: 'Authorization for AI agents and system-to-system calls: a small OAuth 2.1 server following the MCP spec, a guard for MCP servers and APIs, and token exchange that records which agent acted for which user.',
+    },
+    highlights: {
+      pt: [
+        'PKCE, audiência fixa por recurso e tokens de 5 minutos',
+        'Troca de token (RFC 8693) com cadeia de atores, sem repassar o token recebido',
+        'Consentimento revogável, que corta o acesso em segundos',
+        'Log de auditoria encadeado por hash',
+        'Testes de ataque: replay, PKCE, audiência, confused deputy, SSRF e flood de registro',
+      ],
+      en: [
+        'PKCE, one audience per resource and 5-minute tokens',
+        'Token exchange (RFC 8693) with an actor chain, never forwarding the token it received',
+        'Revocable consent that cuts access within seconds',
+        'Hash-chained audit log',
+        'Attack tests: replay, PKCE, audience, confused deputy, SSRF and registration floods',
+      ],
+    },
+    tags: ['OAuth 2.1', 'MCP', 'Security'],
+    detail: 'projectAgentAuth',
+  },
+  {
+    slug: 'rag-normas',
+    name: 'rag-normas',
+    repo: 'https://github.com/vicgamelo/rag-normas',
+    summary: {
+      pt: 'RAG sobre as normas do Pix do Banco Central, só com peças open source: busca híbrida em um arquivo SQLite, modelos ONNX na CPU, citação do ato e do artigo em cada resposta e avaliação que roda no CI.',
+      en: "RAG over the Banco Central do Brasil's Pix regulations, built only from open-source parts: hybrid search in one SQLite file, ONNX models on CPU, the act and article cited in every answer, and an evaluation that runs in CI.",
+    },
+    highlights: {
+      pt: [
+        'Indexa só o texto em vigor: as redações revogadas que o BCB deixa riscadas ficam de fora',
+        'BM25 + vetores + re-ranker: o primeiro resultado certo sobe de 60% para 80%',
+        'Toda frase cita [n]; citação inválida é marcada e fora do corpus vira "NÃO ENCONTREI"',
+        'Ferramenta MCP para agentes, com trace no genai-lens',
+      ],
+      en: [
+        'Indexes only the text in force: the superseded wording the BCB keeps struck through stays out',
+        'BM25 + vectors + re-ranker: the right first result goes from 60% to 80%',
+        'Every sentence cites [n]; invalid citations are flagged and out-of-scope questions get "NÃO ENCONTREI"',
+        'An MCP tool for agents, traced in genai-lens',
+      ],
+    },
+    tags: ['RAG', 'Evaluation', 'MCP'],
+    detail: 'projectRag',
+  },
+  {
     slug: 'genai-lens',
     name: 'genai-lens',
     repo: 'https://github.com/vicgamelo/genai-lens',
@@ -119,6 +172,29 @@ export const PROJECTS: Project[] = [
     tags: ['MLflow', 'MLOps', 'scikit-learn'],
     demo: 'demoCredit',
     featured: true,
+  },
+  {
+    slug: 'ocr-brasil',
+    name: 'ocr-brasil',
+    repo: 'https://github.com/vicgamelo/ocr-brasil',
+    summary: {
+      pt: 'OCR de documentos brasileiros no navegador: acha CPF, CNPJ e linha digitável numa foto e usa o dígito verificador para decidir no que confiar.',
+      en: 'In-browser OCR for Brazilian documents: finds CPF, CNPJ and boleto lines in a photo and uses the check digit to decide what to trust.',
+    },
+    highlights: {
+      pt: [
+        'Tesseract (WASM) com o modelo em português servido pelo próprio site; a imagem não sai do aparelho',
+        'Corrige O→0, l→1, S→5 só quando o dígito verificador confirma, e relê o trecho que falhou',
+        'Limiar adaptativo (Bradley-Roth) para foto com sombra',
+      ],
+      en: [
+        'Tesseract (WASM) with the Portuguese model served by the site itself; the image never leaves the device',
+        'Fixes O→0, l→1, S→5 only when the check digit agrees, and re-reads the strip that failed',
+        'Adaptive threshold (Bradley-Roth) for photos with shadows',
+      ],
+    },
+    tags: ['OCR', 'Computer vision', 'TypeScript'],
+    demo: 'demoOcr',
   },
   {
     slug: 'ml-from-scratch',
@@ -274,7 +350,7 @@ export const STACK = [
 ];
 
 export interface Demo {
-  key: 'demoCnpj' | 'demoDrift' | 'demoAttention' | 'demoAgents' | 'demoCredit' | 'demoMcp';
+  key: 'demoCnpj' | 'demoDrift' | 'demoAttention' | 'demoAgents' | 'demoCredit' | 'demoMcp' | 'demoOcr' | 'demoPca';
   live: boolean;
   title: T;
   text: T;
@@ -313,6 +389,16 @@ export const DEMOS: Demo[] = [
     },
   },
   {
+    key: 'demoOcr',
+    live: false,
+    project: 'ocr-brasil',
+    title: { pt: 'OCR de boleto, CPF e CNPJ', en: 'OCR for boletos, CPF and CNPJ' },
+    text: {
+      pt: 'Mande a foto de um boleto, nota ou cartão CNPJ e veja o OCR achar os números e conferir cada dígito, tudo no seu navegador.',
+      en: 'Upload a photo of a boleto, invoice or CNPJ card and watch the OCR find the numbers and check every digit, all in your browser.',
+    },
+  },
+  {
     key: 'demoCnpj',
     live: false,
     project: 'mcp-server-brasil',
@@ -330,6 +416,16 @@ export const DEMOS: Demo[] = [
     text: {
       pt: 'Mude a distribuição de produção e veja o PSI e o alerta que disparam o retreino.',
       en: 'Shift the production distribution and watch the PSI and the alert that triggers retraining.',
+    },
+  },
+  {
+    key: 'demoPca',
+    live: false,
+    project: 'ml-from-scratch',
+    title: { pt: 'PCA visual', en: 'PCA, visually' },
+    text: {
+      pt: 'Reduza 4, 13, 30 ou 64 medidas a 2 ou 3 componentes e gire o resultado em 3D: Iris, vinhos, câncer de mama e dígitos escritos à mão.',
+      en: 'Reduce 4, 13, 30 or 64 features to 2 or 3 components and rotate the result in 3D: Iris, wine, breast cancer and handwritten digits.',
     },
   },
   {

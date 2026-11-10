@@ -7,7 +7,7 @@ slug: champion-challenger-mlflow
 translation: champion-challenger-in-mlflow
 tags: ['MLOps', 'MLflow', 'Crédito']
 project: mlops-platform
-draft: true
+draft: false
 ---
 
 Treinar um modelo melhor é a parte divertida. A parte que dá problema é **trocar o modelo que está em produção**: quem decide que o novo é melhor, com base em quê, e como volta atrás se der errado?

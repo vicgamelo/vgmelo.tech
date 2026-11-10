@@ -6,128 +6,723 @@ interface Props {
   lang: Lang;
 }
 const { lang } = Astro.props;
-const L =
-  lang === 'pt'
-    ? {
-        intro:
-          'A referência é a idade dos clientes no treino (média 35, desvio 11). Mude a produção e veja o PSI por faixa. É a mesma conta que o mlops-platform roda antes de decidir retreinar.',
-        mean: 'Média em produção',
-        sd: 'Desvio em produção',
-        stable: 'estável (< 0,1)',
-        moderate: 'moderado (0,1 a 0,25): investigar',
-        major: 'grande (> 0,25): retreinar',
-        ref: 'Treino',
-        cur: 'Produção',
-        bin: 'Faixa',
-        contrib: 'Contribuição',
-        to: 'a',
-      }
-    : {
-        intro:
-          "The reference is customer age at training time (mean 35, sd 11). Shift production and watch the PSI per bin. It's the same math mlops-platform runs before deciding to retrain.",
-        mean: 'Production mean',
-        sd: 'Production sd',
-        stable: 'stable (< 0.1)',
-        moderate: 'moderate (0.1 to 0.25): investigate',
-        major: 'major (> 0.25): retrain',
-        ref: 'Training',
-        cur: 'Production',
-        bin: 'Bin',
-        contrib: 'Contribution',
-        to: 'to',
-      };
+const pt = lang === 'pt';
+const L = pt
+  ? {
+      scenario: 'Cenário de produção',
+      scenarioHint: 'Escolha um caso ou ajuste à mão.',
+      presets: ['Sem mudança', 'Clientes mais jovens', 'Público mais velho', 'Mais espalhado', 'Mudança forte'],
+      mean: 'Média da idade',
+      sd: 'Desvio padrão',
+      reference: 'Treino: 4.000 clientes, média 35, desvio 11.',
+      stable: 'Estável',
+      moderate: 'Moderado',
+      major: 'Grande',
+      act_stable: 'Nada a fazer: o modelo vê clientes parecidos com os do treino.',
+      act_moderate: 'Investigar: a população mudou um pouco. Vale olhar as métricas do modelo.',
+      act_major: 'Retreinar: o modelo está vendo clientes diferentes dos que ele aprendeu.',
+      chartTitle: 'Idade dos clientes: treino × produção',
+      chartHint: 'No treino, cada faixa tem 10% dos clientes (a linha tracejada). As barras são a produção: quanto mais quente a cor, mais a faixa pesa no PSI.',
+      curvesHint: 'A curva tracejada é o treino e a cheia, a produção. As faixas sombreadas são as que mais pesam no PSI.',
+      viewBars: 'Faixas',
+      viewCurves: 'Curvas',
+      ofPsi: 'do PSI',
+      tipRef: 'treino',
+      tipCur: 'produção',
+      tipContrib: 'contribuição',
+      timeTitle: 'Semana a semana em produção',
+      timeHint: 'Se o público mudar aos poucos até o cenário escolhido, é assim que o monitoramento vê o PSI subir.',
+      week: 'semana',
+      wk: 'S',
+      firstWarn: 'Primeiro aviso',
+      retrainAt: 'Retreino aberto',
+      never: 'não acontece',
+      finalPsi: 'PSI na semana 12',
+      investigate: 'investigar',
+      retrain: 'retreinar',
+      tableSummary: 'Ver a tabela com os números de cada faixa',
+      ref: 'Treino',
+      cur: 'Produção',
+      years: 'anos',
+      tableTitle: 'De onde vem o PSI',
+      tableHint: 'O PSI é a soma da coluna da direita.',
+      bin: 'Faixa de idade',
+      binShort: 'Idade',
+      refPct: 'Treino',
+      curPct: 'Produção',
+      curShort: 'Prod.',
+      contrib: 'Contribuição',
+      contribShort: 'Contrib.',
+      to: 'a',
+      howTitle: 'Como o PSI funciona',
+      train: 'treino',
+      steps: [
+        ['Fatiar o treino', 'A idade dos clientes do treino é dividida em 10 faixas com 10% dos clientes cada (os decis).'],
+        ['Contar a produção', 'Os clientes que chegaram em produção são distribuídos nessas mesmas faixas.'],
+        ['Somar a diferença', 'Cada faixa soma (produção − treino) × ln(produção ÷ treino). Faixa igual soma zero.'],
+      ],
+      rule: 'Regra usada no mercado e no mlops-platform',
+      rules: [
+        ['< 0,1', 'estável'],
+        ['0,1 a 0,25', 'investigar'],
+        ['> 0,25', 'retreinar'],
+      ],
+      inPlatform:
+        'No mlops-platform essa conta roda para cada feature do modelo de crédito. Passou de 0,25, ele abre um retreino, e o modelo novo só substitui o campeão se ganhar nos critérios de qualidade e de justiça.',
+    }
+  : {
+      scenario: 'Production scenario',
+      scenarioHint: 'Pick a case or tune it by hand.',
+      presets: ['No change', 'Younger customers', 'Older audience', 'More spread', 'Strong shift'],
+      mean: 'Mean age',
+      sd: 'Standard deviation',
+      reference: 'Training: 4,000 customers, mean 35, sd 11.',
+      stable: 'Stable',
+      moderate: 'Moderate',
+      major: 'Major',
+      act_stable: 'Nothing to do: the model sees customers like the ones it was trained on.',
+      act_moderate: 'Investigate: the population moved a bit. Check the model metrics.',
+      act_major: "Retrain: the model is seeing customers unlike the ones it learned from.",
+      chartTitle: 'Customer age: training × production',
+      chartHint: 'In training every bin holds 10% of customers (the dashed line). Bars are production: the warmer the colour, the more the bin weighs in the PSI.',
+      curvesHint: 'The dashed curve is training and the solid one, production. Shaded bins weigh most in the PSI.',
+      viewBars: 'Bins',
+      viewCurves: 'Curves',
+      ofPsi: 'of the PSI',
+      tipRef: 'training',
+      tipCur: 'production',
+      tipContrib: 'contribution',
+      timeTitle: 'Week by week in production',
+      timeHint: 'If the audience drifts gradually toward the chosen scenario, this is how monitoring sees the PSI climb.',
+      week: 'week',
+      wk: 'W',
+      firstWarn: 'First warning',
+      retrainAt: 'Retrain opened',
+      never: "doesn't happen",
+      finalPsi: 'PSI in week 12',
+      investigate: 'investigate',
+      retrain: 'retrain',
+      tableSummary: 'See the table with each bin’s numbers',
+      ref: 'Training',
+      cur: 'Production',
+      years: 'years',
+      tableTitle: 'Where the PSI comes from',
+      tableHint: 'The PSI is the sum of the right-hand column.',
+      bin: 'Age bin',
+      binShort: 'Age',
+      refPct: 'Training',
+      curPct: 'Production',
+      curShort: 'Prod.',
+      contrib: 'Contribution',
+      contribShort: 'Contrib.',
+      to: 'to',
+      howTitle: 'How PSI works',
+      train: 'train',
+      steps: [
+        ['Slice the training data', 'Training customer ages are split into 10 bins holding 10% of customers each (deciles).'],
+        ['Count production', 'Customers arriving in production are placed into those same bins.'],
+        ['Add up the gap', 'Each bin adds (production − training) × ln(production ÷ training). An unchanged bin adds zero.'],
+      ],
+      rule: 'Rule of thumb used in industry and in mlops-platform',
+      rules: [
+        ['< 0.1', 'stable'],
+        ['0.1 to 0.25', 'investigate'],
+        ['> 0.25', 'retrain'],
+      ],
+      inPlatform:
+        'In mlops-platform this runs for every feature of the credit model. Above 0.25 it opens a retrain, and the new model only replaces the champion if it wins on quality and fairness criteria.',
+    };
+const presets: [number, number][] = [
+  [35, 11],
+  [29, 9],
+  [44, 11],
+  [35, 17],
+  [50, 8],
+];
+
+// Medidor: meio círculo de 0 a 0,5, com as zonas da regra.
+const cx = 110;
+const cy = 104;
+const r = 86;
+const MAX = 0.5;
+const pt2 = (v: number, rad = r) => {
+  const a = Math.PI * (1 - Math.min(v, MAX) / MAX);
+  return [cx + rad * Math.cos(a), cy - rad * Math.sin(a)];
+};
+const arc = (a: number, b: number) => {
+  const [x1, y1] = pt2(a);
+  const [x2, y2] = pt2(b);
+  return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 0 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+};
+const zones = [
+  { cls: 'z-stable', d: arc(0, 0.1) },
+  { cls: 'z-moderate', d: arc(0.1, 0.25) },
+  { cls: 'z-major', d: arc(0.25, MAX) },
+];
+const ticks = [0, 0.1, 0.25, 0.5].map((v) => {
+  const [x, y] = pt2(v, r + 16);
+  return { x: x.toFixed(1), y: y.toFixed(1), label: pt ? String(v).replace('.', ',') : String(v) };
+});
 ---
 
 <DemoShell lang={lang} demo="demoDrift">
-  <div class="demo" id="drift" data-l={JSON.stringify(L)} data-lang={lang}>
-    <p class="muted">{L.intro}</p>
-    <div class="controls">
+  <div class="drift" id="drift" data-l={JSON.stringify(L)} data-lang={lang} data-presets={JSON.stringify(presets)}>
+    <section class="panel controls">
+      <h2>{L.scenario}</h2>
+      <p class="hint">{L.scenarioHint}</p>
+      <div class="chips" role="group" aria-label={L.scenario}>
+        {
+          L.presets.map((p, i) => (
+            <button type="button" class="chip" data-preset={i} aria-pressed={i === 0 ? 'true' : 'false'}>
+              {p}
+            </button>
+          ))
+        }
+      </div>
       <div class="field">
-        <label for="mean">{L.mean}: <output id="mean-out">35</output></label>
+        <label for="mean"><span>{L.mean}</span><output id="mean-out" class="mono">35</output></label>
         <input id="mean" type="range" min="20" max="60" step="0.5" value="35" />
       </div>
       <div class="field">
-        <label for="sd">{L.sd}: <output id="sd-out">11</output></label>
+        <label for="sd"><span>{L.sd}</span><output id="sd-out" class="mono">11</output></label>
         <input id="sd" type="range" min="4" max="25" step="0.5" value="11" />
       </div>
-    </div>
-    <p class="psi" aria-live="polite"><span class="mono" id="psi"></span> <span id="sev"></span></p>
-    <div class="legend muted"><span class="sw ref"></span>{L.ref} <span class="sw cur"></span>{L.cur}</div>
-    <div class="bars" id="bars" role="img" aria-label="Histogram"></div>
+      <p class="hint ref-note"><span class="sw ref"></span>{L.reference}</p>
+    </section>
+
+    <section class="panel gauge-panel" aria-live="polite">
+      <svg class="gauge" viewBox="0 0 220 128" role="img" aria-labelledby="psi-value">
+        {zones.map((z) => <path class={`zone ${z.cls}`} d={z.d} />)}
+        {
+          ticks.map((tk) => (
+            <text x={tk.x} y={tk.y} class="tick" text-anchor="middle">
+              {tk.label}
+            </text>
+          ))
+        }
+        <line id="needle" class="needle" x1={cx} y1={cy} x2={cx - r + 12} y2={cy}></line>
+        <circle class="hub" cx={cx} cy={cy} r="6"></circle>
+      </svg>
+      <div class="psi-num">
+        <span class="psi-label mono">PSI</span>
+        <span id="psi-value" class="psi-value mono">0,000</span>
+      </div>
+      <span id="sev" class="sev stable">{L.stable}</span>
+      <p id="action" class="action">{L.act_stable}</p>
+    </section>
+
+    <section class="panel chart-panel">
+      <div class="panel-head">
+        <div>
+          <h2>{L.chartTitle}</h2>
+          <p class="hint" id="chart-hint">{L.chartHint}</p>
+        </div>
+        <div class="head-right">
+          <div class="legend">
+            <span><span class="sw ref"></span>{L.ref}</span>
+            <span><span class="sw cur"></span>{L.cur}</span>
+          </div>
+          <div class="seg" role="group" aria-label={L.chartTitle}>
+            <button type="button" data-view="bars" aria-pressed="true">{L.viewBars}</button>
+            <button type="button" data-view="curves" aria-pressed="false">{L.viewCurves}</button>
+          </div>
+        </div>
+      </div>
+      <div id="view-bars" class="bars-wrap">
+        <div id="bars" class="bars"></div>
+        <div id="btip" class="btip" hidden></div>
+      </div>
+      <div id="view-curves" hidden>
+        <svg id="chart" class="chart" viewBox="0 0 800 260" preserveAspectRatio="none" role="img" aria-label={L.chartTitle}>
+          <g id="bands"></g>
+          <path id="area-ref" class="area ref"></path>
+          <path id="area-cur" class="area cur"></path>
+          <path id="line-ref" class="line ref"></path>
+          <path id="line-cur" class="line cur"></path>
+        </svg>
+        <div id="axis" class="axis mono"></div>
+      </div>
+    </section>
+
+    <section class="panel time-panel">
+      <div class="panel-head">
+        <div>
+          <h2>{L.timeTitle}</h2>
+          <p class="hint">{L.timeHint}</p>
+        </div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><span class="kpi-label">{L.firstWarn}</span><span class="kpi-value mono" id="k-warn"></span></div>
+        <div class="kpi"><span class="kpi-label">{L.retrainAt}</span><span class="kpi-value mono" id="k-retrain"></span></div>
+        <div class="kpi"><span class="kpi-label">{L.finalPsi}</span><span class="kpi-value mono" id="k-final"></span></div>
+      </div>
+      <svg id="timeline" class="timeline" viewBox="0 0 800 230" role="img" aria-label={L.timeTitle}></svg>
+    </section>
+
+    <details class="panel table-panel">
+      <summary>{L.tableSummary}</summary>
+      <p class="hint">{L.tableHint}</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th><span class="long">{L.bin}</span><span class="short">{L.binShort}</span></th><th class="num">{L.refPct}</th><th class="num"><span class="long">{L.curPct}</span><span class="short">{L.curShort}</span></th><th><span class="long">{L.contrib}</span><span class="short">{L.contribShort}</span></th></tr>
+          </thead>
+          <tbody id="rows"></tbody>
+          <tfoot>
+            <tr><td colspan="3">PSI</td><td class="mono" id="sum"></td></tr>
+          </tfoot>
+        </table>
+      </div>
+    </details>
+
+    <section class="how">
+      <h2>{L.howTitle}</h2>
+      <ol class="steps">
+        {
+          L.steps.map(([title, text], i) => (
+            <li class="panel step">
+              <span class="step-n mono">{i + 1}</span>
+              <h3>{title}</h3>
+              <p>{text}</p>
+            </li>
+          ))
+        }
+      </ol>
+      <div class="panel formula-panel">
+        <p class="formula mono">PSI = Σ (p<sub>prod</sub> − p<sub>{L.train}</sub>) · ln(p<sub>prod</sub> / p<sub>{L.train}</sub>)</p>
+        <div class="rules">
+          <span class="rules-title">{L.rule}</span>
+          {
+            L.rules.map(([v, label], i) => (
+              <span class={`rule r${i}`}>
+                <b class="mono">{v}</b> {label}
+              </span>
+            ))
+          }
+        </div>
+        <p class="platform">{L.inPlatform}</p>
+      </div>
+    </section>
   </div>
 </DemoShell>
 
 <script>
-  import { normal, psiNumeric, severity } from '../../lib/psi';
+  import { density, normal, psiNumeric, severity, type Binned } from '../../lib/psi';
 
   const root = document.getElementById('drift');
   if (root) {
     const L = JSON.parse(root.dataset.l!) as Record<string, string>;
-    const fmt = new Intl.NumberFormat(root.dataset.lang === 'pt' ? 'pt-BR' : 'en', { maximumFractionDigits: 3 });
+    const presets = JSON.parse(root.dataset.presets!) as [number, number][];
+    const pt = root.dataset.lang === 'pt';
+    const fmt = (v: number, d = 3) =>
+      new Intl.NumberFormat(pt ? 'pt-BR' : 'en', { minimumFractionDigits: d, maximumFractionDigits: d }).format(v);
+    const pct = (v: number) => new Intl.NumberFormat(pt ? 'pt-BR' : 'en', { style: 'percent', maximumFractionDigits: 1 }).format(v);
     const reference = normal(4000, 35, 11, 7);
+    const refSample = reference.slice(0, 1500); // a curva só precisa de uma amostra
     const mean = document.getElementById('mean') as HTMLInputElement;
     const sd = document.getElementById('sd') as HTMLInputElement;
-    const bars = document.getElementById('bars')!;
-    let timer = 0;
+    const chips = [...root.querySelectorAll<HTMLButtonElement>('[data-preset]')];
+    const NS = 'http://www.w3.org/2000/svg';
+    const W = 800;
+    const H = 260;
+    const PAD = 10;
+    let frame = 0;
+
+    function path(xs: number[], ys: number[], sx: (x: number) => number, sy: (y: number) => number, close: boolean) {
+      let d = xs.map((x, i) => `${i ? 'L' : 'M'}${sx(x).toFixed(1)} ${sy(ys[i]).toFixed(1)}`).join(' ');
+      if (close) d += ` L${sx(xs[xs.length - 1]).toFixed(1)} ${H} L${sx(xs[0]).toFixed(1)} ${H} Z`;
+      return d;
+    }
 
     function draw() {
-      document.getElementById('mean-out')!.textContent = mean.value;
-      document.getElementById('sd-out')!.textContent = sd.value;
-      const current = normal(4000, Number(mean.value), Number(sd.value), 11);
+      const m = Number(mean.value);
+      const s = Number(sd.value);
+      document.getElementById('mean-out')!.textContent = `${fmt(m, 1)} ${L.years}`;
+      document.getElementById('sd-out')!.textContent = fmt(s, 1);
+      chips.forEach((c, i) => c.setAttribute('aria-pressed', String(presets[i][0] === m && presets[i][1] === s)));
+
+      const current = normal(4000, m, s, 11);
       const b = psiNumeric(reference, current);
       const sev = severity(b.psi);
-      document.getElementById('psi')!.textContent = `PSI = ${fmt.format(b.psi)}`;
+
+      // Medidor
+      // O ponteiro nasce apontando para o 0 e gira (em CSS, com transição) até o valor.
+      const v = Math.min(b.psi, 0.5);
+      document.getElementById('needle')!.style.transform = `rotate(${((v / 0.5) * 180).toFixed(2)}deg)`;
+      document.getElementById('psi-value')!.textContent = fmt(b.psi);
       const sevEl = document.getElementById('sev')!;
       sevEl.textContent = L[sev];
       sevEl.className = `sev ${sev}`;
-      const max = Math.max(...b.reference, ...b.current);
-      bars.replaceChildren(
-        ...b.reference.map((r, i) => {
-          const c = b.current[i];
-          const lo = b.edges[i] === -Infinity ? '−∞' : fmt.format(b.edges[i]);
-          const hi = b.edges[i + 1] === Infinity ? '+∞' : fmt.format(b.edges[i + 1]);
-          const col = document.createElement('div');
-          col.className = 'col';
-          col.title = `${L.bin} ${lo} ${L.to} ${hi}`;
-          const pair = document.createElement('div');
-          pair.className = 'pair';
-          for (const [v, cls] of [
-            [r, 'ref'],
-            [c, 'cur'],
-          ] as const) {
-            const bar = document.createElement('span');
-            bar.className = `bar ${cls}`;
-            bar.style.height = `${(v / max) * 100}%`;
-            pair.append(bar);
-          }
-          const label = document.createElement('span');
-          label.className = 'lbl mono';
-          label.textContent = `${lo}–${hi}`;
-          col.append(pair, label);
-          return col;
+      root!.dataset.sev = sev;
+      document.getElementById('action')!.textContent = L[`act_${sev}`];
+
+      // Curvas
+      const lo = Math.max(0, Math.min(35 - 3.2 * 11, m - 3.2 * s));
+      const hi = Math.max(35 + 3.2 * 11, m + 3.2 * s);
+      const xs = Array.from({ length: 140 }, (_, i) => lo + ((hi - lo) * i) / 139);
+      const dRef = density(refSample, xs);
+      const dCur = density(current.slice(0, 1500), xs);
+      const top = Math.max(...dRef, ...dCur) * 1.08;
+      const sx = (x: number) => ((x - lo) / (hi - lo)) * W;
+      const sy = (y: number) => H - (y / top) * (H - PAD);
+      document.getElementById('area-ref')!.setAttribute('d', path(xs, dRef, sx, sy, true));
+      document.getElementById('area-cur')!.setAttribute('d', path(xs, dCur, sx, sy, true));
+      document.getElementById('line-ref')!.setAttribute('d', path(xs, dRef, sx, sy, false));
+      document.getElementById('line-cur')!.setAttribute('d', path(xs, dCur, sx, sy, false));
+
+      // Faixas do PSI, pintadas pela contribuição
+      const maxC = Math.max(...b.contrib, 1e-9);
+      const bands = document.getElementById('bands')!;
+      bands.replaceChildren(
+        ...b.contrib.map((c, i) => {
+          const x0 = sx(Math.max(b.edges[i], lo));
+          const x1 = sx(Math.min(b.edges[i + 1], hi));
+          const g = document.createElementNS(NS, 'g');
+          const rect = document.createElementNS(NS, 'rect');
+          rect.setAttribute('x', x0.toFixed(1));
+          rect.setAttribute('y', '0');
+          rect.setAttribute('width', Math.max(0, x1 - x0).toFixed(1));
+          rect.setAttribute('height', String(H));
+          rect.setAttribute('class', 'band');
+          rect.setAttribute('fill-opacity', (b.psi < 0.02 || c / maxC < 0.3 ? 0 : (c / maxC) * 0.18).toFixed(3));
+          const sep = document.createElementNS(NS, 'line');
+          sep.setAttribute('x1', x1.toFixed(1));
+          sep.setAttribute('x2', x1.toFixed(1));
+          sep.setAttribute('y1', '0');
+          sep.setAttribute('y2', String(H));
+          sep.setAttribute('class', 'sep');
+          g.append(rect, sep);
+          return g;
         }),
       );
+
+      // Eixo em HTML (texto não deforma com o SVG esticado)
+      const axis = document.getElementById('axis')!;
+      const step = hi - lo > 60 ? 20 : 10;
+      const labels = [];
+      for (let t = Math.ceil(lo / step) * step; t <= hi; t += step) {
+        const span = document.createElement('span');
+        span.textContent = String(t);
+        span.style.left = `${(sx(t) / W) * 100}%`;
+        labels.push(span);
+      }
+      axis.replaceChildren(...labels);
+
+      // Tabela
+      const rows = document.getElementById('rows')!;
+      rows.replaceChildren(
+        ...b.contrib.map((c, i) => {
+          const tr = document.createElement('tr');
+          const from = b.edges[i] === -Infinity ? '' : fmt(b.edges[i], 0);
+          const to = b.edges[i + 1] === Infinity ? '' : fmt(b.edges[i + 1], 0);
+          const label = !from ? `< ${to}` : !to ? `≥ ${from}` : `${from} ${L.to} ${to}`;
+          const cells = [label, pct(b.reference[i]), pct(b.current[i])];
+          cells.forEach((text, k) => {
+            const td = document.createElement('td');
+            td.textContent = text;
+            if (k > 0) td.className = 'num mono';
+            tr.append(td);
+          });
+          const td = document.createElement('td');
+          td.className = 'contrib';
+          const bar = document.createElement('span');
+          bar.className = 'cbar';
+          bar.style.width = `${(c / maxC) * 100}%`;
+          const val = document.createElement('span');
+          val.className = 'mono';
+          val.textContent = fmt(c);
+          td.append(bar, val);
+          tr.append(td);
+          if (b.psi >= 0.02 && c === maxC) tr.className = 'top';
+          return tr;
+        }),
+      );
+      document.getElementById('sum')!.textContent = fmt(b.psi);
+
+      drawBars(b);
+      drawTimeline(m, s);
     }
+
+    // ---------------------------------------------------------------- barras por faixa
+    const binLabel = (b: Binned, i: number, short = false) => {
+      const from = b.edges[i] === -Infinity ? '' : fmt(b.edges[i], 0);
+      const to = b.edges[i + 1] === Infinity ? '' : fmt(b.edges[i + 1], 0);
+      if (!from) return `< ${to}`;
+      if (!to) return `≥ ${from}`;
+      return short ? from : `${from}–${to}`;
+    };
+    const level = (c: number) => (c < 0.002 ? 0 : c < 0.01 ? 1 : c < 0.03 ? 2 : 3);
+    const barsEl = document.getElementById('bars')!;
+    const btip = document.getElementById('btip')!;
+    let cols: { col: HTMLElement; pval: HTMLElement; bar: HTMLElement; ref: HTMLElement; clabel: HTMLElement; label: HTMLElement }[] = [];
+    let lastBins: Binned | null = null;
+
+    function showTip(i: number) {
+      const b = lastBins;
+      if (!b || i < 0) {
+        btip.hidden = true;
+        cols.forEach((c) => c.col.classList.remove('hot'));
+        return;
+      }
+      cols.forEach((c, k) => c.col.classList.toggle('hot', k === i));
+      const share = b.psi > 0 ? b.contrib[i] / b.psi : 0;
+      const title = document.createElement('strong');
+      title.textContent = `${binLabel(b, i)} ${L.years}`;
+      const lines = [
+        `${L.tipRef}: ${pct(b.reference[i])}`,
+        `${L.tipCur}: ${pct(b.current[i])}`,
+        `${L.tipContrib}: ${fmt(b.contrib[i])} (${pct(share)} ${L.ofPsi})`,
+      ].map((t) => {
+        const span = document.createElement('span');
+        span.textContent = t;
+        return span;
+      });
+      btip.replaceChildren(title, ...lines);
+      btip.hidden = false;
+      const col = cols[i].col;
+      const left = col.offsetLeft + col.offsetWidth / 2;
+      btip.style.left = `${left}px`;
+      btip.classList.toggle('flip', left > barsEl.clientWidth * 0.6);
+      btip.classList.toggle('flip-l', left < barsEl.clientWidth * 0.2);
+    }
+
+    function drawBars(b: Binned) {
+      lastBins = b;
+      if (cols.length !== b.contrib.length) {
+        cols = b.contrib.map((_, i) => {
+          const col = document.createElement('button');
+          col.type = 'button';
+          col.className = 'col';
+          const pval = document.createElement('span');
+          pval.className = 'pval mono';
+          const well = document.createElement('span');
+          well.className = 'well';
+          const ref = document.createElement('span');
+          ref.className = 'refline';
+          const bar = document.createElement('span');
+          bar.className = 'bar';
+          well.append(bar, ref);
+          const clabel = document.createElement('span');
+          clabel.className = 'clabel mono';
+          const label = document.createElement('span');
+          label.className = 'blabel mono';
+          col.append(pval, well, clabel, label);
+          col.addEventListener('mouseenter', () => showTip(i));
+          col.addEventListener('focus', () => showTip(i));
+          col.addEventListener('click', () => showTip(i));
+          return { col, pval, bar, ref, clabel, label };
+        });
+        barsEl.replaceChildren(...cols.map((c) => c.col));
+        barsEl.addEventListener('mouseleave', () => showTip(-1));
+      }
+      const top = Math.max(...b.current, ...b.reference) * 1.12;
+      const narrow = barsEl.clientWidth < 520;
+      b.contrib.forEach((c, i) => {
+        const k = cols[i];
+        k.pval.textContent = pct(b.current[i]);
+        k.bar.style.height = `${(b.current[i] / top) * 100}%`;
+        k.ref.style.bottom = `${(b.reference[i] / top) * 100}%`;
+        k.col.dataset.lv = String(level(c));
+        k.clabel.textContent = c >= 0.001 ? `+${fmt(c)}` : '·';
+        k.label.textContent = binLabel(b, i, narrow);
+        k.col.setAttribute('aria-label', `${binLabel(b, i)}: ${L.tipRef} ${pct(b.reference[i])}, ${L.tipCur} ${pct(b.current[i])}, ${L.tipContrib} ${fmt(c)}`);
+      });
+      if (!btip.hidden) showTip(cols.findIndex((c) => c.col.classList.contains('hot')));
+    }
+
+    // ---------------------------------------------------------------- semana a semana
+    const WEEKS = 12;
+    const timeline = document.getElementById('timeline') as unknown as SVGSVGElement;
+    const weeklyCache = new Map<string, number[]>();
+    function weekly(m: number, s: number): number[] {
+      const key = `${m}|${s}`;
+      let out = weeklyCache.get(key);
+      if (!out) {
+        // O público anda em linha reta do treino (35, 11) até o cenário escolhido.
+        out = Array.from({ length: WEEKS }, (_, w) => {
+          const t = (w + 1) / WEEKS;
+          return psiNumeric(reference, normal(2000, 35 + (m - 35) * t, 11 + (s - 11) * t, 100 + w)).psi;
+        });
+        if (weeklyCache.size > 40) weeklyCache.clear();
+        weeklyCache.set(key, out);
+      }
+      return out;
+    }
+    const svgEl = (tag: string, attrs: Record<string, string | number>, text?: string) => {
+      const e = document.createElementNS(NS, tag);
+      for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, String(v));
+      if (text !== undefined) e.textContent = text;
+      return e;
+    };
+    let lastTimeline: [number, number] = [35, 11];
+
+    function drawTimeline(m: number, s: number) {
+      lastTimeline = [m, s];
+      const psis = weekly(m, s);
+      const Wt = Math.max(timeline.clientWidth, 280);
+      const Ht = 230;
+      timeline.setAttribute('viewBox', `0 0 ${Wt} ${Ht}`);
+      const pl = 44;
+      const pr = Wt < 480 ? 12 : 92;
+      const ptop = 12;
+      const pb = 28;
+      // Eixo até 0,6 no máximo: acima disso o ponto fica no topo, vazado (o valor está no card e na dica).
+      const top = Math.min(0.6, Math.max(0.32, Math.max(...psis) * 1.15));
+      const x = (w: number) => pl + (w / (WEEKS - 1)) * (Wt - pl - pr);
+      const y = (v: number) => ptop + (1 - Math.min(v, top) / top) * (Ht - ptop - pb);
+      const nodes: Element[] = [];
+      // Zonas da regra
+      [
+        [0, 0.1, 'zs'],
+        [0.1, 0.25, 'zm'],
+        [0.25, top, 'zj'],
+      ].forEach(([a, b2, cls]) =>
+        nodes.push(svgEl('rect', { x: pl, y: y(b2 as number), width: Wt - pl - pr, height: y(a as number) - y(b2 as number), class: `tz ${cls}` })),
+      );
+      for (const [v, label] of [
+        [0.1, L.investigate],
+        [0.25, L.retrain],
+      ] as const) {
+        nodes.push(svgEl('line', { x1: pl, x2: Wt - pr, y1: y(v), y2: y(v), class: `tline t${v === 0.1 ? 'm' : 'j'}` }));
+        nodes.push(svgEl('text', { x: pl - 6, y: y(v) + 4, class: 'tick-l', 'text-anchor': 'end' }, fmt(v, v === 0.1 ? 1 : 2)));
+        if (pr > 40) nodes.push(svgEl('text', { x: Wt - pr + 8, y: y(v) + 4, class: `tlabel t${v === 0.1 ? 'm' : 'j'}` }, label));
+      }
+      nodes.push(svgEl('text', { x: pl - 6, y: y(0) + 4, class: 'tick-l', 'text-anchor': 'end' }, '0'));
+      // Semanas
+      psis.forEach((_, w) => {
+        if (Wt < 480 && w % 2 === 1) return;
+        nodes.push(svgEl('text', { x: x(w), y: Ht - 8, class: 'tick-l', 'text-anchor': 'middle' }, `${L.wk}${w + 1}`));
+      });
+      // Área e linha
+      const line = psis.map((v, w) => `${w ? 'L' : 'M'}${x(w).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+      nodes.push(svgEl('path', { d: `${line} L${x(WEEKS - 1).toFixed(1)} ${y(0)} L${x(0).toFixed(1)} ${y(0)} Z`, class: 'tarea' }));
+      nodes.push(svgEl('path', { d: line, class: 'tpath' }));
+      // Marcos: primeiro aviso e retreino
+      const warn = psis.findIndex((v) => v >= 0.1);
+      const retrain = psis.findIndex((v) => v >= 0.25);
+      if (retrain >= 0) nodes.push(svgEl('line', { x1: x(retrain), x2: x(retrain), y1: ptop, y2: Ht - pb, class: 'tmark' }));
+      psis.forEach((v, w) => {
+        const c = svgEl('circle', { cx: x(w).toFixed(1), cy: y(v).toFixed(1), r: w === retrain || w === warn ? 6 : 4, class: `tdot ${severity(v)}${v > top ? ' clip' : ''}` });
+        c.append(svgEl('title', {}, `${L.week} ${w + 1}: PSI ${fmt(v)}`));
+        nodes.push(c);
+      });
+      timeline.replaceChildren(...nodes);
+      document.getElementById('k-warn')!.textContent = warn >= 0 ? `${L.week} ${warn + 1}` : L.never;
+      document.getElementById('k-retrain')!.textContent = retrain >= 0 ? `${L.week} ${retrain + 1}` : L.never;
+      const fin = document.getElementById('k-final')!;
+      fin.textContent = fmt(psis[WEEKS - 1]);
+      fin.className = `kpi-value mono ${severity(psis[WEEKS - 1])}`;
+    }
+    new ResizeObserver(() => {
+      drawTimeline(...lastTimeline);
+      if (lastBins) drawBars(lastBins);
+    }).observe(timeline);
+
+    // Alternar barras × curvas
+    const views = [...root.querySelectorAll<HTMLButtonElement>('[data-view]')];
+    views.forEach((btn) =>
+      btn.addEventListener('click', () => {
+        const curves = btn.dataset.view === 'curves';
+        views.forEach((v) => v.setAttribute('aria-pressed', String(v === btn)));
+        document.getElementById('view-bars')!.hidden = curves;
+        document.getElementById('view-curves')!.hidden = !curves;
+        document.getElementById('chart-hint')!.textContent = curves ? L.curvesHint : L.chartHint;
+      }),
+    );
+
     const schedule = () => {
-      cancelAnimationFrame(timer);
-      timer = requestAnimationFrame(draw);
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(draw);
     };
     mean.addEventListener('input', schedule);
     sd.addEventListener('input', schedule);
+    chips.forEach((c, i) =>
+      c.addEventListener('click', () => {
+        mean.value = String(presets[i][0]);
+        sd.value = String(presets[i][1]);
+        schedule();
+      }),
+    );
     draw();
   }
 </script>
 
 <style>
-  .demo {
-    max-width: 900px;
-    display: grid;
-    gap: 16px;
+  /* Item de grid encolhe abaixo do conteúdo (a fórmula e as tabelas rolam dentro do painel). */
+  .drift > * {
+    min-width: 0;
   }
+  .drift {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    gap: 16px;
+    padding-bottom: 48px;
+  }
+  .panel {
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    min-width: 0;
+  }
+  h2 {
+    font-size: 17px;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .hint {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 4px 0 0;
+  }
+  .panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  /* Controles */
   .controls {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
-    gap: 16px;
+    gap: 14px;
+    align-content: start;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chip {
+    font: inherit;
+    font-size: 13.5px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .chip:hover {
+    border-color: var(--accent);
+  }
+  .chip[aria-pressed='true'] {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .field label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+  }
+  .field output {
+    color: var(--accent);
+    font-weight: 600;
   }
   input[type='range'] {
     padding: 0;
@@ -136,28 +731,383 @@ const L =
     border: 0;
     background: transparent;
   }
-  .psi {
-    font-size: 22px;
+  .ref-note {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Medidor */
+  .gauge-panel {
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    text-align: center;
+    gap: 6px;
+    transition: box-shadow 0.2s, border-color 0.2s;
+  }
+  .drift[data-sev='moderate'] .gauge-panel {
+    border-color: color-mix(in srgb, var(--warn) 50%, var(--line));
+  }
+  .drift[data-sev='major'] .gauge-panel {
+    border-color: color-mix(in srgb, var(--danger) 55%, var(--line));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 25%, transparent), 0 16px 50px -20px var(--danger);
+  }
+  .gauge {
+    width: 100%;
+    max-width: 280px;
+    overflow: visible;
+  }
+  .zone {
+    fill: none;
+    stroke-width: 14;
+  }
+  .z-stable {
+    stroke: var(--ok);
+  }
+  .z-moderate {
+    stroke: var(--warn);
+  }
+  .z-major {
+    stroke: var(--danger);
+  }
+  .tick {
+    font-family: var(--mono);
+    font-size: 10px;
+    fill: var(--muted);
+  }
+  .needle {
+    stroke: var(--text);
+    stroke-width: 3.5;
+    stroke-linecap: round;
+    transform-box: view-box;
+    transform-origin: 110px 104px;
+    transition: transform 0.45s cubic-bezier(0.3, 1.35, 0.5, 1);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .needle,
+    .bars :global(.bar),
+    .bars :global(.refline) {
+      transition: none !important;
+    }
+  }
+  .hub {
+    fill: var(--text);
+  }
+  .psi-num {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .psi-label {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .psi-value {
+    font-size: 40px;
     font-weight: 700;
-    margin: 0;
+    letter-spacing: -0.03em;
   }
   .sev {
-    font-size: 15px;
-    font-weight: 600;
-    margin-left: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 3px 12px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
   .sev.stable {
     color: var(--ok);
+    background: color-mix(in srgb, var(--ok) 14%, transparent);
   }
   .sev.moderate {
     color: var(--warn);
+    background: color-mix(in srgb, var(--warn) 14%, transparent);
   }
   .sev.major {
     color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 14%, transparent);
+  }
+  .action {
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 14.5px;
+    max-width: 340px;
+  }
+
+  /* Gráfico */
+  .chart-panel,
+  .time-panel,
+  .table-panel,
+  .how {
+    grid-column: 1 / -1;
+  }
+  .head-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .seg {
+    display: inline-flex;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .seg button {
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 14px;
+    min-height: 34px;
+    border: 0;
+    background: var(--panel);
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .seg button + button {
+    border-left: 1px solid var(--line-strong);
+  }
+  .seg button[aria-pressed='true'] {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  [hidden] {
+    display: none !important;
+  }
+
+  /* Barras por faixa */
+  .bars-wrap {
+    position: relative;
+  }
+  .bars {
+    display: grid;
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    gap: 8px;
+    padding-top: 8px;
+  }
+  .bars :global(.col) {
+    --lv: var(--accent);
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 6px 2px 4px;
+    border-radius: 10px;
+    display: grid;
+    grid-template-rows: auto 220px auto auto;
+    gap: 6px;
+    justify-items: center;
+    cursor: pointer;
+    min-width: 0;
+    transition: background 0.15s;
+  }
+  .bars :global(.col[data-lv='1']) {
+    --lv: color-mix(in srgb, var(--accent) 45%, var(--accent3));
+  }
+  .bars :global(.col[data-lv='2']) {
+    --lv: var(--accent3);
+  }
+  .bars :global(.col[data-lv='3']) {
+    --lv: var(--danger);
+  }
+  .bars :global(.col.hot),
+  .bars :global(.col:focus-visible) {
+    background: var(--bg-soft);
+    outline: none;
+  }
+  .bars :global(.pval) {
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .bars :global(.well) {
+    position: relative;
+    width: 100%;
+    max-width: 56px;
+    height: 100%;
+    border-bottom: 1px solid var(--line-strong);
+  }
+  .bars :global(.bar) {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 8px 8px 2px 2px;
+    background: linear-gradient(180deg, var(--lv), color-mix(in srgb, var(--lv) 55%, transparent));
+    box-shadow: 0 0 22px -8px var(--lv);
+    transition:
+      height 0.35s cubic-bezier(0.2, 0.9, 0.3, 1),
+      background 0.3s;
+  }
+  .bars :global(.refline) {
+    position: absolute;
+    left: -6px;
+    right: -6px;
+    border-top: 2px dashed var(--muted);
+    opacity: 0.8;
+    transition: bottom 0.35s;
+  }
+  .bars :global(.clabel) {
+    font-size: 11.5px;
+    color: var(--lv);
+    font-weight: 600;
+  }
+  .bars :global(.col[data-lv='0'] .clabel) {
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .bars :global(.blabel) {
+    font-size: 11.5px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .btip {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    z-index: 2;
+    display: grid;
+    gap: 2px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--panel);
+    border: 1px solid var(--line-strong);
+    box-shadow: var(--shadow);
+    font-size: 12.5px;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .btip.flip {
+    transform: translateX(-100%);
+  }
+  .btip.flip-l {
+    transform: none;
+  }
+  .btip :global(strong) {
+    font-size: 13.5px;
+    margin-bottom: 2px;
+  }
+
+  /* Semana a semana */
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .kpi {
+    display: grid;
+    gap: 2px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+  }
+  .kpi-label {
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .kpi-value {
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .kpi-value.moderate {
+    color: var(--warn);
+  }
+  .kpi-value.major {
+    color: var(--danger);
+  }
+  .timeline {
+    width: 100%;
+    height: 230px;
+    display: block;
+  }
+  .timeline :global(.tz) {
+    fill-opacity: 0.07;
+  }
+  .timeline :global(.zs) {
+    fill: var(--ok);
+  }
+  .timeline :global(.zm) {
+    fill: var(--warn);
+  }
+  .timeline :global(.zj) {
+    fill: var(--danger);
+  }
+  .timeline :global(.tline) {
+    stroke-dasharray: 5 5;
+    stroke-width: 1.2;
+  }
+  .timeline :global(.tline.tm),
+  .timeline :global(.tlabel.tm) {
+    stroke: var(--warn);
+    fill: var(--warn);
+  }
+  .timeline :global(.tline.tj),
+  .timeline :global(.tlabel.tj) {
+    stroke: var(--danger);
+    fill: var(--danger);
+  }
+  .timeline :global(.tlabel) {
+    stroke: none !important;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .timeline :global(.tick-l) {
+    font-family: var(--mono);
+    font-size: 11px;
+    fill: var(--muted);
+  }
+  .timeline :global(.tarea) {
+    fill: var(--accent);
+    fill-opacity: 0.1;
+  }
+  .timeline :global(.tpath) {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2.5;
+    stroke-linejoin: round;
+  }
+  .timeline :global(.tmark) {
+    stroke: var(--danger);
+    stroke-opacity: 0.5;
+    stroke-dasharray: 2 4;
+  }
+  .timeline :global(.tdot) {
+    stroke: var(--panel);
+    stroke-width: 2;
+  }
+  .timeline :global(.tdot.stable) {
+    fill: var(--ok);
+  }
+  .timeline :global(.tdot.moderate) {
+    fill: var(--warn);
+  }
+  .timeline :global(.tdot.major) {
+    fill: var(--danger);
+  }
+  .timeline :global(.tdot.clip) {
+    fill: var(--panel);
+    stroke: var(--danger);
+  }
+
+  /* Tabela recolhida */
+  .table-panel summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .table-panel[open] summary {
+    margin-bottom: 8px;
   }
   .legend {
-    font-size: 14px;
     display: flex;
+    gap: 14px;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+  .legend > span {
+    display: inline-flex;
     align-items: center;
     gap: 6px;
   }
@@ -166,47 +1116,248 @@ const L =
     height: 12px;
     border-radius: 3px;
     display: inline-block;
-    margin-left: 10px;
+    flex: none;
   }
-  .sw.ref,
-  #bars :global(.bar.ref) {
+  .sw.ref {
     background: var(--muted);
-    opacity: 0.55;
   }
-  .sw.cur,
-  #bars :global(.bar.cur) {
+  .sw.cur {
     background: var(--accent);
   }
-  .bars {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
-    gap: 4px;
+  .chart {
+    width: 100%;
     height: 240px;
-    border-bottom: 1px solid var(--line);
+    display: block;
+    border-bottom: 1px solid var(--line-strong);
   }
-  #bars :global(.col) {
-    display: grid;
-    grid-template-rows: 1fr auto;
-    min-width: 0;
+  .area {
+    stroke: none;
   }
-  #bars :global(.pair) {
-    display: flex;
-    align-items: flex-end;
-    gap: 2px;
+  .area.ref {
+    fill: var(--muted);
+    fill-opacity: 0.16;
   }
-  #bars :global(.bar) {
-    flex: 1;
-    border-radius: 3px 3px 0 0;
-    min-height: 1px;
+  .area.cur {
+    fill: var(--accent);
+    fill-opacity: 0.2;
   }
-  #bars :global(.lbl) {
-    font-size: 10px;
+  .line {
+    fill: none;
+    stroke-width: 2.5;
+    vector-effect: non-scaling-stroke;
+  }
+  .line.ref {
+    stroke: var(--muted);
+    stroke-dasharray: 6 5;
+  }
+  .line.cur {
+    stroke: var(--accent);
+  }
+  .chart :global(.band) {
+    fill: var(--danger);
+    transition: fill-opacity 0.2s;
+  }
+  .chart :global(.sep) {
+    stroke: var(--line);
+    stroke-dasharray: 3 4;
+    vector-effect: non-scaling-stroke;
+  }
+  .axis {
+    position: relative;
+    height: 22px;
+    font-size: 11.5px;
     color: var(--muted);
-    text-align: center;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  }
+  .axis :global(span) {
+    position: absolute;
+    top: 4px;
+    transform: translateX(-50%);
+  }
+
+  /* Tabela */
+  table {
+    font-size: 14px;
+  }
+  th {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .num {
+    text-align: right;
+  }
+  #rows :global(td.num) {
+    text-align: right;
+  }
+  #rows :global(.contrib) {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 160px;
+  }
+  #rows :global(.cbar) {
+    display: block;
+    height: 8px;
+    max-width: 120px;
+    min-width: 2px;
+    border-radius: 4px;
+    background: var(--danger);
+    opacity: 0.75;
+    flex: none;
+  }
+  #rows :global(tr.top td) {
+    background: color-mix(in srgb, var(--danger) 8%, transparent);
+  }
+  tfoot td {
+    font-weight: 700;
+    border-bottom: 0;
+  }
+  th,
+  #rows :global(td) {
     white-space: nowrap;
-    padding-top: 4px;
+  }
+  .short {
+    display: none;
+  }
+  @media (max-width: 560px) {
+    .bars {
+      gap: 2px;
+    }
+    .bars :global(.col) {
+      grid-template-rows: 0 170px auto auto;
+      gap: 4px;
+    }
+    .bars :global(.pval) {
+      visibility: hidden;
+    }
+    .bars :global(.clabel) {
+      font-size: 0;
+    }
+    .bars :global(.clabel)::before {
+      content: '';
+      display: block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--lv);
+    }
+    .bars :global(.blabel) {
+      font-size: 10.5px;
+    }
+    .kpis {
+      grid-template-columns: 1fr;
+    }
+    .long {
+      display: none;
+    }
+    .short {
+      display: inline;
+    }
+    table {
+      font-size: 13px;
+    }
+    th {
+      letter-spacing: 0;
+    }
+    th,
+    #rows :global(td),
+    tfoot td {
+      padding-left: 6px;
+      padding-right: 6px;
+    }
+    #rows :global(.contrib) {
+      min-width: 0;
+      gap: 6px;
+    }
+    #rows :global(.cbar) {
+      max-width: 36px;
+    }
+  }
+
+  /* Explicação */
+  .how h2 {
+    font-size: 22px;
+    margin: 16px 0 14px;
+  }
+  .steps {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 16px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .step h3 {
+    font-size: 16px;
+    margin: 10px 0 6px;
+  }
+  .step p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14.5px;
+  }
+  .step-n {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    font-weight: 700;
+  }
+  .formula {
+    font-size: 16px;
+    margin: 0 0 14px;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+  }
+  .rules {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+    font-size: 14px;
+  }
+  .rules-title {
+    color: var(--muted);
+    margin-right: 4px;
+  }
+  .rule {
+    padding: 3px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+  }
+  .rule.r0 b {
+    color: var(--ok);
+  }
+  .rule.r1 b {
+    color: var(--warn);
+  }
+  .rule.r2 b {
+    color: var(--danger);
+  }
+  .platform {
+    margin: 14px 0 0;
+    color: var(--muted);
+    font-size: 14.5px;
+  }
+
+  @media (max-width: 820px) {
+    .drift {
+      grid-template-columns: 1fr;
+    }
+    .steps {
+      grid-template-columns: 1fr;
+    }
+    .chart {
+      height: 190px;
+    }
   }
 </style>

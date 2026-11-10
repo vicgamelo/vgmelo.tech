@@ -14,6 +14,7 @@ export const ROUTES = {
   agenda: { pt: '/agenda/', en: '/en/schedule/' },
   agendaBooking: { pt: '/agenda/reserva/', en: '/en/schedule/booking/' },
   privacy: { pt: '/privacidade/', en: '/en/privacy/' },
+  terms: { pt: '/termos/', en: '/en/terms/' },
   login: { pt: '/entrar/', en: '/en/login/' },
   demoCnpj: { pt: '/demos/cnpj/', en: '/en/demos/cnpj/' },
   demoDrift: { pt: '/demos/drift/', en: '/en/demos/drift/' },
@@ -21,6 +22,10 @@ export const ROUTES = {
   demoAgents: { pt: '/demos/agentes/', en: '/en/demos/agents/' },
   demoCredit: { pt: '/demos/credito/', en: '/en/demos/credit/' },
   demoMcp: { pt: '/demos/mcp/', en: '/en/demos/mcp/' },
+  demoOcr: { pt: '/demos/ocr/', en: '/en/demos/ocr/' },
+  demoPca: { pt: '/demos/pca/', en: '/en/demos/pca/' },
+  projectAgentAuth: { pt: '/projetos/agent-auth/', en: '/en/projects/agent-auth/' },
+  projectRag: { pt: '/projetos/rag-normas/', en: '/en/projects/rag-normas/' },
 } as const satisfies Record<string, Record<Lang, string>>;
 
 export type RouteKey = keyof typeof ROUTES;

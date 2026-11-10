@@ -7,7 +7,7 @@ slug: alphanumeric-cnpj
 translation: cnpj-alfanumerico
 tags: ['CNPJ', 'Python', 'Data']
 project: mcp-server-brasil
-draft: true
+draft: false
 ---
 
 The CNPJ is the national ID of every Brazilian company. Brazil's tax authority (Receita Federal) changed its format: the first 12 positions can now hold **letters A to Z**, and only the two check digits remain numeric. The rule comes from IN RFB 2,229/2024. Existing CNPJs don't change, but every system that receives a CNPJ has to accept both formats.
