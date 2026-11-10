@@ -1,5 +1,6 @@
 ---
 import DemoShell from '../../components/DemoShell.astro';
+import '../../styles/run.css';
 import { route, type Lang } from '../../i18n/routes';
 import { uiStrings } from '../../i18n/ui';
 import { LIVE_KEYS } from '../../lib/live';
@@ -314,22 +315,11 @@ const SERVERS = [
 
 <script>
   import { sampleRun } from '../../data/agentsSample';
-  import {
-    agentLabel,
-    applyEvent,
-    argsLine,
-    DELEGATE_PREFIX,
-    newRun,
-    prettyResult,
-    runCounts,
-    toolLabel,
-    type AgentNode,
-    type RunState,
-    type Step,
-  } from '../../lib/agentRun';
+  import { applyEvent, newRun, runCounts, type RunState } from '../../lib/agentRun';
   import { errorFrom, fetchTrace, liveError, readSse } from '../../lib/api';
   import { consultCta, gate } from '../../lib/live';
   import { renderMarkdown } from '../../lib/markdown';
+  import { runTree } from '../../lib/runTree';
   import { fmtMs, renderWaterfall, type Span } from '../../lib/waterfall';
 
   const root = document.getElementById('agents');
@@ -416,13 +406,6 @@ const SERVERS = [
       }
     };
 
-    const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string) => {
-      const e = document.createElement(tag);
-      if (cls) e.className = cls;
-      if (text !== undefined) e.textContent = text;
-      return e;
-    };
-
     root.querySelectorAll<HTMLButtonElement>('[data-example]').forEach((b) =>
       b.addEventListener('click', () => {
         textarea.value = b.dataset.example!;
@@ -445,99 +428,13 @@ const SERVERS = [
     const stopClock = () => window.clearInterval(timer);
 
     // ------------------------------------------------------------ árvore ao vivo
-    const open = new Set<string>(); // <details> abertos sobrevivem aos re-renders
-    const details = (key: string, summary: string, body: HTMLElement) => {
-      const d = el('details', 'st-details');
-      d.open = open.has(key);
-      d.addEventListener('toggle', () => (d.open ? open.add(key) : open.delete(key)));
-      d.append(el('summary', '', summary), body);
-      return d;
-    };
-    const dur = (from: number, to?: number) => (to === undefined ? '' : fmtMs(to - from));
-
-    function stepNode(step: Step, node: AgentNode): HTMLElement {
-      if (step.kind === 'llm') {
-        const li = el('li', 'st st-llm');
-        li.append(el('span', 'st-icon'));
-        const body = el('div', 'st-body');
-        const line = el('div', 'st-line');
-        line.append(el('span', 'st-kind', 'LLM'));
-        if (step.calls.length) {
-          line.append(document.createTextNode(`${L.decided} `));
-          step.calls.forEach((c, k) => {
-            if (k) line.append(document.createTextNode(', '));
-            line.append(
-              el('code', '', c.startsWith(DELEGATE_PREFIX) ? agentLabel(c.slice(DELEGATE_PREFIX.length), lang) : toolLabel(c)),
-            );
-          });
-        } else {
-          line.append(document.createTextNode(step.stop === 'max_tokens' ? L.cutoff : L.wrote));
-        }
-        body.append(line);
-        if (step.calls.length && step.text.trim()) body.append(el('p', 'st-thought', step.text.trim().slice(0, 400)));
-        li.append(body);
-        return li;
-      }
-      if (step.kind === 'error') {
-        const li = el('li', 'st st-err');
-        li.append(el('span', 'st-icon'), el('div', 'st-body', `${L.error}: ${step.message}`));
-        return li;
-      }
-      if (step.child) {
-        const li = el('li', 'st st-deleg');
-        li.append(el('span', 'st-icon'));
-        const body = el('div', 'st-body');
-        const line = el('div', 'st-line');
-        line.append(el('span', 'st-kind', L.delegated), el('strong', '', agentLabel(step.child.name, lang)));
-        body.append(line, agentCard(step.child));
-        li.append(body);
-        return li;
-      }
-      const li = el('li', `st st-tool${step.failed ? ' is-failed' : ''}${step.result === undefined ? ' is-running' : ''}`);
-      li.append(el('span', 'st-icon'));
-      const body = el('div', 'st-body');
-      const line = el('div', 'st-line');
-      line.append(el('code', 'st-tool-name', toolLabel(step.tool)));
-      const args = argsLine(step.args);
-      if (args) line.append(el('span', 'st-args', args));
-      const meta = el('span', 'st-meta');
-      if (step.result === undefined) meta.append(el('span', 'spinner'));
-      else meta.textContent = step.failed ? L.error : dur(step.startedAt, step.endedAt);
-      line.append(meta);
-      body.append(line);
-      if (step.result !== undefined) body.append(details(`r${node.id}-${step.id}`, L.result, el('pre', 'st-pre', prettyResult(step.result))));
-      li.append(body);
-      return li;
-    }
-
-    function agentCard(n: AgentNode): HTMLElement {
-      const card = el('div', `ag ag-${n.name}`);
-      card.dataset.status = n.status;
-      const head = el('div', 'ag-head');
-      const who = el('div', 'ag-who');
-      who.append(el('span', `avatar a-${n.name}`, agentLabel(n.name, lang)[0]), el('strong', '', agentLabel(n.name, lang)));
-      const right = el('span', 'ag-state');
-      if (n.status === 'running') right.append(el('span', 'spinner'), document.createTextNode(L.thinking));
-      else right.textContent = dur(n.startedAt, n.endedAt);
-      head.append(who, right);
-      card.append(head);
-      if (n.depth > 0 && n.task) card.append(el('p', 'ag-task', n.task));
-      const ol = el('ol', 'ag-steps');
-      for (const st of n.steps) ol.append(stepNode(st, n));
-      if (ol.childElementCount) card.append(ol);
-      if (n.depth > 0 && n.output) {
-        const md = el('div', 'md md-small');
-        renderMarkdown(md, n.output);
-        card.append(details(`o${n.id}`, `${L.answerOf} ${agentLabel(n.name, lang)}`, md));
-      }
-      return card;
-    }
+    const tree = runTree(L, lang);
 
     let state: RunState = newRun();
     let frame = 0;
     const renderTree = () => {
       frame = 0;
-      $('a-tree').replaceChildren(...(state.root ? [agentCard(state.root)] : []));
+      $('a-tree').replaceChildren(...(state.root ? [tree.card(state.root)] : []));
     };
     const scheduleTree = () => {
       if (!frame) frame = requestAnimationFrame(renderTree);
@@ -547,7 +444,7 @@ const SERVERS = [
     let lastOutput = '';
     const begin = (question: string) => {
       state = newRun();
-      open.clear();
+      tree.reset();
       lastOutput = '';
       submit.disabled = true;
       sampleBtn.disabled = true;
@@ -1103,318 +1000,5 @@ const SERVERS = [
     .kpi strong {
       font-size: 16px;
     }
-  }
-</style>
-
-<style is:global>
-  /* Conteúdo criado pelo script (árvore e resposta): fica fora do escopo do Astro. */
-  #agents .avatar {
-    display: inline-grid;
-    place-items: center;
-    width: 28px;
-    height: 28px;
-    flex: none;
-    border-radius: 8px;
-    font-weight: 700;
-    font-size: 13px;
-    color: var(--accent-ink);
-    background: var(--accent);
-  }
-  #agents .a-economist {
-    background: var(--accent2);
-    color: #fff;
-  }
-  #agents .a-company_researcher {
-    background: var(--accent3);
-    color: #1f1300;
-  }
-  #agents .a-news_researcher {
-    background: #e11d48;
-    color: #fff;
-  }
-  #agents .a-pix_specialist {
-    background: #0284c7;
-    color: #fff;
-  }
-  #agents .a-scheduler {
-    background: #65a30d;
-    color: #fff;
-  }
-  #agents .spinner {
-    display: inline-block;
-    width: 12px;
-    height: 12px;
-    flex: none;
-    border-radius: 50%;
-    border: 2px solid color-mix(in srgb, var(--accent) 25%, transparent);
-    border-top-color: var(--accent);
-    animation: ag-spin 0.8s linear infinite;
-  }
-  @keyframes ag-spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    #agents .spinner {
-      animation-duration: 2.4s;
-    }
-  }
-
-  /* Árvore */
-  #agents .ag {
-    border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
-    background: var(--panel);
-    padding: 12px 14px;
-    min-width: 0;
-  }
-  #agents .ag[data-status='running'] {
-    border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
-  }
-  #agents .ag-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-  }
-  #agents .ag-who {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    min-width: 0;
-  }
-  #agents .ag-state {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--muted);
-    white-space: nowrap;
-  }
-  #agents .ag-task {
-    margin: 8px 0 0;
-    font-size: 13.5px;
-    color: var(--muted);
-    border-left: 2px solid var(--line-strong);
-    padding-left: 10px;
-  }
-  #agents .ag-steps {
-    list-style: none;
-    margin: 10px 0 0;
-    padding: 0;
-    display: grid;
-    gap: 6px;
-  }
-  #agents .st {
-    display: grid;
-    grid-template-columns: 14px minmax(0, 1fr);
-    gap: 8px;
-    align-items: start;
-    font-size: 13.5px;
-  }
-  #agents .st-icon {
-    width: 9px;
-    height: 9px;
-    margin: 6px 0 0 2px;
-    border-radius: 3px;
-    background: var(--accent);
-  }
-  #agents .st-tool .st-icon {
-    background: var(--accent3);
-  }
-  #agents .st-deleg .st-icon {
-    background: var(--accent2);
-  }
-  #agents .st-err .st-icon,
-  #agents .st-tool.is-failed .st-icon {
-    background: var(--danger);
-  }
-  #agents .st-err .st-body,
-  #agents .st-tool.is-failed .st-meta {
-    color: var(--danger);
-  }
-  #agents .st-body {
-    min-width: 0;
-    display: grid;
-    gap: 6px;
-  }
-  #agents .st-line {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 4px 6px;
-    min-width: 0;
-  }
-  #agents .st-line code {
-    font-size: 12.5px;
-  }
-  #agents .st-kind {
-    font-family: var(--mono);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--muted);
-  }
-  #agents .st-tool-name {
-    color: var(--accent3);
-    font-weight: 600;
-  }
-  #agents .st-args {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--muted);
-    overflow-wrap: anywhere;
-    min-width: 0;
-  }
-  #agents .st-meta {
-    margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--muted);
-  }
-  #agents .st-thought {
-    margin: 0;
-    font-size: 13px;
-    color: var(--muted);
-    font-style: italic;
-  }
-  #agents .st-details summary {
-    cursor: pointer;
-    font-size: 12.5px;
-    color: var(--muted);
-    width: fit-content;
-  }
-  #agents .st-details summary:hover {
-    color: var(--accent);
-  }
-  #agents .st-details[open] summary {
-    margin-bottom: 6px;
-  }
-  #agents .st-pre {
-    margin: 0;
-    max-height: 240px;
-    overflow: auto;
-    padding: 10px 12px;
-    border-radius: 8px;
-    font-size: 12px;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-  }
-  #agents .st-deleg > .st-body > .ag {
-    margin-top: 2px;
-  }
-  #agents .ag > .st-details {
-    margin-top: 10px;
-  }
-
-  /* Resposta em markdown */
-  #agents .md {
-    font-size: 15.5px;
-    line-height: 1.6;
-    overflow-wrap: anywhere;
-  }
-  #agents .md-small {
-    font-size: 13.5px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: var(--bg-soft);
-  }
-  #agents .md > :first-child {
-    margin-top: 0;
-  }
-  #agents .md > :last-child {
-    margin-bottom: 0;
-  }
-  #agents .md p,
-  #agents .md ul,
-  #agents .md ol,
-  #agents .md pre,
-  #agents .md blockquote,
-  #agents .md .md-table {
-    margin: 0 0 12px;
-  }
-  #agents .md ul,
-  #agents .md ol {
-    padding-left: 22px;
-  }
-  #agents .md li + li {
-    margin-top: 4px;
-  }
-  #agents .md li > ul,
-  #agents .md li > ol {
-    margin: 4px 0 0;
-  }
-  #agents .md h3,
-  #agents .md h4,
-  #agents .md h5,
-  #agents .md h6 {
-    font-size: 16px;
-    margin: 16px 0 8px;
-  }
-  #agents .md code {
-    font-family: var(--mono);
-    font-size: 0.88em;
-    padding: 1px 5px;
-    border-radius: 5px;
-    background: var(--bg-soft);
-  }
-  #agents .md pre {
-    padding: 12px 14px;
-    border-radius: 8px;
-    overflow-x: auto;
-  }
-  #agents .md pre code {
-    padding: 0;
-    background: none;
-  }
-  #agents .md blockquote {
-    border-left: 3px solid var(--line-strong);
-    padding-left: 12px;
-    color: var(--muted);
-  }
-  #agents .md hr {
-    border: 0;
-    border-top: 1px solid var(--line);
-    margin: 14px 0;
-  }
-  #agents .md-table {
-    overflow-x: auto;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-  }
-  #agents .md-table table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
-  }
-  #agents .md-table th,
-  #agents .md-table td {
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--line);
-    text-align: left;
-    overflow-wrap: normal;
-  }
-  #agents .md-table tr:last-child td {
-    border-bottom: 0;
-  }
-  #agents .md-table th {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--muted);
-    background: var(--bg-soft);
-  }
-  #agents .md-table .al-right {
-    text-align: right;
-    white-space: nowrap;
-    font-family: var(--mono);
-  }
-  #agents .md-table .al-center {
-    text-align: center;
   }
 </style>

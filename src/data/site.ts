@@ -350,7 +350,7 @@ export const STACK = [
 ];
 
 export interface Demo {
-  key: 'demoCnpj' | 'demoDrift' | 'demoAttention' | 'demoAgents' | 'demoCredit' | 'demoMcp' | 'demoOcr' | 'demoPca';
+  key: 'demoCnpj' | 'demoDrift' | 'demoAttention' | 'demoAgents' | 'demoStudio' | 'demoCredit' | 'demoMcp' | 'demoOcr' | 'demoPca';
   live: boolean;
   title: T;
   text: T;
@@ -366,6 +366,16 @@ export const DEMOS: Demo[] = [
     text: {
       pt: 'Pergunte sobre economia, notícias, empresas ou normas do Pix e veja o coordenador delegar para cinco especialistas. Ligue e desligue os MCPs e acompanhe o trace completo.',
       en: 'Ask about the economy, the news, companies or Pix rules and watch the coordinator delegate to five specialists. Turn MCPs on and off and follow the full trace.',
+    },
+  },
+  {
+    key: 'demoStudio',
+    live: true,
+    project: 'agent-orchestrator',
+    title: { pt: 'Estúdio de agentes', en: 'Agent studio' },
+    text: {
+      pt: 'Escreva seu próprio agente: instruções, modelo e ferramentas MCP. Rode, salve versões e compare duas lado a lado, com cada passo e o trace.',
+      en: 'Write your own agent: instructions, model and MCP tools. Run it, save versions and compare two side by side, with every step and the trace.',
     },
   },
   {

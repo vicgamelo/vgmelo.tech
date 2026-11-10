@@ -153,8 +153,9 @@ describe('portão das demos ao vivo', () => {
     expect(gateState(me({ quotas: { score: { limit: 3, used: 3, remaining: 0 } } }), 'score').kind).toBe('quota');
   });
 
-  it('orçamento global só trava a demo de agentes', () => {
+  it('orçamento global só trava as demos com LLM (agentes e estúdio)', () => {
     expect(gateState(me({ budget_exhausted: true }), 'agents').kind).toBe('budget');
+    expect(gateState(me({ budget_exhausted: true }), 'studio').kind).toBe('budget');
     expect(gateState(me({ budget_exhausted: true }), 'score')).toEqual({ kind: 'ready', remaining: 3 });
   });
 });

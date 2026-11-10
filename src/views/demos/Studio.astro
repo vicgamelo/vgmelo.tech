@@ -1,0 +1,1456 @@
+---
+import DemoShell from '../../components/DemoShell.astro';
+import '../../styles/run.css';
+import { route, type Lang } from '../../i18n/routes';
+import { uiStrings } from '../../i18n/ui';
+import { LIVE_KEYS } from '../../lib/live';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const s = uiStrings(lang, [...LIVE_KEYS]);
+const pt = lang === 'pt';
+const L = pt
+  ? {
+      editorTitle: 'Seu agente',
+      editorHint: 'Instruções, modelo e ferramentas. Um agente só, sem delegar: o que você escrever é o que roda.',
+      start: 'Começar de',
+      startPick: 'Escolha um ponto de partida…',
+      blank: 'Em branco',
+      templates: 'Agentes do time',
+      mine: 'Suas versões',
+      name: 'Nome',
+      newAgent: 'Meu agente',
+      model: 'Modelo',
+      unavailable: 'indisponível agora',
+      temperature: 'Temperatura',
+      steps: 'Passos máx.',
+      tools: 'Ferramentas',
+      toolsHint: 'Marque só o que o agente precisa: cada ferramenta vira uma opção para o modelo escolher.',
+      noTools: 'nenhuma marcada: o agente responde só com o modelo',
+      instructions: 'Instruções (prompt de sistema)',
+      blankInstructions:
+        'Você é um assistente que responde perguntas sobre o Brasil.\nUse as ferramentas antes de responder e cite a fonte e a data de cada número.\nSe as ferramentas não trouxerem a resposta, diga que não encontrou.\nResponda em português, de forma curta.',
+      note: 'Nota desta versão (opcional)',
+      save: 'Salvar versão',
+      saving: 'Salvando…',
+      savedAs: 'Salvo como',
+      draft: 'rascunho',
+      edited: 'alterado',
+      discard: 'Trocar o que está no editor? As alterações não salvas vão se perder.',
+      groups: {
+        builtin: 'Embutidas',
+        brasil: 'Dados do Brasil',
+        noticias: 'Notícias e informação pública',
+        normas: 'Normas do Pix',
+        agenda: 'Agenda do Victor',
+      } as Record<string, string>,
+      problems: {
+        empty: 'Escreva as instruções.',
+        tooLong: 'As instruções passaram do limite de caracteres.',
+        noModel: 'Escolha um modelo.',
+        modelOff: 'Esse modelo está indisponível agora; escolha outro.',
+        toolOff: 'Uma ferramenta marcada não está disponível agora.',
+        steps: 'Passos fora do limite.',
+      } as Record<string, string>,
+      tooMany: 'Você chegou ao limite de versões salvas. Exclua alguma para salvar outra.',
+      slowDown: 'Muitas versões salvas em pouco tempo. Espere um pouco.',
+      invalidAgent: 'O orquestrador recusou o agente:',
+      playTitle: 'Playground',
+      playHint: 'Faça uma pergunta para o agente do editor. Escolha uma versão salva para comparar as duas lado a lado.',
+      question: 'Pergunta',
+      placeholder: 'Ex.: Qual a Selic hoje e quanto rende R$ 1.000 em um ano nessa taxa?',
+      examples: [
+        'Qual a Selic hoje e quanto rende R$ 1.000 em um ano nessa taxa?',
+        'O que os jornais falaram sobre o IPCA nesta semana?',
+        'Qual o limite do Pix à noite?',
+        'O que faz a empresa de CNPJ 00.000.000/0001-91?',
+      ],
+      compare: 'Comparar com',
+      noCompare: 'Não comparar',
+      run: 'Rodar',
+      runCompare: 'Rodar e comparar',
+      running: 'Rodando…',
+      cost: 'Cada execução gasta 1 da cota do dia; comparar gasta 2.',
+      privacy: 'Não envie dados pessoais: a pergunta vai para um provedor de LLM gratuito.',
+      editorCol: 'Editor',
+      unsaved: 'não salvo',
+      idle: 'aguardando',
+      live: 'rodando',
+      ready: 'pronto',
+      failed: 'falhou',
+      queued: 'na fila',
+      kTime: 'tempo',
+      kTokens: 'tokens',
+      kLlm: 'chamadas ao LLM',
+      kTools: 'ferramentas',
+      steps2: 'Passo a passo',
+      trace: 'Ver trace',
+      traceWait: 'Buscando o trace…',
+      traceMissing: 'O trace desta execução não ficou disponível.',
+      decided: 'decidiu chamar',
+      wrote: 'escreveu a resposta',
+      cutoff: 'parou por limite de tokens',
+      thinking: 'pensando…',
+      delegated: 'delegou para',
+      result: 'resultado',
+      answerOf: 'resposta de',
+      error: 'erro',
+      diffTitle: 'O que muda',
+      diffHint: 'Da versão escolhida para o que está no editor.',
+      same: 'Nada muda: o editor está igual a essa versão.',
+      added: 'entra',
+      removed: 'sai',
+      versionsTitle: 'Suas versões',
+      versionsHint: 'Só você vê. Salvar não gasta cota.',
+      noVersions: 'Nenhuma versão salva ainda. Escreva um agente e clique em “Salvar versão”.',
+      open: 'Abrir',
+      compareBtn: 'Comparar',
+      delete: 'Excluir',
+      confirmDelete: 'Excluir esta versão? Não dá para desfazer.',
+      tokensCap: 'máx. de tokens por resposta',
+    }
+  : {
+      editorTitle: 'Your agent',
+      editorHint: 'Instructions, model and tools. One agent, no delegation: what you write is what runs.',
+      start: 'Start from',
+      startPick: 'Pick a starting point…',
+      blank: 'Blank',
+      templates: 'Team agents',
+      mine: 'Your versions',
+      name: 'Name',
+      newAgent: 'My agent',
+      model: 'Model',
+      unavailable: 'unavailable now',
+      temperature: 'Temperature',
+      steps: 'Max steps',
+      tools: 'Tools',
+      toolsHint: 'Tick only what the agent needs: every tool becomes an option the model can pick.',
+      noTools: 'none ticked: the agent answers with the model alone',
+      instructions: 'Instructions (system prompt)',
+      blankInstructions:
+        'You answer questions about Brazil.\nUse the tools before answering and cite the source and date of every figure.\nIf the tools do not bring the answer, say you did not find it.\nAnswer in English, briefly.',
+      note: 'Note for this version (optional)',
+      save: 'Save version',
+      saving: 'Saving…',
+      savedAs: 'Saved as',
+      draft: 'draft',
+      edited: 'edited',
+      discard: 'Replace what is in the editor? Unsaved changes will be lost.',
+      groups: {
+        builtin: 'Built in',
+        brasil: 'Brazilian data',
+        noticias: 'News and public information',
+        normas: 'Pix regulations',
+        agenda: "Victor's calendar",
+      } as Record<string, string>,
+      problems: {
+        empty: 'Write the instructions.',
+        tooLong: 'The instructions are over the character limit.',
+        noModel: 'Pick a model.',
+        modelOff: 'That model is unavailable right now; pick another.',
+        toolOff: "A ticked tool isn't available right now.",
+        steps: 'Steps out of range.',
+      } as Record<string, string>,
+      tooMany: 'You reached the limit of saved versions. Delete one to save another.',
+      slowDown: 'Too many saves in a short time. Wait a little.',
+      invalidAgent: 'The orchestrator refused the agent:',
+      playTitle: 'Playground',
+      playHint: 'Ask the agent in the editor. Pick a saved version to compare both side by side.',
+      question: 'Question',
+      placeholder: "E.g. What's the Selic rate today and how much does R$ 1,000 earn in a year at that rate?",
+      examples: [
+        "What's the Selic rate today and how much does R$ 1,000 earn in a year at that rate?",
+        'What did the press say about the IPCA this week?',
+        "What's the Pix limit at night?",
+        'What does the company with CNPJ 00.000.000/0001-91 do?',
+      ],
+      compare: 'Compare with',
+      noCompare: "Don't compare",
+      run: 'Run',
+      runCompare: 'Run and compare',
+      running: 'Running…',
+      cost: 'Each run uses 1 of the daily quota; comparing uses 2.',
+      privacy: "Don't send personal data: the question goes to a free LLM provider.",
+      editorCol: 'Editor',
+      unsaved: 'unsaved',
+      idle: 'waiting',
+      live: 'running',
+      ready: 'done',
+      failed: 'failed',
+      queued: 'queued',
+      kTime: 'time',
+      kTokens: 'tokens',
+      kLlm: 'LLM calls',
+      kTools: 'tools',
+      steps2: 'Step by step',
+      trace: 'See trace',
+      traceWait: 'Fetching the trace…',
+      traceMissing: "This run's trace isn't available.",
+      decided: 'decided to call',
+      wrote: 'wrote the answer',
+      cutoff: 'stopped at the token limit',
+      thinking: 'thinking…',
+      delegated: 'delegated to',
+      result: 'result',
+      answerOf: 'answer from',
+      error: 'error',
+      diffTitle: 'What changes',
+      diffHint: 'From the chosen version to what is in the editor.',
+      same: 'Nothing changes: the editor matches that version.',
+      added: 'added',
+      removed: 'removed',
+      versionsTitle: 'Your versions',
+      versionsHint: 'Only you can see them. Saving uses no quota.',
+      noVersions: 'No saved versions yet. Write an agent and click “Save version”.',
+      open: 'Open',
+      compareBtn: 'Compare',
+      delete: 'Delete',
+      confirmDelete: "Delete this version? This can't be undone.",
+      tokensCap: 'max tokens per answer',
+    };
+---
+
+<DemoShell lang={lang} demo="demoStudio">
+  <div class="studio is-anon" id="studio" data-s={JSON.stringify(s)} data-l={JSON.stringify(L)} data-lang={lang}>
+    <div class="live">
+      <section class="panel editor" id="s-editor" hidden>
+        <div class="panel-head">
+          <div class="grow">
+            <h2>{L.editorTitle}</h2>
+            <p class="hint">{L.editorHint}</p>
+          </div>
+          <span class="tag mono" id="s-state"></span>
+        </div>
+
+        <div class="fields">
+          <label class="f">
+            <span class="lab">{L.start}</span>
+            <select id="s-start"></select>
+          </label>
+          <label class="f">
+            <span class="lab">{L.name}</span>
+            <input id="s-name" type="text" maxlength="60" autocomplete="off" />
+          </label>
+          <div class="row3">
+            <label class="f">
+              <span class="lab">{L.model}</span>
+              <select id="s-model"></select>
+            </label>
+            <label class="f">
+              <span class="lab">{L.temperature} <output id="s-temp-out" class="mono"></output></span>
+              <input id="s-temp" type="range" min="0" max="1.5" step="0.1" />
+            </label>
+            <label class="f">
+              <span class="lab">{L.steps}</span>
+              <input id="s-steps" type="number" min="1" step="1" inputmode="numeric" />
+            </label>
+          </div>
+          <fieldset class="tools">
+            <legend class="lab">{L.tools} <span class="count mono" id="s-tools-count"></span></legend>
+            <p class="hint small">{L.toolsHint}</p>
+            <div id="s-tools" class="tool-groups"></div>
+          </fieldset>
+          <label class="f">
+            <span class="lab">{L.instructions} <span class="count mono" id="s-count"></span></span>
+            <textarea id="s-instr" spellcheck="false"></textarea>
+          </label>
+          <ul class="problems" id="s-problems" hidden></ul>
+          <div class="save-row">
+            <input id="s-note" type="text" maxlength="200" placeholder={L.note} aria-label={L.note} autocomplete="off" />
+            <button type="button" class="btn" id="s-save">{L.save}</button>
+          </div>
+          <p class="hint small" id="s-saved" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <section class="panel play" id="s-play" data-login={route('login', lang)}>
+        <div class="panel-head">
+          <div class="grow">
+            <h2>{L.playTitle}</h2>
+            <p class="hint">{L.playHint}</p>
+          </div>
+          <span class="quota mono" data-remaining></span>
+        </div>
+        <p class="notice" data-gate>…</p>
+        <form class="play-form" id="s-run" data-live hidden>
+          <label class="sr-only" for="s-q">{L.question}</label>
+          <textarea id="s-q" maxlength="500" required placeholder={L.placeholder}></textarea>
+          <div class="chips">
+            {L.examples.map((e) => <button type="button" class="chip" data-example={e}>{e}</button>)}
+          </div>
+          <label class="f">
+            <span class="lab">{L.compare}</span>
+            <select id="s-compare"></select>
+          </label>
+          <div class="play-actions">
+            <button class="btn primary" type="submit" id="s-go">{L.run}</button>
+            <p class="hint small">{L.cost}</p>
+          </div>
+          <p class="hint small">{L.privacy}</p>
+        </form>
+        <p class="notice error" id="s-error" hidden></p>
+      </section>
+
+      <section class="panel full" id="s-diff" hidden>
+        <div class="panel-head">
+          <div>
+            <h2>{L.diffTitle}</h2>
+            <p class="hint">{L.diffHint}</p>
+          </div>
+        </div>
+        <div id="s-diff-body"></div>
+      </section>
+
+      <section class="results full" id="s-results" hidden></section>
+
+      <section class="panel full" id="s-versions-panel" hidden>
+        <div class="panel-head">
+          <div>
+            <h2>{L.versionsTitle}</h2>
+            <p class="hint">{L.versionsHint}</p>
+          </div>
+        </div>
+        <div id="s-versions"></div>
+      </section>
+    </div>
+  </div>
+</DemoShell>
+
+<script>
+  import { applyEvent, agentLabel, AGENT_LABEL, newRun, runCounts, toolLabel, type RunState } from '../../lib/agentRun';
+  import { api, errorFrom, fetchTrace, liveError, readSse, type ApiError } from '../../lib/api';
+  import { consultCta, gate } from '../../lib/live';
+  import { renderMarkdown } from '../../lib/markdown';
+  import { el, runTree } from '../../lib/runTree';
+  import {
+    blankAgent,
+    byAgent,
+    diffAgents,
+    fromTemplate,
+    noDifference,
+    parseDraft,
+    problems,
+    sameAgent,
+    toolGroups,
+    versionLabel,
+    type Catalog,
+    type Draft,
+    type StudioAgent,
+    type Version,
+  } from '../../lib/studio';
+  import { fmtMs, renderWaterfall, type Span } from '../../lib/waterfall';
+
+  type Texts = Record<string, string> & { groups: Record<string, string>; problems: Record<string, string> };
+
+  const root = document.getElementById('studio');
+  if (root) {
+    const s = JSON.parse(root.dataset.s!) as Record<string, string>;
+    const L = JSON.parse(root.dataset.l!) as Texts;
+    const lang = root.dataset.lang === 'en' ? 'en' : 'pt';
+    const nf = new Intl.NumberFormat(lang === 'pt' ? 'pt-BR' : 'en-US');
+    const df = new Intl.DateTimeFormat(lang === 'pt' ? 'pt-BR' : 'en-US', { dateStyle: 'short', timeStyle: 'short' });
+    const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+    const startSel = $<HTMLSelectElement>('s-start');
+    const nameIn = $<HTMLInputElement>('s-name');
+    const modelSel = $<HTMLSelectElement>('s-model');
+    const tempIn = $<HTMLInputElement>('s-temp');
+    const stepsIn = $<HTMLInputElement>('s-steps');
+    const instrIn = $<HTMLTextAreaElement>('s-instr');
+    const noteIn = $<HTMLInputElement>('s-note');
+    const saveBtn = $<HTMLButtonElement>('s-save');
+    const compareSel = $<HTMLSelectElement>('s-compare');
+    const runForm = $<HTMLFormElement>('s-run');
+    const goBtn = $<HTMLButtonElement>('s-go');
+    const question = $<HTMLTextAreaElement>('s-q');
+
+    const DRAFT_KEY = 'studio.draft';
+    let catalog: Catalog | null = null;
+    let versions: Version[] = [];
+    let draft: Draft = { name: '', agent: { instructions: '', model: '', tools: [], temperature: 0.2, max_steps: 4 }, base: null };
+    let running = false;
+
+    const versionById = (id: string | null) => versions.find((v) => v.id === id) ?? null;
+    const templateLabel = (name: string) => AGENT_LABEL[name]?.[lang] ?? agentLabel(name, lang);
+
+    // ------------------------------------------------------------ editor <-> rascunho
+    const storeDraft = () => {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      } catch {
+        /* sem localStorage: o rascunho vale só nesta visita */
+      }
+    };
+    const readFields = () => {
+      const checked = [...root.querySelectorAll<HTMLInputElement>('[data-tool]:checked')].map((c) => c.dataset.tool!);
+      draft = {
+        ...draft,
+        name: nameIn.value,
+        agent: {
+          instructions: instrIn.value,
+          model: modelSel.value,
+          tools: checked,
+          temperature: Math.round(Number(tempIn.value) * 10) / 10,
+          max_steps: Number(stepsIn.value),
+        },
+      };
+    };
+    const paintState = () => {
+      if (!catalog) return;
+      const a = draft.agent;
+      $('s-temp-out').textContent = a.temperature.toFixed(1);
+      $('s-count').textContent = `${nf.format(a.instructions.length)} / ${nf.format(catalog.limits.instructions_max_chars)}`;
+      $('s-count').classList.toggle('over', a.instructions.length > catalog.limits.instructions_max_chars);
+      $('s-tools-count').textContent = a.tools.length ? String(a.tools.length) : '';
+      const base = versionById(draft.base);
+      const tag = $('s-state');
+      if (base) tag.textContent = `v${base.version}${sameAgent(base.agent, a) && base.name === draft.name.trim() ? '' : ` · ${L.edited}`}`;
+      else tag.textContent = L.draft;
+      const list = $('s-problems');
+      const found = problems(a, catalog);
+      list.replaceChildren(...found.map((p) => el('li', '', L.problems[p])));
+      list.hidden = found.length === 0;
+      paintDiff();
+    };
+    const onEdit = () => {
+      readFields();
+      storeDraft();
+      $('s-saved').textContent = '';
+      paintState();
+    };
+
+    const fillEditor = (d: Draft) => {
+      draft = d;
+      nameIn.value = d.name;
+      modelSel.value = d.agent.model;
+      tempIn.value = String(d.agent.temperature);
+      stepsIn.value = String(d.agent.max_steps);
+      instrIn.value = d.agent.instructions;
+      const on = new Set(d.agent.tools);
+      root.querySelectorAll<HTMLInputElement>('[data-tool]').forEach((c) => (c.checked = on.has(c.dataset.tool!)));
+      storeDraft();
+      paintState();
+    };
+
+    const isDirty = () => {
+      const base = versionById(draft.base);
+      return base ? !sameAgent(base.agent, draft.agent) : draft.agent.instructions.trim() !== '';
+    };
+
+    // ------------------------------------------------------------ catálogo
+    const buildCatalogFields = (c: Catalog) => {
+      modelSel.replaceChildren(
+        ...c.models.map((m) => {
+          const o = el('option', '', m.available ? m.label : `${m.label} — ${L.unavailable}`);
+          o.value = m.id;
+          o.disabled = !m.available;
+          return o;
+        }),
+      );
+      stepsIn.max = String(c.limits.max_steps);
+      const box = $('s-tools');
+      box.replaceChildren(
+        ...toolGroups(c.tools).map(([group, tools]) => {
+          const g = el('div', 'tool-group');
+          g.append(el('p', 'tool-group-title', L.groups[group] ?? group));
+          for (const t of tools) {
+            const label = el('label', 'tool');
+            const input = el('input');
+            input.type = 'checkbox';
+            input.dataset.tool = t.name;
+            input.addEventListener('change', onEdit);
+            const text = el('span', 'tool-text');
+            text.append(el('code', '', toolLabel(t.name)), el('span', 'tool-desc', t.description.split('\n')[0].slice(0, 160)));
+            label.append(input, text);
+            g.append(label);
+          }
+          return g;
+        }),
+      );
+    };
+
+    const buildStartOptions = () => {
+      if (!catalog) return;
+      const pick = el('option', '', L.startPick);
+      pick.value = '';
+      const blank = el('option', '', L.blank);
+      blank.value = 'blank';
+      const tpl = el('optgroup');
+      tpl.label = L.templates;
+      for (const t of catalog.templates) {
+        const o = el('option', '', templateLabel(t.name));
+        o.value = `tpl:${t.name}`;
+        tpl.append(o);
+      }
+      const opts: HTMLElement[] = [pick, blank, tpl];
+      if (versions.length) {
+        const mine = el('optgroup');
+        mine.label = L.mine;
+        for (const v of versions) {
+          const o = el('option', '', versionLabel(v));
+          o.value = `ver:${v.id}`;
+          mine.append(o);
+        }
+        opts.push(mine);
+      }
+      startSel.replaceChildren(...opts);
+      startSel.value = '';
+
+      const keep = compareSel.value;
+      const none = el('option', '', L.noCompare);
+      none.value = '';
+      compareSel.replaceChildren(
+        none,
+        ...versions.map((v) => {
+          const o = el('option', '', versionLabel(v));
+          o.value = v.id;
+          return o;
+        }),
+      );
+      compareSel.value = versionById(keep) ? keep : '';
+      paintRunButton();
+    };
+
+    const load = (value: string) => {
+      if (!catalog || !value) return;
+      if (isDirty() && !window.confirm(L.discard)) return;
+      if (value === 'blank') {
+        fillEditor({ name: L.newAgent, agent: blankAgent(catalog, L.blankInstructions), base: null });
+      } else if (value.startsWith('tpl:')) {
+        const t = catalog.templates.find((x) => x.name === value.slice(4));
+        if (t) fillEditor({ name: templateLabel(t.name), agent: fromTemplate(t, catalog), base: null });
+      } else if (value.startsWith('ver:')) {
+        const v = versionById(value.slice(4));
+        if (v) fillEditor({ name: v.name, agent: fromTemplate(v.agent, catalog), base: v.id });
+      }
+      $('s-saved').textContent = '';
+    };
+    startSel.addEventListener('change', () => {
+      load(startSel.value);
+      startSel.value = '';
+    });
+
+    for (const input of [nameIn, modelSel, tempIn, stepsIn, instrIn]) input.addEventListener('input', onEdit);
+
+    // ------------------------------------------------------------ versões
+    const loadVersions = async () => {
+      try {
+        versions = await api<Version[]>('/api/studio/versions');
+      } catch {
+        versions = [];
+      }
+      if (draft.base && !versionById(draft.base)) draft.base = null;
+      buildStartOptions();
+      paintVersions();
+      paintState();
+    };
+
+    const modelLabel = (id: string) => catalog?.models.find((m) => m.id === id)?.label ?? id;
+
+    const paintVersions = () => {
+      const box = $('s-versions');
+      if (!versions.length) {
+        box.replaceChildren(el('p', 'hint', L.noVersions));
+        return;
+      }
+      box.replaceChildren(
+        ...byAgent(versions).map(([name, list]) => {
+          const g = el('div', 'v-group');
+          g.append(el('h3', 'v-name', name));
+          const ul = el('ul', 'v-list');
+          for (const v of list) {
+            const li = el('li', 'v-row');
+            const info = el('div', 'v-info');
+            const line = el('div', 'v-line');
+            line.append(el('strong', 'mono', `v${v.version}`), el('span', 'v-meta', `${df.format(new Date(v.created_at))} · ${modelLabel(v.agent.model)} · ${v.agent.tools.length} ${L.kTools}`));
+            info.append(line);
+            if (v.note) info.append(el('p', 'v-note', v.note));
+            const actions = el('div', 'v-actions');
+            const open = el('button', 'btn small-btn', L.open);
+            open.type = 'button';
+            open.addEventListener('click', () => {
+              load(`ver:${v.id}`);
+              $('s-name').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+            const cmp = el('button', 'btn small-btn', L.compareBtn);
+            cmp.type = 'button';
+            cmp.addEventListener('click', () => {
+              compareSel.value = v.id;
+              paintRunButton();
+              paintDiff();
+              question.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+            const del = el('button', 'btn small-btn danger', L.delete);
+            del.type = 'button';
+            del.addEventListener('click', async () => {
+              if (!window.confirm(L.confirmDelete)) return;
+              try {
+                await api(`/api/studio/versions/${encodeURIComponent(v.id)}`, { method: 'DELETE' });
+              } catch {
+                /* já não existe: a lista recarregada mostra o estado real */
+              }
+              await loadVersions();
+            });
+            actions.append(open, cmp, del);
+            li.append(info, actions);
+            ul.append(li);
+          }
+          g.append(ul);
+          return g;
+        }),
+      );
+    };
+
+    saveBtn.addEventListener('click', async () => {
+      if (!catalog) return;
+      readFields();
+      const found = problems(draft.agent, catalog);
+      if (found.length) {
+        paintState();
+        return;
+      }
+      if (!draft.name.trim()) nameIn.value = draft.name = L.newAgent;
+      saveBtn.disabled = true;
+      saveBtn.textContent = L.saving;
+      try {
+        const v = await api<Version>('/api/studio/versions', {
+          method: 'POST',
+          body: JSON.stringify({ name: draft.name.trim(), note: noteIn.value.trim() || null, agent: draft.agent }),
+        });
+        noteIn.value = '';
+        draft = { ...draft, name: v.name, base: v.id };
+        storeDraft();
+        await loadVersions();
+        $('s-saved').textContent = `${L.savedAs} ${versionLabel(v)}.`;
+      } catch (err) {
+        const e = err as ApiError;
+        $('s-saved').textContent =
+          e?.status === 409 ? L.tooMany : e?.status === 429 ? L.slowDown : e?.status === 422 ? s['live.invalid'] : liveError(err, s);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = L.save;
+      }
+    });
+
+    // ------------------------------------------------------------ comparação
+    const paintRunButton = () => {
+      goBtn.textContent = running ? L.running : compareSel.value ? L.runCompare : L.run;
+    };
+    const paintDiff = () => {
+      const other = versionById(compareSel.value);
+      const panel = $('s-diff');
+      if (!other) {
+        panel.hidden = true;
+        return;
+      }
+      panel.hidden = false;
+      const d = diffAgents(other.agent, draft.agent);
+      const body = $('s-diff-body');
+      if (noDifference(d)) {
+        body.replaceChildren(el('p', 'hint', L.same));
+        return;
+      }
+      const rows: HTMLElement[] = [];
+      const row = (label: string, from: string, to: string) => {
+        const r = el('div', 'd-row');
+        r.append(el('span', 'd-key', label), el('span', 'd-from mono', from), el('span', 'd-arrow', '→'), el('span', 'd-to mono', to));
+        rows.push(r);
+      };
+      if (d.model) row(L.model, modelLabel(d.model[0]), modelLabel(d.model[1]));
+      if (d.temperature) row(L.temperature, d.temperature[0].toFixed(1), d.temperature[1].toFixed(1));
+      if (d.max_steps) row(L.steps, String(d.max_steps[0]), String(d.max_steps[1]));
+      if (d.toolsAdded.length || d.toolsRemoved.length) {
+        const r = el('div', 'd-row');
+        r.append(el('span', 'd-key', L.tools));
+        const chips = el('span', 'd-tools');
+        for (const t of d.toolsAdded) chips.append(el('code', 'd-add', `+ ${toolLabel(t)}`));
+        for (const t of d.toolsRemoved) chips.append(el('code', 'd-del', `− ${toolLabel(t)}`));
+        r.append(chips);
+        rows.push(r);
+      }
+      if (d.instructions) {
+        const pre = el('pre', 'd-lines');
+        for (const line of d.instructions) {
+          const span = el('span', `d-line d-${line.op}`, `${line.op === 'add' ? '+ ' : line.op === 'del' ? '− ' : '  '}${line.text}`);
+          pre.append(span);
+        }
+        const wrap = el('div', 'd-row d-block');
+        wrap.append(el('span', 'd-key', L.instructions), pre);
+        rows.push(wrap);
+      }
+      body.replaceChildren(...rows);
+    };
+    compareSel.addEventListener('change', () => {
+      paintRunButton();
+      paintDiff();
+    });
+
+    // ------------------------------------------------------------ execução
+    interface Column {
+      box: HTMLElement;
+      label: string;
+      agent: StudioAgent;
+      state: RunState;
+      tree: ReturnType<typeof runTree>;
+      t0: number;
+      timer?: number;
+      frame: number;
+    }
+
+    const column = (label: string, sub: string, agent: StudioAgent): Column => {
+      const box = el('article', 'panel result');
+      const head = el('div', 'r-head');
+      const title = el('div', 'r-title');
+      title.append(el('strong', '', label), el('span', 'r-sub mono', sub));
+      const status = el('span', 'status');
+      status.dataset.state = 'idle';
+      status.append(el('span', 'st-dot'), el('span', 'r-status', L.queued));
+      head.append(title, status);
+      const kpis = el('div', 'r-kpis');
+      kpis.hidden = true;
+      const err = el('p', 'notice error r-error');
+      err.hidden = true;
+      const answer = el('div', 'md r-answer');
+      answer.hidden = true;
+      const stepsBox = el('details', 'r-steps');
+      stepsBox.open = true;
+      stepsBox.append(el('summary', '', L.steps2), el('div', 'run-tree r-tree'));
+      const traceBtn = el('button', 'btn small-btn r-trace-btn', L.trace);
+      traceBtn.type = 'button';
+      traceBtn.hidden = true;
+      const traceMsg = el('p', 'hint r-trace-msg');
+      traceMsg.hidden = true;
+      const wf = el('div', 'waterfall r-wf');
+      box.append(head, kpis, err, answer, stepsBox, traceBtn, traceMsg, wf);
+      const tree = runTree(L, lang, (n) => (n === 'studio' ? label : agentLabel(n, lang)));
+      return { box, label, agent, state: newRun(), tree, t0: 0, frame: 0 };
+    };
+
+    const q = <T extends HTMLElement>(c: Column, sel: string) => c.box.querySelector(sel) as T;
+    const setStatus = (c: Column, state: 'idle' | 'live' | 'ready' | 'failed', extra = '') => {
+      q<HTMLElement>(c, '.status').dataset.state = state;
+      q<HTMLElement>(c, '.r-status').textContent = `${L[state]}${extra ? ` · ${extra}` : ''}`;
+    };
+    const renderTreeNow = (c: Column) => {
+      c.frame = 0;
+      q<HTMLElement>(c, '.r-tree').replaceChildren(...(c.state.root ? [c.tree.card(c.state.root)] : []));
+    };
+    const scheduleTree = (c: Column) => {
+      if (!c.frame) c.frame = requestAnimationFrame(() => renderTreeNow(c));
+    };
+    const showDone = (c: Column) => {
+      const d = c.state.done;
+      if (!d) return;
+      const counts = runCounts(c.state);
+      const kpis = q<HTMLElement>(c, '.r-kpis');
+      const kpi = (value: string, label: string) => {
+        const k = el('div', 'kpi');
+        k.append(el('strong', '', value), el('span', '', label));
+        return k;
+      };
+      kpis.replaceChildren(
+        kpi(fmtMs(d.durationMs), L.kTime),
+        kpi(nf.format(d.inputTokens + d.outputTokens), L.kTokens),
+        kpi(String(counts.llm), L.kLlm),
+        kpi(String(counts.tools), L.kTools),
+      );
+      kpis.hidden = false;
+      const answer = q<HTMLElement>(c, '.r-answer');
+      renderMarkdown(answer, d.output);
+      answer.hidden = !d.output;
+      const ok = d.status === 'completed' || d.status === 'ok';
+      setStatus(c, ok ? 'ready' : 'failed', fmtMs(d.durationMs));
+      if (d.traceId) {
+        const btn = q<HTMLButtonElement>(c, '.r-trace-btn');
+        const msg = q<HTMLElement>(c, '.r-trace-msg');
+        btn.hidden = false;
+        btn.onclick = async () => {
+          btn.hidden = true;
+          msg.hidden = false;
+          msg.textContent = L.traceWait;
+          try {
+            const spans = await fetchTrace<Span[]>(d.traceId!);
+            msg.hidden = true;
+            renderWaterfall(q<HTMLElement>(c, '.r-wf'), spans, lang);
+          } catch {
+            msg.textContent = L.traceMissing;
+          }
+        };
+      }
+    };
+    const fail = (c: Column, err: unknown) => {
+      const e = err as ApiError;
+      const box = q<HTMLElement>(c, '.r-error');
+      box.hidden = false;
+      box.textContent = e?.status === 422 && e.reason === 'invalid_agent' ? `${L.invalidAgent} ${e.message ?? ''}`.trim() : liveError(err, s);
+      setStatus(c, 'failed');
+    };
+
+    /** Roda uma coluna; devolve false quando não vale tentar a próxima (cota, orçamento, login). */
+    const runColumn = async (c: Column, text: string): Promise<boolean> => {
+      c.state = newRun();
+      c.tree.reset();
+      c.t0 = performance.now();
+      setStatus(c, 'live');
+      c.timer = window.setInterval(() => setStatus(c, 'live', fmtMs(performance.now() - c.t0)), 100);
+      try {
+        const res = await fetch('/api/studio/run/stream', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
+          body: JSON.stringify({ question: text, agent: c.agent }),
+        });
+        if (!res.ok) throw await errorFrom(res);
+        await readSse(res, (event, raw) => {
+          applyEvent(c.state, event, raw, performance.now() - c.t0);
+          scheduleTree(c);
+        });
+        if (!c.state.done) throw { status: 502 };
+        window.clearInterval(c.timer);
+        renderTreeNow(c);
+        showDone(c);
+        return true;
+      } catch (err) {
+        window.clearInterval(c.timer);
+        renderTreeNow(c);
+        fail(c, err);
+        const e = err as ApiError;
+        return !(e?.status === 401 || e?.status === 429);
+      }
+    };
+
+    root.querySelectorAll<HTMLButtonElement>('[data-example]').forEach((b) =>
+      b.addEventListener('click', () => {
+        question.value = b.dataset.example!;
+        question.focus();
+      }),
+    );
+
+    runForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!catalog || running) return;
+      readFields();
+      const text = question.value.trim();
+      if (!text) return;
+      const found = problems(draft.agent, catalog);
+      if (found.length) {
+        paintState();
+        $('s-problems').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      const other = versionById(compareSel.value);
+      const base = versionById(draft.base);
+      const sub =
+        base && sameAgent(base.agent, draft.agent) ? `v${base.version}` : base ? `v${base.version} · ${L.edited}` : L.unsaved;
+      const cols = [column(draft.name.trim() || L.newAgent, `${L.editorCol} · ${sub}`, { ...draft.agent })];
+      if (other) cols.push(column(other.name, `v${other.version}`, fromTemplate(other.agent, catalog)));
+
+      running = true;
+      goBtn.disabled = true;
+      saveBtn.disabled = true;
+      paintRunButton();
+      $('s-error').hidden = true;
+      const results = $('s-results');
+      results.classList.toggle('two', cols.length === 2);
+      results.replaceChildren(...cols.map((c) => c.box));
+      results.hidden = false;
+      results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      try {
+        for (const c of cols) if (!(await runColumn(c, text))) break;
+      } finally {
+        running = false;
+        goBtn.disabled = false;
+        saveBtn.disabled = false;
+        paintRunButton();
+        const g = await refreshGate();
+        if (g.ready) {
+          const cta = el('div', 'full');
+          cta.append(consultCta(s, lang));
+          results.append(cta);
+        }
+      }
+    });
+
+    // ------------------------------------------------------------ início
+    // O portão (login, cota, orçamento) vale só para rodar: editar e salvar versões não gastam cota.
+    const play = $('s-play');
+    const refreshGate = async () => {
+      const g = await gate(play, 'studio', s);
+      const r = play.querySelector<HTMLElement>('[data-remaining]');
+      if (r) r.textContent = (r.textContent ?? '').replace(/^·\s*/, '');
+      return g;
+    };
+    const start = async () => {
+      const g = await refreshGate();
+      if (!g.me?.user || catalog) return;
+      try {
+        catalog = await api<Catalog>('/api/studio/catalog');
+      } catch (err) {
+        const box = play.querySelector<HTMLElement>('[data-gate]')!;
+        box.hidden = false;
+        box.textContent = liveError(err, s);
+        runForm.hidden = true;
+        return;
+      }
+      root.classList.remove('is-anon');
+      $('s-editor').hidden = false;
+      $('s-versions-panel').hidden = false;
+      buildCatalogFields(catalog);
+      await loadVersions();
+      let saved: Draft | null = null;
+      try {
+        saved = parseDraft(localStorage.getItem(DRAFT_KEY));
+      } catch {
+        saved = null;
+      }
+      if (saved) fillEditor({ ...saved, agent: { ...saved.agent, tools: saved.agent.tools.filter((t) => catalog!.tools.some((x) => x.name === t)) } });
+      else {
+        const first = catalog.templates[0];
+        fillEditor(
+          first
+            ? { name: templateLabel(first.name), agent: fromTemplate(first, catalog), base: null }
+            : { name: L.newAgent, agent: blankAgent(catalog, L.blankInstructions), base: null },
+        );
+      }
+    };
+    void start();
+  }
+</script>
+
+<style>
+  .studio {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: 16px;
+    padding-bottom: 48px;
+  }
+  .studio > *,
+  .live > * {
+    min-width: 0;
+  }
+  .live {
+    display: contents;
+  }
+  .full {
+    grid-column: 1 / -1;
+  }
+  .studio.is-anon .play {
+    grid-column: 1 / -1;
+  }
+  .panel {
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    min-width: 0;
+  }
+  h2 {
+    font-size: 17px;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .hint {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 4px 0 0;
+  }
+  .small {
+    font-size: 13px;
+  }
+  .panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px 16px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .grow {
+    flex: 1 1 240px;
+    min-width: 0;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .tag:not(:empty),
+  .quota:not(:empty) {
+    font-size: 12.5px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-radius: 999px;
+    padding: 4px 10px;
+    white-space: nowrap;
+  }
+
+  /* Editor */
+  .fields {
+    display: grid;
+    gap: 14px;
+  }
+  .f {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+  }
+  .lab {
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .count {
+    font-weight: 400;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .count.over {
+    color: var(--danger);
+  }
+  .row3 {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 0.7fr);
+    gap: 12px;
+    align-items: end;
+  }
+  input[type='range'] {
+    padding: 0;
+    min-height: 44px;
+    border: 0;
+    background: transparent;
+    accent-color: var(--accent);
+  }
+  #s-instr {
+    min-height: 220px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .tools {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px 12px;
+    margin: 0;
+    min-width: 0;
+  }
+  .tools legend {
+    padding: 0 4px;
+  }
+  .tools .hint {
+    margin: 0 0 8px;
+  }
+  .problems {
+    margin: 0;
+    padding: 10px 14px 10px 30px;
+    border-radius: var(--radius-sm);
+    border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--line));
+    background: color-mix(in srgb, var(--danger) 8%, var(--panel));
+    color: var(--danger);
+    font-size: 13.5px;
+  }
+  .save-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .save-row input {
+    flex: 1 1 220px;
+    min-width: 0;
+  }
+  .save-row .btn {
+    flex: none;
+  }
+
+  /* Playground */
+  .play {
+    display: grid;
+    align-content: start;
+    align-self: start;
+  }
+  .play .notice {
+    margin: 0;
+  }
+  .play-form {
+    display: grid;
+    gap: 12px;
+  }
+  .play-form textarea {
+    min-height: 96px;
+  }
+  .play-form > .hint {
+    margin: 0;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chip {
+    font: inherit;
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+    text-align: left;
+  }
+  .chip:hover {
+    border-color: var(--accent);
+  }
+  .play-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+  }
+  .play-actions .hint {
+    margin: 0;
+    flex: 1 1 200px;
+  }
+  #s-error {
+    margin-top: 12px;
+  }
+
+  @media (max-width: 900px) {
+    .studio {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @media (max-width: 520px) {
+    .panel {
+      padding: 16px;
+    }
+    .row3 {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+    .row3 > :first-child {
+      grid-column: 1 / -1;
+    }
+  }
+</style>
+
+<style is:global>
+  /* Criado pelo script: ferramentas, resultados, diff e versões. */
+  #studio .tool-groups {
+    display: grid;
+    gap: 10px;
+    max-height: 320px;
+    overflow: auto;
+    padding-right: 4px;
+  }
+  #studio .tool-group-title {
+    margin: 0 0 4px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+  #studio .tool {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 6px 4px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  #studio .tool:hover {
+    background: var(--bg-soft);
+  }
+  #studio .tool input {
+    width: 18px;
+    height: 18px;
+    min-height: 0;
+    margin: 2px 0 0;
+    padding: 0;
+    flex: none;
+    accent-color: var(--accent);
+  }
+  #studio .tool-text {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+  #studio .tool-text code {
+    font-size: 13px;
+  }
+  #studio .tool-desc {
+    font-size: 12.5px;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+  #studio .problems li + li {
+    margin-top: 4px;
+  }
+
+  /* Resultados */
+  #studio .results {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #studio .results.two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #studio .results > .full {
+    grid-column: 1 / -1;
+  }
+  #studio .result {
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+    min-width: 0;
+    display: grid;
+    gap: 14px;
+    align-content: start;
+  }
+  #studio .r-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  #studio .r-title {
+    display: grid;
+    min-width: 0;
+  }
+  #studio .r-title strong {
+    overflow-wrap: anywhere;
+  }
+  #studio .r-sub {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  #studio .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    font-family: var(--mono);
+    padding: 5px 11px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  #studio .st-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--line-strong);
+  }
+  #studio .status[data-state='live'] {
+    color: var(--accent);
+  }
+  #studio .status[data-state='live'] .st-dot {
+    background: var(--accent);
+  }
+  #studio .status[data-state='ready'] {
+    color: var(--ok);
+  }
+  #studio .status[data-state='ready'] .st-dot {
+    background: var(--ok);
+  }
+  #studio .status[data-state='failed'] {
+    color: var(--danger);
+  }
+  #studio .status[data-state='failed'] .st-dot {
+    background: var(--danger);
+  }
+  #studio .r-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+  #studio .r-kpis[hidden] {
+    display: none;
+  }
+  #studio .kpi {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+  #studio .kpi strong {
+    font-family: var(--mono);
+    font-size: 17px;
+    font-weight: 600;
+  }
+  #studio .kpi span {
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  #studio .r-error {
+    margin: 0;
+  }
+  #studio .r-steps > summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  #studio .small-btn {
+    min-height: 32px;
+    padding: 4px 12px;
+    font-size: 13px;
+    justify-self: start;
+  }
+  #studio .small-btn.danger {
+    color: var(--danger);
+  }
+  #studio .r-trace-msg {
+    margin: 0;
+  }
+
+  /* Diff */
+  #studio .d-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    align-items: baseline;
+    padding: 8px 0;
+    border-top: 1px solid var(--line);
+  }
+  #studio .d-row:first-child {
+    border-top: 0;
+  }
+  #studio .d-key {
+    font-size: 13px;
+    font-weight: 600;
+    min-width: 130px;
+  }
+  #studio .d-from {
+    color: var(--muted);
+    text-decoration: line-through;
+  }
+  #studio .d-arrow {
+    color: var(--muted);
+  }
+  #studio .d-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  #studio .d-add,
+  #studio .d-line.d-add {
+    color: var(--ok);
+    background: color-mix(in srgb, var(--ok) 10%, transparent);
+  }
+  #studio .d-del,
+  #studio .d-line.d-del {
+    color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+  }
+  #studio .d-tools code {
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 12.5px;
+  }
+  #studio .d-block {
+    display: grid;
+  }
+  #studio .d-lines {
+    margin: 0;
+    padding: 10px 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--panel);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.55;
+    max-height: 360px;
+    overflow: auto;
+    display: grid;
+  }
+  #studio .d-line {
+    display: block;
+    padding: 0 12px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  #studio .d-line.d-same {
+    color: var(--muted);
+  }
+
+  /* Versões */
+  #studio .v-group + .v-group {
+    margin-top: 16px;
+  }
+  #studio .v-name {
+    font-size: 15px;
+    margin: 0 0 6px;
+    overflow-wrap: anywhere;
+  }
+  #studio .v-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+  }
+  #studio .v-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px 12px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--panel);
+  }
+  #studio .v-info {
+    min-width: 0;
+    flex: 1 1 260px;
+  }
+  #studio .v-line {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    flex-wrap: wrap;
+  }
+  #studio .v-meta {
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  #studio .v-note {
+    margin: 2px 0 0;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+  #studio .v-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 900px) {
+    #studio .results.two {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @media (max-width: 480px) {
+    #studio .r-kpis {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    #studio .d-key {
+      min-width: 0;
+      width: 100%;
+    }
+  }
+</style>

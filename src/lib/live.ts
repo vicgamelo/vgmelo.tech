@@ -38,7 +38,7 @@ export function gateState(me: Me | null, quotaKey: string, authError = false): G
   if (!me.user) return { kind: authError ? 'oauthError' : 'login' };
   const q = me.quotas[quotaKey];
   if (q && q.remaining <= 0) return { kind: 'quota' };
-  if (quotaKey === 'agents' && me.budget_exhausted) return { kind: 'budget' };
+  if ((quotaKey === 'agents' || quotaKey === 'studio') && me.budget_exhausted) return { kind: 'budget' };
   return { kind: 'ready', remaining: q ? q.remaining : null };
 }
 

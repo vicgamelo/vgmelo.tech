@@ -20,6 +20,7 @@ export const ROUTES = {
   demoDrift: { pt: '/demos/drift/', en: '/en/demos/drift/' },
   demoAttention: { pt: '/demos/attention/', en: '/en/demos/attention/' },
   demoAgents: { pt: '/demos/agentes/', en: '/en/demos/agents/' },
+  demoStudio: { pt: '/demos/estudio/', en: '/en/demos/studio/' },
   demoCredit: { pt: '/demos/credito/', en: '/en/demos/credit/' },
   demoMcp: { pt: '/demos/mcp/', en: '/en/demos/mcp/' },
   demoOcr: { pt: '/demos/ocr/', en: '/en/demos/ocr/' },

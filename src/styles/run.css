@@ -1,0 +1,311 @@
+/* Árvore da execução (agentes, passos, ferramentas) e resposta em Markdown, criadas por script.
+   Usado pela demo de agentes e pelo estúdio; fica fora do escopo do Astro. */
+:is(#agents, #studio) .avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--accent-ink);
+  background: var(--accent);
+}
+:is(#agents, #studio) .a-economist {
+  background: var(--accent2);
+  color: #fff;
+}
+:is(#agents, #studio) .a-company_researcher {
+  background: var(--accent3);
+  color: #1f1300;
+}
+:is(#agents, #studio) .a-news_researcher {
+  background: #e11d48;
+  color: #fff;
+}
+:is(#agents, #studio) .a-pix_specialist {
+  background: #0284c7;
+  color: #fff;
+}
+:is(#agents, #studio) .a-scheduler {
+  background: #65a30d;
+  color: #fff;
+}
+:is(#agents, #studio) .spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border-top-color: var(--accent);
+  animation: ag-spin 0.8s linear infinite;
+}
+@keyframes ag-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(#agents, #studio) .spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+/* Árvore */
+:is(#agents, #studio) .ag {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  padding: 12px 14px;
+  min-width: 0;
+}
+:is(#agents, #studio) .ag[data-status='running'] {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+:is(#agents, #studio) .ag-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+:is(#agents, #studio) .ag-who {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+:is(#agents, #studio) .ag-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+:is(#agents, #studio) .ag-task {
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  color: var(--muted);
+  border-left: 2px solid var(--line-strong);
+  padding-left: 10px;
+}
+:is(#agents, #studio) .ag-steps {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+:is(#agents, #studio) .st {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  font-size: 13.5px;
+}
+:is(#agents, #studio) .st-icon {
+  width: 9px;
+  height: 9px;
+  margin: 6px 0 0 2px;
+  border-radius: 3px;
+  background: var(--accent);
+}
+:is(#agents, #studio) .st-tool .st-icon {
+  background: var(--accent3);
+}
+:is(#agents, #studio) .st-deleg .st-icon {
+  background: var(--accent2);
+}
+:is(#agents, #studio) .st-err .st-icon,
+:is(#agents, #studio) .st-tool.is-failed .st-icon {
+  background: var(--danger);
+}
+:is(#agents, #studio) .st-err .st-body,
+:is(#agents, #studio) .st-tool.is-failed .st-meta {
+  color: var(--danger);
+}
+:is(#agents, #studio) .st-body {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+:is(#agents, #studio) .st-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  min-width: 0;
+}
+:is(#agents, #studio) .st-line code {
+  font-size: 12.5px;
+}
+:is(#agents, #studio) .st-kind {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+:is(#agents, #studio) .st-tool-name {
+  color: var(--accent3);
+  font-weight: 600;
+}
+:is(#agents, #studio) .st-args {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+:is(#agents, #studio) .st-meta {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+:is(#agents, #studio) .st-thought {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+}
+:is(#agents, #studio) .st-details summary {
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--muted);
+  width: fit-content;
+}
+:is(#agents, #studio) .st-details summary:hover {
+  color: var(--accent);
+}
+:is(#agents, #studio) .st-details[open] summary {
+  margin-bottom: 6px;
+}
+:is(#agents, #studio) .st-pre {
+  margin: 0;
+  max-height: 240px;
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+:is(#agents, #studio) .st-deleg > .st-body > .ag {
+  margin-top: 2px;
+}
+:is(#agents, #studio) .ag > .st-details {
+  margin-top: 10px;
+}
+
+/* Resposta em markdown */
+:is(#agents, #studio) .md {
+  font-size: 15.5px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+:is(#agents, #studio) .md-small {
+  font-size: 13.5px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg-soft);
+}
+:is(#agents, #studio) .md > :first-child {
+  margin-top: 0;
+}
+:is(#agents, #studio) .md > :last-child {
+  margin-bottom: 0;
+}
+:is(#agents, #studio) .md p,
+:is(#agents, #studio) .md ul,
+:is(#agents, #studio) .md ol,
+:is(#agents, #studio) .md pre,
+:is(#agents, #studio) .md blockquote,
+:is(#agents, #studio) .md .md-table {
+  margin: 0 0 12px;
+}
+:is(#agents, #studio) .md ul,
+:is(#agents, #studio) .md ol {
+  padding-left: 22px;
+}
+:is(#agents, #studio) .md li + li {
+  margin-top: 4px;
+}
+:is(#agents, #studio) .md li > ul,
+:is(#agents, #studio) .md li > ol {
+  margin: 4px 0 0;
+}
+:is(#agents, #studio) .md h3,
+:is(#agents, #studio) .md h4,
+:is(#agents, #studio) .md h5,
+:is(#agents, #studio) .md h6 {
+  font-size: 16px;
+  margin: 16px 0 8px;
+}
+:is(#agents, #studio) .md code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--bg-soft);
+}
+:is(#agents, #studio) .md pre {
+  padding: 12px 14px;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+:is(#agents, #studio) .md pre code {
+  padding: 0;
+  background: none;
+}
+:is(#agents, #studio) .md blockquote {
+  border-left: 3px solid var(--line-strong);
+  padding-left: 12px;
+  color: var(--muted);
+}
+:is(#agents, #studio) .md hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 14px 0;
+}
+:is(#agents, #studio) .md-table {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+:is(#agents, #studio) .md-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+:is(#agents, #studio) .md-table th,
+:is(#agents, #studio) .md-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  overflow-wrap: normal;
+}
+:is(#agents, #studio) .md-table tr:last-child td {
+  border-bottom: 0;
+}
+:is(#agents, #studio) .md-table th {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  background: var(--bg-soft);
+}
+:is(#agents, #studio) .md-table .al-right {
+  text-align: right;
+  white-space: nowrap;
+  font-family: var(--mono);
+}
+:is(#agents, #studio) .md-table .al-center {
+  text-align: center;
+}
