@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { attention, causalMask, headWeights, softmaxRow, tokenize } from '../src/lib/attention';
 import { checkCnpj, checkCpf, checkDocument } from '../src/lib/cnpj';
-import { normal, psiFromShares, psiNumeric, severity } from '../src/lib/psi';
+import { contributions, density, normal, psiFromShares, psiNumeric, severity } from '../src/lib/psi';
 
 describe('CPF e CNPJ', () => {
   it.each(['11.222.333/0001-81', '00000000000191', '12.ABC.345/01DE-35'])('CNPJ válido %s', (v) => {
@@ -56,6 +56,19 @@ describe('PSI', () => {
     const b = psiNumeric(normal(1000, 0, 1, 4), normal(1000, 0.3, 1.2, 5));
     expect(b.reference.reduce((a, c) => a + c, 0)).toBeCloseTo(1, 12);
     expect(b.current.reduce((a, c) => a + c, 0)).toBeCloseTo(1, 12);
+  });
+
+  it('a contribuição por faixa é ≥ 0 e soma o PSI', () => {
+    const b = psiNumeric(normal(2000, 35, 11, 7), normal(2000, 42, 9, 11));
+    expect(b.contrib.every((c) => c >= 0)).toBe(true);
+    expect(b.contrib.reduce((a, c) => a + c, 0)).toBeCloseTo(b.psi, 12);
+    expect(contributions([0.5, 0.5], [0.5, 0.5])).toEqual([0, 0]);
+  });
+
+  it('a densidade integra perto de 1', () => {
+    const xs = Array.from({ length: 401 }, (_, i) => -6 + i * 0.03);
+    const d = density(normal(1500, 0, 1, 9), xs);
+    expect(d.reduce((a, y) => a + y * 0.03, 0)).toBeCloseTo(1, 2);
   });
 });
 

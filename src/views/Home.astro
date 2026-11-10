@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import Cards from '../components/Cards.astro';
+import Icon from '../components/Icon.astro';
 import ArticleList from '../components/ArticleList.astro';
 import { APPS, DEMOS, LINKS, PROJECTS } from '../data/site';
 import { ROUTES, route, type Lang } from '../i18n/routes';
@@ -13,38 +14,119 @@ interface Props {
 const { lang } = Astro.props;
 const t = useT(lang);
 const featured = PROJECTS.filter((p) => p.featured);
-const articles = (await articlesFor(lang)).slice(0, 3);
+const allArticles = await articlesFor(lang);
+const articles = allArticles.slice(0, 3);
 const what = (['agents', 'mlops', 'obs', 'data'] as const).map((k) => ({
+  key: k,
   title: t(`what.${k}.title`),
   text: t(`what.${k}.text`),
 }));
+const live = DEMOS.filter((d) => d.live).length;
+// Números contados dos próprios dados do site, para nunca ficarem desatualizados.
+const kpis = [
+  { value: '5+', label: t('home.kpi.years') },
+  { value: String(PROJECTS.length), label: t('home.kpi.projects') },
+  { value: String(live), label: t('home.kpi.live'), sub: `+${DEMOS.length - live} ${t('home.kpi.browser')}` },
+  { value: String(allArticles.length), label: t('home.kpi.articles') },
+];
+// Trace ilustrativo (formato real do genai-lens; números de uma execução típica).
+const spans = [
+  { name: 'run.coordinator', kind: 'run', depth: 0, start: 0, dur: 100, ms: '5,7 s' },
+  { name: 'llm · gpt-oss-120b', kind: 'llm', depth: 1, start: 0, dur: 12, ms: '0,7 s' },
+  { name: 'delegate · economist', kind: 'agent', depth: 1, start: 13, dur: 70, ms: '4,0 s' },
+  { name: 'tool · indicador_economico', kind: 'tool', depth: 2, start: 22, dur: 18, ms: '1,0 s' },
+  { name: 'tool · calculator', kind: 'tool', depth: 2, start: 44, dur: 4, ms: '12 ms' },
+  { name: 'llm · gpt-oss-20b', kind: 'llm', depth: 2, start: 50, dur: 30, ms: '1,7 s' },
+  { name: 'llm · resposta final', kind: 'llm', depth: 1, start: 85, dur: 15, ms: '0,9 s' },
+];
+const [mainDemo, ...otherDemos] = DEMOS;
 ---
 
 <Base lang={lang} alt={ROUTES.home}>
   <section class="hero">
     <div class="container hero-grid">
-      <div>
-        <div class="eyebrow">{t('home.eyebrow')}</div>
+      <div class="hero-copy">
+        <a class="who" href={route('about', lang)}>
+          <img src={LINKS.avatar} alt="" width="36" height="36" />
+          <span><strong>Victor Gabriel Andrade de Melo</strong><span class="muted"> · {t('site.role')}</span></span>
+        </a>
         <h1>{t('home.title')}</h1>
         <p class="hero-lead">{t('home.lead')}</p>
         <div class="actions">
-          <a class="btn primary" href={route('demos', lang)}>{t('home.ctaDemos')}</a>
+          <a class="btn primary" href={route('demos', lang)}><Icon name="play" />{t('home.ctaDemos')}</a>
           <a class="btn" href={route('contact', lang)}>{t('home.ctaContact')}</a>
-          <a class="btn" href={LINKS.linkedin} rel="me noopener">LinkedIn</a>
-          <a class="btn" href={LINKS.github} rel="me noopener">GitHub</a>
+          <a class="btn icon-only" href={LINKS.linkedin} rel="me noopener" aria-label="LinkedIn"><Icon name="linkedin" /></a>
+          <a class="btn icon-only" href={LINKS.github} rel="me noopener" aria-label="GitHub"><Icon name="github" /></a>
         </div>
+        <ul class="stack">
+          {['MLOps', 'MLflow', 'Agentes · MCP', 'OpenTelemetry', 'Python', 'Postgres', 'Docker'].map((s) => <li>{s}</li>)}
+        </ul>
       </div>
-      <img class="avatar" src={LINKS.avatar} alt="Victor Gabriel Andrade de Melo" width="220" height="220" />
+
+      <figure class="console" aria-label={t('home.console.title')}>
+        <div class="console-bar">
+          <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="mono">genai-lens · {t('home.console.title')}</span>
+          <span class="pill-ok">200 OK</span>
+        </div>
+        <div class="console-body">
+          <div class="question mono">
+            <span class="prompt">›</span>
+            {lang === 'pt' ? 'Qual a Selic e o IPCA em 12 meses? Qual o juro real?' : "What are Selic and 12-month IPCA? What's the real rate?"}
+          </div>
+          <ol class="spans">
+            {
+              spans.map((s) => (
+                <li class={`span ${s.kind} d${s.depth}`}>
+                  <span class="span-name mono">{s.name}</span>
+                  <svg class="span-track" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
+                    <rect class="span-bar" x={s.start} y="0" width={s.dur} height="10" rx="1.5" />
+                  </svg>
+                  <span class="span-ms mono">{s.ms}</span>
+                </li>
+              ))
+            }
+          </ol>
+          <div class="console-foot mono">
+            <span><b>7.935</b> tokens</span>
+            <span><b>3</b> tools</span>
+            <span><b>$0,00</b> · free tier</span>
+          </div>
+        </div>
+        <figcaption>{t('home.console.note')}</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="container" aria-label={t('home.kpi.label')}>
+    <div class="kpis">
+    {
+      kpis.map((k) => (
+        <div class="kpi">
+          <span class="kpi-value">{k.value}</span>
+          <span class="kpi-label">{k.label}</span>
+          {k.sub && <span class="kpi-sub mono">{k.sub}</span>}
+        </div>
+      ))
+    }
     </div>
   </section>
 
   <section class="section">
     <div class="container">
-      <div class="section-title"><h2>{t('home.whatTitle')}</h2></div>
-      <div class="grid what">
+      <div class="section-title">
+        <div>
+          <span class="eyebrow">01 · {t('home.whatTitle')}</span>
+          <h2>{t('home.whatHeadline')}</h2>
+        </div>
+      </div>
+      <div class="what">
         {
           what.map((w) => (
-            <div class="card">
+            <div class={`card what-card ${w.key}`}>
+              <span class="what-icon">
+                <Icon name={w.key} />
+              </span>
               <h3>{w.title}</h3>
               <p>{w.text}</p>
             </div>
@@ -57,31 +139,55 @@ const what = (['agents', 'mlops', 'obs', 'data'] as const).map((k) => ({
   <section class="section">
     <div class="container">
       <div class="section-title">
-        <h2>{t('home.projectsTitle')}</h2>
-        <a href={route('projects', lang)}>{t('home.projectsAll')} →</a>
-      </div>
-      <div class="grid">{featured.map((p) => <Cards kind="project" lang={lang} item={p} />)}</div>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="container">
-      <div class="section-title">
-        <h2>{t('home.demosTitle')}</h2>
-        <a href={route('demos', lang)}>{t('nav.demos')} →</a>
+        <div>
+          <span class="eyebrow">02 · {t('home.demosTitle')}</span>
+          <h2>{t('home.demosHeadline')}</h2>
+        </div>
+        <a class="see-all" href={route('demos', lang)}>{t('nav.demos')} →</a>
       </div>
       <p class="lead">{t('home.demosLead')}</p>
-      <div class="grid">{DEMOS.slice(0, 3).map((d) => <Cards kind="demo" lang={lang} item={d} />)}</div>
+      <div class="bento">
+        <a class="card demo-main" href={route(mainDemo.key, lang)}>
+          <span class="badge live">{t('demos.live')}</span>
+          <h3>{mainDemo.title[lang]}</h3>
+          <p>{mainDemo.text[lang]}</p>
+          <div class="mini-flow" aria-hidden="true">
+            <span class="node">coordinator</span>
+            <span class="edge"></span>
+            <span class="node alt">economist</span>
+            <span class="edge"></span>
+            <span class="node tool">MCP · BCB</span>
+          </div>
+          <span class="go">{t('home.tryIt')} →</span>
+        </a>
+        {otherDemos.slice(0, 4).map((d) => <Cards kind="demo" lang={lang} item={d} />)}
+      </div>
     </div>
   </section>
 
   <section class="section">
     <div class="container">
       <div class="section-title">
-        <h2>{t('home.appsTitle')}</h2>
-        <a href={route('apps', lang)}>{t('home.appsAll')} →</a>
+        <div>
+          <span class="eyebrow">03 · {t('home.projectsTitle')}</span>
+          <h2>{t('home.projectsHeadline')}</h2>
+        </div>
+        <a class="see-all" href={route('projects', lang)}>{t('home.projectsAll')} →</a>
       </div>
-      <div class="grid">{APPS.map((a) => <Cards kind="app" lang={lang} item={a} />)}</div>
+      <div class="grid two">{featured.map((p) => <Cards kind="project" lang={lang} item={p} />)}</div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-title">
+        <div>
+          <span class="eyebrow">04 · {t('home.appsTitle')}</span>
+          <h2>{t('home.appsHeadline')}</h2>
+        </div>
+        <a class="see-all" href={route('apps', lang)}>{t('home.appsAll')} →</a>
+      </div>
+      <div class="grid two">{APPS.map((a) => <Cards kind="app" lang={lang} item={a} />)}</div>
     </div>
   </section>
 
@@ -90,8 +196,11 @@ const what = (['agents', 'mlops', 'obs', 'data'] as const).map((k) => ({
       <section class="section">
         <div class="container">
           <div class="section-title">
-            <h2>{t('home.articlesTitle')}</h2>
-            <a href={route('articles', lang)}>{t('home.articlesAll')} →</a>
+            <div>
+              <span class="eyebrow">05 · {t('home.articlesTitle')}</span>
+              <h2>{t('home.articlesHeadline')}</h2>
+            </div>
+            <a class="see-all" href={route('articles', lang)}>{t('home.articlesAll')} →</a>
           </div>
           <ArticleList lang={lang} articles={articles} />
         </div>
@@ -101,8 +210,9 @@ const what = (['agents', 'mlops', 'obs', 'data'] as const).map((k) => ({
 
   <section class="section">
     <div class="container">
-      <div class="cta card">
+      <div class="cta">
         <div>
+          <span class="eyebrow">{t('nav.consulting')}</span>
           <h2>{t('home.consultingTitle')}</h2>
           <p>{t('home.consultingLead')}</p>
         </div>
@@ -117,55 +227,437 @@ const what = (['agents', 'mlops', 'obs', 'data'] as const).map((k) => ({
 
 <style>
   .hero {
-    padding: 64px 0 24px;
+    padding: 56px 0 28px;
+    position: relative;
+  }
+  .hero::before {
+    /* grade de fundo, some nas bordas */
+    content: '';
+    position: absolute;
+    inset: 0 0 -80px;
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 40%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 40%, transparent 100%);
+    pointer-events: none;
+    z-index: -1;
   }
   .hero-grid {
     display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 40px;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    gap: 48px;
     align-items: center;
+  }
+  .who {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 14px 5px 5px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--panel) 80%, transparent);
+    color: var(--text);
+    text-decoration: none;
+    font-size: 14px;
+    margin-bottom: 22px;
+    max-width: 100%;
+  }
+  .who img {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex: none;
+  }
+  .who:hover {
+    border-color: var(--line-strong);
+  }
+  .hero h1 {
+    font-size: clamp(30px, 4.2vw, 46px);
+    background: linear-gradient(180deg, var(--text) 30%, color-mix(in srgb, var(--text) 62%, var(--accent)));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
   .hero-lead {
     color: var(--muted);
     font-size: 18px;
-    max-width: 680px;
-    margin: 0 0 24px;
+    max-width: 620px;
+    margin: 0 0 26px;
   }
-  .avatar {
-    border-radius: 28px;
+  .icon-only {
+    padding: 10px 12px;
+  }
+  .stack {
+    list-style: none;
+    padding: 0;
+    margin: 26px 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .stack li::before {
+    content: '▸ ';
+    color: var(--accent);
+  }
+
+  /* Console com o trace */
+  .console {
+    margin: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: 16px;
+    background: var(--panel);
+    box-shadow:
+      var(--shadow),
+      0 30px 80px -40px color-mix(in srgb, var(--accent2) 60%, transparent);
+    overflow: hidden;
+  }
+  .console-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel-2);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .dots {
+    display: flex;
+    gap: 6px;
+  }
+  .dots i {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--line-strong);
+  }
+  .dots i:first-child {
+    background: #f87171;
+  }
+  .dots i:nth-child(2) {
+    background: #fbbf24;
+  }
+  .dots i:last-child {
+    background: #34d399;
+  }
+  .pill-ok {
+    margin-left: auto;
+    font-family: var(--mono);
+    color: var(--ok);
+    border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent);
+    border-radius: 6px;
+    padding: 1px 6px;
+  }
+  .console-body {
+    padding: 16px;
+  }
+  .question {
+    font-size: 13px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--bg-soft);
     border: 1px solid var(--line);
-    box-shadow: var(--shadow);
-    width: 220px;
-    height: 220px;
-    object-fit: cover;
+    margin-bottom: 14px;
   }
+  .prompt {
+    color: var(--accent);
+    margin-right: 6px;
+  }
+  .spans {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 7px;
+  }
+  .span {
+    display: grid;
+    grid-template-columns: minmax(0, 46%) 1fr 52px;
+    gap: 10px;
+    align-items: center;
+    font-size: 12px;
+  }
+  .d1 .span-name {
+    padding-left: 14px;
+  }
+  .d2 .span-name {
+    padding-left: 28px;
+  }
+  .span-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text);
+  }
+  .span-name::before {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 2px;
+    margin-right: 7px;
+    background: var(--c);
+  }
+  .span-track {
+    display: block;
+    width: 100%;
+    height: 10px;
+    border-radius: 4px;
+    background: var(--bg-soft);
+  }
+  .span-bar {
+    fill: var(--c);
+  }
+  .span-ms {
+    text-align: right;
+    color: var(--muted);
+  }
+  .span.run {
+    --c: var(--accent2);
+  }
+  .span.agent {
+    --c: color-mix(in srgb, var(--accent2) 60%, var(--accent));
+  }
+  .span.llm {
+    --c: var(--accent);
+  }
+  .span.tool {
+    --c: var(--accent3);
+  }
+  .console-foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--line);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .console-foot b {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .console figcaption {
+    padding: 10px 16px 14px;
+    font-size: 13px;
+    color: var(--muted);
+    border-top: 1px solid var(--line);
+  }
+
+  /* KPIs */
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+    margin-top: 24px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--panel);
+    padding: 0;
+    overflow: hidden;
+  }
+  .kpi {
+    display: grid;
+    gap: 2px;
+    padding: 18px 22px;
+    border-left: 1px solid var(--line);
+  }
+  .kpi:first-child {
+    border-left: 0;
+  }
+  .kpi-value {
+    font-size: 32px;
+    font-weight: 650;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+  .kpi-label {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .kpi-sub {
+    font-size: 12px;
+    color: var(--accent);
+  }
+
+  .section-title .eyebrow {
+    margin-bottom: 6px;
+  }
+  .see-all {
+    font-size: 14.5px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  /* O que eu faço */
   .what {
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
   }
+  .what-icon {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    color: var(--c);
+    background: color-mix(in srgb, var(--c) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c) 30%, transparent);
+  }
+  .what-card.agents {
+    --c: var(--accent);
+  }
+  .what-card.mlops {
+    --c: var(--accent2);
+  }
+  .what-card.obs {
+    --c: var(--accent3);
+  }
+  .what-card.data {
+    --c: #60a5fa;
+  }
+
+  /* Demos em bento */
+  .bento {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .demo-main {
+    grid-row: span 2;
+    background:
+      radial-gradient(400px 220px at 100% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 70%),
+      linear-gradient(180deg, var(--panel-2), var(--panel));
+  }
+  .demo-main h3 {
+    font-size: 22px;
+  }
+  .mini-flow {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0;
+    flex: 1;
+    align-content: center;
+  }
+  .node {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+  .node.alt {
+    color: var(--accent2);
+    border-color: color-mix(in srgb, var(--accent2) 40%, transparent);
+    background: color-mix(in srgb, var(--accent2) 10%, transparent);
+  }
+  .node.tool {
+    color: var(--accent3);
+    border-color: color-mix(in srgb, var(--accent3) 40%, transparent);
+    background: color-mix(in srgb, var(--accent3) 10%, transparent);
+  }
+  .edge {
+    width: 18px;
+    height: 1px;
+    background: var(--line-strong);
+  }
+  .go {
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .grid.two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Chamada final */
   .cta {
-    flex-direction: row;
+    display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 20px;
-    padding: 28px;
-    background: linear-gradient(135deg, var(--accent-soft), var(--panel));
+    gap: 24px;
+    padding: 32px;
+    border-radius: 18px;
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+    background:
+      radial-gradient(500px 200px at 0% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%),
+      radial-gradient(500px 200px at 100% 100%, color-mix(in srgb, var(--accent2) 16%, transparent), transparent 70%),
+      var(--panel);
   }
   .cta h2 {
-    margin: 0 0 6px;
+    margin: 6px 0 6px;
+    font-size: clamp(22px, 3vw, 30px);
   }
-  @media (max-width: 760px) {
-    .hero {
-      padding-top: 32px;
-    }
+  .cta p {
+    margin: 0;
+    color: var(--muted);
+    max-width: 560px;
+  }
+
+  @media (max-width: 960px) {
     .hero-grid {
       grid-template-columns: 1fr;
+      gap: 32px;
     }
-    .avatar {
-      order: -1;
-      width: 112px;
-      height: 112px;
-      border-radius: 22px;
+    .what {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .bento {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .demo-main {
+      grid-row: auto;
+      grid-column: span 2;
+    }
+    .kpis {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .kpi:nth-child(3) {
+      border-left: 0;
+    }
+    .kpi:nth-child(n + 3) {
+      border-top: 1px solid var(--line);
+    }
+  }
+  @media (max-width: 640px) {
+    .hero {
+      padding-top: 28px;
+    }
+    .hero-lead {
+      font-size: 16.5px;
+    }
+    .what,
+    .bento,
+    .grid.two {
+      grid-template-columns: 1fr;
+    }
+    .demo-main {
+      grid-column: auto;
+    }
+    .kpi {
+      padding: 14px 16px;
+    }
+    .kpi-value {
+      font-size: 26px;
+    }
+    .span {
+      grid-template-columns: minmax(0, 55%) 1fr 44px;
+    }
+    .cta {
+      padding: 22px;
     }
   }
 </style>

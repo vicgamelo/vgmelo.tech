@@ -16,6 +16,8 @@ export default defineConfig({
     }),
   ],
   build: { inlineStylesheets: 'never', format: 'directory' },
+  // Prism marca os tokens com classes; o Shiki usa style inline, que a CSP (style-src 'self') bloqueia.
+  markdown: { syntaxHighlight: 'prism' },
   // Sem script inline: a CSP do Caddy fica em script-src 'self'.
   vite: {
     build: { assetsInlineLimit: 0 },

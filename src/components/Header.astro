@@ -13,8 +13,8 @@ const otherHref = alt[other] ?? route('home', other);
 const here = Astro.url.pathname;
 const items = [
   { href: route('projects', lang), label: t('nav.projects') },
-  { href: route('apps', lang), label: t('nav.apps') },
   { href: route('demos', lang), label: t('nav.demos') },
+  { href: route('apps', lang), label: t('nav.apps') },
   { href: route('articles', lang), label: t('nav.articles') },
   { href: route('consulting', lang), label: t('nav.consulting') },
   { href: route('about', lang), label: t('nav.about') },
@@ -26,42 +26,70 @@ const isActive = (href: string) => here.startsWith(href);
   <div class="container bar">
     <a class="brand" href={route('home', lang)} aria-label={t('site.name')}>
       <span class="logo" aria-hidden="true">vm</span>
-      <span class="name">Victor Melo</span>
+      <span class="who">
+        <span class="name">Victor Melo</span>
+        <span class="role">{t('site.role')}</span>
+      </span>
     </a>
-    <nav class="desktop" aria-label="Principal">
+    <nav class="desktop" aria-label={t('nav.main')}>
       {items.map((i) => <a href={i.href} aria-current={isActive(i.href) ? 'page' : undefined}>{i.label}</a>)}
     </nav>
     <div class="right">
+      <span class="status" data-status hidden title={t('status.title')}>
+        <span class="dot" aria-hidden="true"></span>{t('status.online')}
+      </span>
       <a class="lang" href={otherHref} hreflang={other === 'pt' ? 'pt-BR' : 'en'} lang={other === 'pt' ? 'pt-BR' : 'en'} aria-label={t('lang.switchLabel')}>
         {other.toUpperCase()}
       </a>
       <a class="btn primary contact" href={route('contact', lang)}>{t('nav.contact')}</a>
       <details class="mobile">
         <summary aria-label={t('nav.menu')}>
-          <span aria-hidden="true">☰</span>
+          <svg class="open" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+          <svg class="close" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
         </summary>
-        <nav aria-label={t('nav.menu')}>
-          {items.map((i) => <a href={i.href} aria-current={isActive(i.href) ? 'page' : undefined}>{i.label}</a>)}
-          <a href={route('contact', lang)}>{t('nav.contact')}</a>
+        <nav class="sheet" aria-label={t('nav.menu')}>
+          <div class="sheet-grid">
+            {
+              items.map((i) => (
+                <a href={i.href} aria-current={isActive(i.href) ? 'page' : undefined}>
+                  {i.label}
+                </a>
+              ))
+            }
+          </div>
+          <a class="btn primary" href={route('contact', lang)}>{t('nav.contact')}</a>
         </nav>
       </details>
     </div>
   </div>
 </header>
 
+<script>
+  // Selo "no ar": só aparece se o portal responder. Sem resposta, fica escondido.
+  const el = document.querySelector<HTMLElement>('[data-status]');
+  if (el) {
+    fetch('/api/health', { cache: 'no-store' })
+      .then((r) => {
+        if (r.ok) el.hidden = false;
+      })
+      .catch(() => undefined);
+  }
+</script>
+
 <style>
   .site-header {
     position: sticky;
     top: 0;
-    z-index: 5;
-    background: color-mix(in srgb, var(--bg) 88%, transparent);
-    backdrop-filter: saturate(150%) blur(10px);
+    z-index: 20;
+    background: color-mix(in srgb, var(--bg) 78%, transparent);
+    backdrop-filter: saturate(160%) blur(14px);
+    -webkit-backdrop-filter: saturate(160%) blur(14px);
     border-bottom: 1px solid var(--line);
   }
   .bar {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 24px;
     min-height: 64px;
   }
   .brand {
@@ -70,35 +98,61 @@ const isActive = (href: string) => here.startsWith(href);
     gap: 10px;
     color: var(--text);
     text-decoration: none;
-    font-weight: 700;
+    flex: none;
   }
   .logo {
     display: grid;
     place-items: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 9px;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
     background: #0b0f14;
     color: #5eead4;
     font-family: var(--mono);
+    font-weight: 700;
     font-size: 14px;
+    box-shadow:
+      0 0 0 1px rgb(94 234 212 / 0.35),
+      0 6px 18px -6px rgb(45 212 191 / 0.6);
+  }
+  .who {
+    display: grid;
+    line-height: 1.15;
+  }
+  .name {
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+  .role {
+    font-size: 12px;
+    color: var(--muted);
   }
   nav.desktop {
     display: flex;
-    gap: 4px;
-    flex: 1;
+    gap: 2px;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--panel) 70%, transparent);
   }
-  nav a {
+  nav.desktop a {
     color: var(--muted);
     text-decoration: none;
-    padding: 6px 10px;
+    padding: 6px 12px;
     border-radius: 8px;
-    font-size: 15px;
+    font-size: 14.5px;
+    font-weight: 500;
+    transition:
+      color 0.15s,
+      background 0.15s;
   }
-  nav a:hover,
-  nav a[aria-current='page'] {
+  nav.desktop a:hover {
+    color: var(--text);
+  }
+  nav.desktop a[aria-current='page'] {
     color: var(--text);
     background: var(--bg-soft);
+    box-shadow: inset 0 0 0 1px var(--line-strong);
   }
   .right {
     display: flex;
@@ -106,59 +160,136 @@ const isActive = (href: string) => here.startsWith(href);
     gap: 10px;
     margin-left: auto;
   }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ok);
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent);
+    background: color-mix(in srgb, var(--ok) 10%, transparent);
+  }
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 0 0 currentColor;
+    animation: pulse 2.4s infinite;
+  }
+  @keyframes pulse {
+    0% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 60%, transparent);
+    }
+    70% {
+      box-shadow: 0 0 0 7px transparent;
+    }
+    100% {
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dot {
+      animation: none;
+    }
+  }
   .lang {
     font-family: var(--mono);
-    font-size: 13px;
+    font-size: 12.5px;
     color: var(--muted);
     text-decoration: none;
-    border: 1px solid var(--line);
+    border: 1px solid var(--line-strong);
     border-radius: 8px;
-    padding: 6px 8px;
+    padding: 6px 9px;
+  }
+  .lang:hover {
+    color: var(--text);
   }
   .contact {
     min-height: 38px;
     padding: 6px 14px;
+    font-size: 14.5px;
   }
   .mobile {
     display: none;
-    position: relative;
   }
   .mobile summary {
     list-style: none;
     cursor: pointer;
-    font-size: 22px;
-    padding: 4px 8px;
-    border-radius: 8px;
-    border: 1px solid var(--line);
-    line-height: 1.2;
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    border: 1px solid var(--line-strong);
+    color: var(--text);
   }
   .mobile summary::-webkit-details-marker {
     display: none;
   }
-  .mobile nav {
+  .mobile svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+  .mobile .close,
+  .mobile[open] .open {
+    display: none;
+  }
+  .mobile[open] .close {
+    display: block;
+  }
+  .sheet {
     position: absolute;
+    left: 0;
     right: 0;
-    top: calc(100% + 8px);
+    top: 100%;
+    padding: 12px 16px 18px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    box-shadow: 0 24px 40px -20px rgb(0 0 0 / 0.5);
     display: grid;
-    min-width: 200px;
-    padding: 8px;
-    background: var(--panel);
+    gap: 12px;
+  }
+  .sheet-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .sheet-grid a {
+    color: var(--text);
+    text-decoration: none;
+    padding: 12px 14px;
+    border-radius: 10px;
     border: 1px solid var(--line);
-    border-radius: 12px;
-    box-shadow: var(--shadow);
+    background: var(--panel);
+    font-weight: 500;
   }
-  .mobile nav a {
-    padding: 10px 12px;
+  .sheet-grid a[aria-current='page'] {
+    border-color: var(--accent);
+    color: var(--accent);
   }
-  @media (max-width: 880px) {
-    nav.desktop {
+  @media (max-width: 1060px) {
+    .role {
+      display: none;
+    }
+  }
+  @media (max-width: 920px) {
+    nav.desktop,
+    .status {
       display: none;
     }
     .mobile {
       display: block;
     }
   }
-  @media (max-width: 420px) {
+  @media (max-width: 480px) {
     .contact {
       display: none;
     }
