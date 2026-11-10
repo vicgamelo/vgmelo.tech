@@ -100,6 +100,8 @@ const pt = {
   'privacy.title': 'Privacidade',
   'footer.source': 'Código do site no GitHub',
   'footer.privacy': 'Privacidade',
+  'footer.terms': 'Termos de uso',
+  'terms.title': 'Termos de uso',
   'ads.label': 'Publicidade',
   'consent.text':
     'Uso cookies de publicidade do Google AdSense só nos artigos e só se você aceitar. O cookie de login é necessário e não depende disso.',
@@ -243,6 +245,8 @@ const en: Record<Keys, string> = {
   'privacy.title': 'Privacy',
   'footer.source': 'Site source on GitHub',
   'footer.privacy': 'Privacy',
+  'footer.terms': 'Terms of use',
+  'terms.title': 'Terms of use',
   'ads.label': 'Advertisement',
   'consent.text':
     "I use Google AdSense advertising cookies on articles only, and only if you accept. The login cookie is required and doesn't depend on this.",

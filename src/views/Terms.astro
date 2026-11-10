@@ -1,0 +1,118 @@
+---
+import Base from '../layouts/Base.astro';
+import { ROUTES, route, type Lang } from '../i18n/routes';
+import { useT } from '../i18n/ui';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const t = useT(lang);
+const updated = lang === 'pt' ? 'Atualizados em 10 de novembro de 2026.' : 'Last updated November 10, 2026.';
+const contact = route('contact', lang);
+const privacy = route('privacy', lang);
+---
+
+<Base lang={lang} title={t('terms.title')} alt={ROUTES.terms}>
+  <div class="container prose">
+    <header class="page-head">
+      <h1>{t('terms.title')}</h1>
+      <p>{updated}</p>
+    </header>
+    {
+      lang === 'pt' ? (
+        <>
+          <p>
+            Este site é mantido por Victor Gabriel Andrade de Melo. Ao usar o site, as demos ou criar uma conta, você
+            concorda com estes termos. O tratamento dos seus dados está na <a href={privacy}>política de privacidade</a>.
+          </p>
+          <h2>As demos</h2>
+          <ul>
+            <li>São demonstrações gratuitas de portfólio, sem garantia de disponibilidade, e podem mudar ou sair do ar.</li>
+            <li>
+              Têm limite de uso por dia. Quando o limite acaba, a demo volta no dia seguinte.
+            </li>
+            <li>
+              As respostas geradas por IA podem estar erradas. Nada aqui é aconselhamento jurídico, financeiro ou
+              profissional: confira sempre na fonte oficial.
+            </li>
+            <li>Não envie dados pessoais, senhas ou informações sigilosas para as demos.</li>
+          </ul>
+          <h2>O que não é permitido</h2>
+          <ul>
+            <li>Tentar burlar os limites, por exemplo com várias contas ou automação.</li>
+            <li>Atacar, sobrecarregar ou tentar acessar partes do site que não são públicas.</li>
+            <li>Usar as demos para gerar conteúdo ilegal ou para prejudicar outras pessoas.</li>
+          </ul>
+          <h2>Conta</h2>
+          <p>
+            Você pode entrar com Google, GitHub ou e-mail. Contas usadas em desacordo com estes termos podem ser
+            bloqueadas ou removidas. Você pode pedir a exclusão da sua conta a qualquer momento pelo{' '}
+            <a href={contact}>formulário de contato</a>.
+          </p>
+          <h2>Código e conteúdo</h2>
+          <p>
+            O código dos projetos está no GitHub, cada repositório com a sua licença. Os artigos e textos do site são de
+            autoria de Victor Gabriel Andrade de Melo.
+          </p>
+          <h2>Mudanças e contato</h2>
+          <p>
+            Estes termos podem ser atualizados; a data no topo indica a última versão. Valem as leis do Brasil. Dúvidas
+            pelo <a href={contact}>formulário de contato</a>.
+          </p>
+        </>
+      ) : (
+        <>
+          <p>
+            This site is run by Victor Gabriel Andrade de Melo. By using the site or the demos, or by creating an account,
+            you agree to these terms. How your data is handled is in the <a href={privacy}>privacy policy</a>.
+          </p>
+          <h2>The demos</h2>
+          <ul>
+            <li>They are free portfolio demos, with no availability guarantee, and may change or go offline.</li>
+            <li>They have a daily usage limit. When it runs out, the demo is back the next day.</li>
+            <li>
+              AI-generated answers can be wrong. Nothing here is legal, financial or professional advice: always check
+              the official source.
+            </li>
+            <li>Don't send personal data, passwords or confidential information to the demos.</li>
+          </ul>
+          <h2>What is not allowed</h2>
+          <ul>
+            <li>Trying to get around the limits, for example with several accounts or automation.</li>
+            <li>Attacking or overloading the site, or trying to reach parts of it that aren't public.</li>
+            <li>Using the demos to generate illegal content or to harm other people.</li>
+          </ul>
+          <h2>Account</h2>
+          <p>
+            You can log in with Google, GitHub or email. Accounts used against these terms may be blocked or removed. You
+            can ask me to delete your account at any time using the <a href={contact}>contact form</a>.
+          </p>
+          <h2>Code and content</h2>
+          <p>
+            The projects' code is on GitHub, each repository under its own license. The articles and texts on this site
+            are by Victor Gabriel Andrade de Melo.
+          </p>
+          <h2>Changes and contact</h2>
+          <p>
+            These terms may be updated; the date at the top shows the latest version. Brazilian law applies. Questions
+            go through the <a href={contact}>contact form</a>.
+          </p>
+        </>
+      )
+    }
+  </div>
+</Base>
+
+<style>
+  .prose {
+    max-width: 760px;
+  }
+  .prose h2 {
+    font-size: 20px;
+    margin-top: 28px;
+  }
+  .prose li {
+    margin-bottom: 6px;
+  }
+</style>

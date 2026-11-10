@@ -12,6 +12,7 @@ export const ROUTES = {
   about: { pt: '/sobre/', en: '/en/about/' },
   contact: { pt: '/contato/', en: '/en/contact/' },
   privacy: { pt: '/privacidade/', en: '/en/privacy/' },
+  terms: { pt: '/termos/', en: '/en/terms/' },
   login: { pt: '/entrar/', en: '/en/login/' },
   demoCnpj: { pt: '/demos/cnpj/', en: '/en/demos/cnpj/' },
   demoDrift: { pt: '/demos/drift/', en: '/en/demos/drift/' },
