@@ -208,6 +208,21 @@ export const AGENT_LABEL: Record<string, { pt: string; en: string; role: { pt: s
     en: 'Researcher',
     role: { pt: 'CNPJ, CEP, documentos e dias úteis', en: 'CNPJ, CEP, documents and business days' },
   },
+  news_researcher: {
+    pt: 'Repórter',
+    en: 'Reporter',
+    role: { pt: 'notícias, IBGE, Senado e Câmara', en: 'news, IBGE, Senate and Chamber' },
+  },
+  pix_specialist: {
+    pt: 'Especialista em Pix',
+    en: 'Pix specialist',
+    role: { pt: 'normas do Pix, com ato e artigo', en: 'Pix rules, citing act and article' },
+  },
+  scheduler: {
+    pt: 'Agenda',
+    en: 'Scheduler',
+    role: { pt: 'horários livres do Victor', en: "Victor's free times" },
+  },
 };
 
 export function agentLabel(name: string, lang: 'pt' | 'en'): string {

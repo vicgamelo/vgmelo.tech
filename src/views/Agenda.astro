@@ -283,6 +283,7 @@ const mcpUrl = 'https://vgmelo.tech/api/agenda/mcp';
     chatBody,
     errorText,
     groupByLocalDay,
+    kindFromQuery,
     localDate,
     longDayLabel,
     monthGrid,
@@ -329,6 +330,9 @@ const mcpUrl = 'https://vgmelo.tech/api/agenda/mcp';
     let start: string | null = null;
     let month = monthOf(today);
 
+    // ?tipo=consultoria (ou vaga) vem do convite das demos: já abre com o tipo escolhido.
+    const wanted = kindFromQuery(location.search);
+    if (wanted) form.querySelector<HTMLInputElement>(`input[name=kind][value=${wanted}]`)!.checked = true;
     const kind = () => (form.querySelector<HTMLInputElement>('input[name=kind]:checked')?.value ?? 'job') as Kind;
     const duration = () => Number(form.querySelector<HTMLInputElement>('input[name=duration]:checked')?.value ?? 30);
 
