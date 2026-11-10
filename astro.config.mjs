@@ -22,6 +22,18 @@ export default defineConfig({
   // Sem script inline: a CSP do Caddy fica em script-src 'self'.
   vite: {
     build: { assetsInlineLimit: 0 },
+    // Workers empacotados (hoje só o detector da demo de visão) saem em /visao/: o worker usa a CSP da
+    // própria resposta, e só /visao/* libera 'wasm-unsafe-eval' no Caddy. O .wasm do ONNX Runtime vem junto.
+    worker: {
+      format: 'es',
+      rolldownOptions: {
+        output: {
+          entryFileNames: 'visao/[name]-[hash].js',
+          chunkFileNames: 'visao/[name]-[hash].js',
+          assetFileNames: 'visao/[name]-[hash][extname]',
+        },
+      },
+    },
     // Só no `npm run dev`: manda /api e /admin para um vgmelo-portal local, como o Caddy faz em produção.
     // /api/agenda vem antes de /api: vai para o vgmelo-agenda.
     server: {

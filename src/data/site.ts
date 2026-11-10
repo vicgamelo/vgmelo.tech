@@ -350,11 +350,13 @@ export const STACK = [
 ];
 
 export interface Demo {
-  key: 'demoCnpj' | 'demoDrift' | 'demoAttention' | 'demoAgents' | 'demoStudio' | 'demoCredit' | 'demoMcp' | 'demoOcr' | 'demoPca';
+  key: 'demoCnpj' | 'demoDrift' | 'demoAttention' | 'demoAgents' | 'demoStudio' | 'demoCredit' | 'demoMcp' | 'demoOcr' | 'demoPca' | 'demoVision';
   live: boolean;
   title: T;
   text: T;
-  project: string;
+  // Sem projeto próprio: o código fica no repositório do site, nesta pasta.
+  project?: string;
+  source?: string;
 }
 
 export const DEMOS: Demo[] = [
@@ -406,6 +408,16 @@ export const DEMOS: Demo[] = [
     text: {
       pt: 'Mande a foto de um boleto, nota ou cartão CNPJ e veja o OCR achar os números e conferir cada dígito, tudo no seu navegador.',
       en: 'Upload a photo of a boleto, invoice or CNPJ card and watch the OCR find the numbers and check every digit, all in your browser.',
+    },
+  },
+  {
+    key: 'demoVision',
+    live: false,
+    source: 'src/lib/vision',
+    title: { pt: 'Visão computacional: objetos, pessoas e AR', en: 'Computer vision: objects, people and AR' },
+    text: {
+      pt: 'O YOLOX acha e rotula objetos numa foto ou na câmera e conta as pessoas. No AR, o MediaPipe acha o cabelo e a íris e troca a cor ao vivo. Tudo roda no seu navegador.',
+      en: 'YOLOX finds and labels objects in a photo or on the camera and counts the people. In AR, MediaPipe finds the hair and the iris and changes their color live. Everything runs in your browser.',
     },
   },
   {

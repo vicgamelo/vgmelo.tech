@@ -22,6 +22,7 @@ const DEMO_ICON: Record<Demo['key'], IconName> = {
   demoDrift: 'drift',
   demoAttention: 'grid',
   demoPca: 'pca',
+  demoVision: 'eye',
 };
 ---
 
@@ -105,7 +106,7 @@ const DEMO_ICON: Record<Demo['key'], IconName> = {
       </div>
       <h3>{props.item.title[props.lang]}</h3>
       <p class="grow">{props.item.text[props.lang]}</p>
-      <span class="mono muted small">{props.item.project}</span>
+      <span class="mono muted small">{props.item.project ?? 'vgmelo.tech'}</span>
     </a>
   )
 }

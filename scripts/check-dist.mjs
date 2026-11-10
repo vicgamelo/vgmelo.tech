@@ -2,7 +2,9 @@
 // - existir <script> inline executável (a CSP do Caddy é script-src 'self');
 // - existir handler inline (onclick=...) ou href javascript:;
 // - existir atributo style="..." (a CSP é style-src 'self': o navegador ignora o estilo);
-// - algum link interno apontar para página ou arquivo que não existe.
+// - algum link interno apontar para página ou arquivo que não existe;
+// - algum worker ou .wasm empacotado pelo Vite sair fora de /visao/ (o worker usa a CSP da própria
+//   resposta, e só /visao/* libera 'wasm-unsafe-eval').
 import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -47,6 +49,9 @@ for (const file of files) {
     if (!exists(m[1])) errors.push(`${file}: link quebrado ${m[1]}`);
   }
 }
+
+const bundled = readdirSync(join(DIST, '_astro')).filter((f) => /worker|\.wasm$/.test(f));
+for (const f of bundled) errors.push(`dist/_astro/${f}: worker/wasm fora de /visao/ (a CSP bloqueia o WASM lá)`);
 
 if (errors.length) {
   console.error(`check-dist: ${errors.length} problema(s)\n${errors.join('\n')}`);
