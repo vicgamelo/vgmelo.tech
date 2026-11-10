@@ -29,6 +29,8 @@ export interface Option {
   label: T;
   /** Palavras que o agente aceita como resposta (sem acento, minúsculas). */
   keywords?: string[];
+  /** Faixa de dinheiro do credit-g, em DM: [de, até) — "uns 1500 reais" cai aqui pela conta. */
+  dm?: [number, number];
 }
 
 export interface Field {
@@ -51,10 +53,11 @@ export interface Field {
   narrowed?: boolean;
 }
 
-const o = (value: string, pt: string, en: string, keywords: string[] = []): Option => ({
+const o = (value: string, pt: string, en: string, keywords: string[] = [], dm?: [number, number]): Option => ({
   value,
   label: { pt, en },
   keywords,
+  ...(dm ? { dm } : {}),
 });
 
 // Ordem da conversa: o pedido, a situação financeira, a pessoa.
@@ -121,9 +124,9 @@ export const FIELDS: Field[] = [
     label: { pt: 'Saldo em conta corrente', en: 'Checking account' },
     ask: { pt: 'Como está a conta corrente?', en: 'How is the checking account?' },
     options: [
-      o('<0', 'negativa', 'overdrawn', ['negativo', 'negativa', 'devendo', 'no vermelho', 'overdrawn']),
-      o('0<=X<200', `de R$ 0 a ${R(200, 'pt')}`, `R$ 0 to ${R(200, 'en')}`),
-      o('>=200', `${R(200, 'pt')} ou mais`, `${R(200, 'en')} or more`),
+      o('<0', 'negativa', 'overdrawn', ['negativo', 'negativa', 'devendo', 'no vermelho', 'overdrawn'], [-Infinity, 0]),
+      o('0<=X<200', `de R$ 0 a ${R(200, 'pt')}`, `R$ 0 to ${R(200, 'en')}`, [], [0, 200]),
+      o('>=200', `${R(200, 'pt')} ou mais`, `${R(200, 'en')} or more`, [], [200, Infinity]),
       o('no checking', 'não tenho conta corrente', 'no checking account', ['nao tenho', 'sem conta', 'none']),
     ],
   },
@@ -134,10 +137,10 @@ export const FIELDS: Field[] = [
     label: { pt: 'Poupança', en: 'Savings' },
     ask: { pt: 'E a poupança?', en: 'And savings?' },
     options: [
-      o('<100', `menos de ${R(100, 'pt')}`, `under ${R(100, 'en')}`),
-      o('100<=X<500', `de ${R(100, 'pt')} a ${R(500, 'pt')}`, `${R(100, 'en')} to ${R(500, 'en')}`),
-      o('500<=X<1000', `de ${R(500, 'pt')} a ${R(1000, 'pt')}`, `${R(500, 'en')} to ${R(1000, 'en')}`),
-      o('>=1000', `${R(1000, 'pt')} ou mais`, `${R(1000, 'en')} or more`),
+      o('<100', `menos de ${R(100, 'pt')}`, `under ${R(100, 'en')}`, [], [0, 100]),
+      o('100<=X<500', `de ${R(100, 'pt')} a ${R(500, 'pt')}`, `${R(100, 'en')} to ${R(500, 'en')}`, [], [100, 500]),
+      o('500<=X<1000', `de ${R(500, 'pt')} a ${R(1000, 'pt')}`, `${R(500, 'en')} to ${R(1000, 'en')}`, [], [500, 1000]),
+      o('>=1000', `${R(1000, 'pt')} ou mais`, `${R(1000, 'en')} or more`, [], [1000, Infinity]),
       o('no known savings', 'não tenho / não sei', 'none / unknown', ['nenhuma', 'sem poupanca']),
     ],
   },
@@ -395,6 +398,13 @@ export function parseAnswer(f: Field, text: string, lang: Lang): Parsed {
       }
     }
     if (best) return { ok: true, value: best.value, how: 'keyword' };
+    // Valor em reais numa pergunta de faixa ("uns 1500 reais"): a conta em DM é exata aqui; o LLM erra comparação.
+    const money = opts.some((x) => x.dm) ? parseNumber(t) : null;
+    if (money !== null) {
+      const dm = money / BRL_PER_DM;
+      const hit = opts.find((x) => x.dm && dm >= x.dm[0] && dm < x.dm[1]);
+      if (hit) return { ok: true, value: hit.value, how: 'number' };
+    }
     // Palavra que aparece em mais de uma opção ("um carro": novo ou usado?): pergunta de volta só entre elas.
     const words = t.split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !STOP.has(w));
     const hits = opts.filter((x) => words.some((w) => [fold(x.label.pt), fold(x.label.en)].some((l) => l.split(/[^a-z0-9]+/).includes(w))));

@@ -205,6 +205,22 @@ describe('microagente', () => {
     // Fora da pergunta de volta, uma palavra solta não decide: "tenho conta" não é "não tenho conta corrente".
     expect(parseAnswer(FIELD.checking_status, 'tenho conta', 'pt').ok).toBe(false);
   });
+
+  it('faixa de dinheiro sai da conta em DM, sem LLM', () => {
+    const ask = (name: string, text: string, lang: 'pt' | 'en' = 'pt') => parseAnswer(FIELD[name], text, lang);
+    // O gpt-oss-20b respondeu ">=200" para "uns 1500 reais" (150 DM): a comparação fica com as regras.
+    expect(ask('checking_status', 'uns 1500 reais')).toEqual({ ok: true, value: '0<=X<200', how: 'number' });
+    expect(ask('checking_status', 'tenho uns 5 mil na conta')).toEqual({ ok: true, value: '>=200', how: 'number' });
+    expect(ask('checking_status', '-300')).toEqual({ ok: true, value: '<0', how: 'number' });
+    expect(ask('checking_status', '0')).toEqual({ ok: true, value: '0<=X<200', how: 'number' });
+    expect(ask('checking_status', 'R$ 2.000')).toEqual({ ok: true, value: '>=200', how: 'number' });
+    expect(ask('savings_status', 'uns 3 mil')).toEqual({ ok: true, value: '100<=X<500', how: 'number' });
+    expect(ask('savings_status', '20 mil guardado', 'en')).toEqual({ ok: true, value: '>=1000', how: 'number' });
+    expect(ask('savings_status', 'R$ 999')).toEqual({ ok: true, value: '<100', how: 'number' });
+    // Número de opção continua valendo, e palavra-chave ainda passa pelo microagente.
+    expect(ask('savings_status', '2')).toMatchObject({ ok: true, value: '100<=X<500', how: 'exact' });
+    expect(ask('checking_status', 'devendo uns 500')).toMatchObject({ ok: true, value: '<0', how: 'keyword' });
+  });
 });
 
 describe('CSV de teste', () => {
