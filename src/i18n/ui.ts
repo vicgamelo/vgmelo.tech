@@ -136,7 +136,7 @@ const pt = {
   'live.quota': 'Você usou o limite de hoje desta demo. Volta amanhã!',
   'live.budget': 'A demo bateu o limite gratuito de hoje. Volta amanhã!',
   'live.error': 'A demo não respondeu agora. Tente de novo em instantes.',
-  'live.remaining': '· usos hoje:',
+  'live.remaining': '· restam hoje:',
   'live.busy': 'Já tem uma execução rodando. Espere ela terminar e tente de novo.',
   'live.invalid': 'Confira os campos: algum valor está fora do formato aceito.',
   'login.oauthError': 'Não deu para entrar com essa conta. Tente de novo.',
