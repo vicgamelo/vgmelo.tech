@@ -24,6 +24,7 @@ const contact = `${route('contact', lang)}?kind=consulting`;
       <p>{t('consulting.lead')}</p>
       <div class="actions top">
         <a class="btn primary" href={contact}>{t('consulting.cta')}</a>
+        <a class="btn" href={route('agenda', lang)}>{t('consulting.ctaAgenda')}</a>
       </div>
     </header>
 
@@ -55,6 +56,7 @@ const contact = `${route('contact', lang)}?kind=consulting`;
       </ol>
       <div class="actions">
         <a class="btn primary" href={contact}>{t('consulting.cta')}</a>
+        <a class="btn" href={route('agenda', lang)}>{t('consulting.ctaAgenda')}</a>
       </div>
     </section>
   </div>

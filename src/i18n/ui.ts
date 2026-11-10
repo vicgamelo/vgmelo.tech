@@ -91,6 +91,7 @@ const pt = {
   'consulting.how3.title': 'Entrega',
   'consulting.how3.text': 'Código, documentação e passagem de conhecimento para o seu time.',
   'consulting.cta': 'Pedir uma conversa',
+  'consulting.ctaAgenda': 'Marcar na agenda',
   'about.title': 'Sobre',
   'about.p1':
     'Sou Victor Gabriel Andrade de Melo, engenheiro de MLOps e IA no Brasil. São mais de 5 anos levando dados para produção: comecei com ETL, bancos de dados e data lakes, passei para modelos de ML e hoje trabalho com agentes de LLM.',
@@ -113,6 +114,8 @@ const pt = {
   'contact.error': 'Não deu para enviar agora. Tente de novo em alguns minutos ou me chame no LinkedIn.',
   'contact.tooMany': 'Muitas mensagens em pouco tempo. Tente de novo mais tarde.',
   'contact.or': 'Ou me chame no',
+  'contact.agenda': 'Prefere conversar ao vivo?',
+  'contact.agendaLink': 'Marque um horário na agenda',
   'contact.privacy': 'Uso seus dados só para responder. Veja a',
   'privacy.title': 'Privacidade',
   'footer.source': 'Código do site no GitHub',
@@ -253,6 +256,7 @@ const en: Record<Keys, string> = {
   'consulting.how3.title': 'Delivery',
   'consulting.how3.text': 'Code, documentation and a proper handover to your team.',
   'consulting.cta': 'Book a call',
+  'consulting.ctaAgenda': 'Pick a time',
   'about.title': 'About',
   'about.p1':
     "I'm Victor Gabriel Andrade de Melo, an MLOps and AI engineer based in Brazil. I've spent 5+ years taking data to production: I started with ETL, databases and data lakes, moved on to ML models and now work with LLM agents.",
@@ -275,6 +279,8 @@ const en: Record<Keys, string> = {
   'contact.error': "Couldn't send right now. Try again in a few minutes or reach me on LinkedIn.",
   'contact.tooMany': 'Too many messages in a short time. Please try again later.',
   'contact.or': 'Or reach me on',
+  'contact.agenda': 'Rather talk live?',
+  'contact.agendaLink': 'Pick a time on my calendar',
   'contact.privacy': 'I only use your data to reply. See the',
   'privacy.title': 'Privacy',
   'footer.source': 'Site source on GitHub',
