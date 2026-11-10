@@ -16,11 +16,13 @@ const L =
         askTitle: 'Pergunte ao time',
         askHint: 'Um coordenador divide a pergunta e manda cada parte para um especialista.',
         question: 'Sua pergunta',
-        placeholder: 'Ex.: Qual a Selic hoje e quantos dias úteis tem dezembro de 2026?',
+        placeholder: 'Ex.: Qual a Selic hoje e o que os jornais estão dizendo sobre ela?',
         examples: [
-          'Qual a Selic hoje e como está o IPCA dos últimos 12 meses?',
-          'Quantos dias úteis tem dezembro de 2026?',
+          'Qual a Selic hoje e o que as notícias dizem sobre o próximo Copom?',
+          'O que o IBGE divulgou sobre desemprego e o que tramita no Senado sobre emprego?',
+          'Qual o limite do Pix à noite, segundo as normas do Banco Central?',
           'O que a empresa de CNPJ 00.000.000/0001-91 faz e onde fica?',
+          'Tem horário para uma consultoria com o Victor nesta semana?',
         ],
         run: 'Perguntar',
         running: 'Rodando…',
@@ -28,8 +30,13 @@ const L =
         sample: 'Ver um exemplo',
         sampleHint: 'Reproduz uma execução gravada, sem login e sem gastar cota.',
         teamTitle: 'O time',
-        teamHint: 'Três agentes, cada um com as próprias ferramentas.',
+        teamHint: 'Um coordenador e cinco especialistas. Cada especialista usa as ferramentas de um servidor MCP.',
         tools: 'ferramentas',
+        mcpHint: 'Desligue um MCP e o especialista dele sai do time nesta pergunta: o coordenador nem fica sabendo que ele existe.',
+        on: 'ligado',
+        off: 'desligado',
+        down: 'fora do ar',
+        allOff: 'Com todos os MCPs desligados, o coordenador fica sem ninguém para consultar e só consegue dizer que não tem como responder.',
         otel: 'Cada passo vira um span OpenTelemetry no genai-lens: é o trace que aparece no fim.',
         answer: 'Resposta',
         emptyTitle: 'Nenhuma pergunta ainda',
@@ -66,11 +73,13 @@ const L =
         askTitle: 'Ask the team',
         askHint: 'A coordinator splits the question and sends each part to a specialist.',
         question: 'Your question',
-        placeholder: "E.g. What's the Selic rate today and how many business days are in December 2026?",
+        placeholder: "E.g. What's the Selic rate today and what is the press saying about it?",
         examples: [
-          "What's the Selic rate today and how has IPCA moved over the last 12 months?",
-          'How many business days are in December 2026?',
+          "What's the Selic rate today and what does the news say about the next Copom meeting?",
+          'What did IBGE release about unemployment, and what employment bills are in the Senate?',
+          "What's the Pix limit at night under the Banco Central rules?",
           'What does the company with CNPJ 00.000.000/0001-91 do and where is it?',
+          'Does Victor have time for a consulting call this week?',
         ],
         run: 'Ask',
         running: 'Running…',
@@ -78,8 +87,13 @@ const L =
         sample: 'See an example',
         sampleHint: 'Replays a recorded run, no sign-in and no quota used.',
         teamTitle: 'The team',
-        teamHint: 'Three agents, each with its own tools.',
+        teamHint: 'A coordinator and five specialists. Each specialist uses the tools of one MCP server.',
         tools: 'tools',
+        mcpHint: "Turn an MCP off and its specialist leaves the team for this question: the coordinator doesn't even know it exists.",
+        on: 'on',
+        off: 'off',
+        down: 'down',
+        allOff: 'With every MCP off, the coordinator has nobody to ask and can only say it has no way to answer.',
         otel: 'Every step becomes an OpenTelemetry span in genai-lens: that is the trace shown at the end.',
         answer: 'Answer',
         emptyTitle: 'No question yet',
@@ -113,12 +127,47 @@ const L =
         traceMissing: "This run's trace isn't available.",
       };
 
-const TEAM = [
-  { name: 'coordinator', model: 'gpt-oss-120b', tools: ['current_datetime'] },
-  { name: 'economist', model: 'gpt-oss-20b', tools: ['indicador_economico', 'calculator'] },
-  { name: 'company_researcher', model: 'gpt-oss-20b', tools: ['consultar_cnpj', 'consultar_cep', 'validar_documento', 'dias_uteis'] },
-].map((a) => ({ ...a, label: AGENT_LABEL[a.name][lang], role: AGENT_LABEL[a.name].role[lang] }));
-const [lead, ...workers] = TEAM;
+const AGENT = (name: string, model: string, tools: string[]) => ({
+  name,
+  model,
+  tools,
+  label: AGENT_LABEL[name][lang],
+  role: AGENT_LABEL[name].role[lang],
+});
+const lead = AGENT('coordinator', 'gpt-oss-120b', ['current_datetime']);
+const pt = lang === 'pt';
+// Nomes dos servidores iguais aos do orquestrador e do portal (brasil, noticias, normas, agenda).
+const SERVERS = [
+  {
+    name: 'brasil',
+    label: pt ? 'Dados do Brasil' : 'Brazilian data',
+    source: 'BrasilAPI · Banco Central · IBGE',
+    agents: [
+      AGENT('economist', 'gpt-oss-20b', ['indicador_economico', 'calculator']),
+      AGENT('company_researcher', 'gpt-oss-20b', ['consultar_cnpj', 'consultar_cep', 'validar_documento', 'dias_uteis']),
+    ],
+  },
+  {
+    name: 'noticias',
+    label: pt ? 'Notícias e informação pública' : 'News and public information',
+    source: 'Google Notícias · Agência Brasil · g1 · InfoMoney · Poder360 · IBGE · Senado · Câmara',
+    agents: [
+      AGENT('news_researcher', 'gpt-oss-20b', ['buscar_noticias', 'ultimas_noticias', 'ler_noticia', 'noticias_ibge', 'senado_materias', 'camara_proposicoes']),
+    ],
+  },
+  {
+    name: 'normas',
+    label: pt ? 'Normas do Pix' : 'Pix regulations',
+    source: pt ? 'RAG sobre as normas do Banco Central' : 'RAG over the Banco Central rules',
+    agents: [AGENT('pix_specialist', 'gpt-oss-20b', ['buscar_normas'])],
+  },
+  {
+    name: 'agenda',
+    label: pt ? 'Agenda do Victor' : "Victor's calendar",
+    source: pt ? 'Só consulta horários; quem marca é você' : 'Only reads free times; you book it',
+    agents: [AGENT('scheduler', 'gpt-oss-20b', ['horarios_livres'])],
+  },
+];
 ---
 
 <DemoShell lang={lang} demo="demoAgents">
@@ -166,26 +215,41 @@ const [lead, ...workers] = TEAM;
           </div>
           <div class="m-meta"><span class="pill model">{lead.model}</span>{lead.tools.map((t) => <span class="pill">{t}</span>)}</div>
         </div>
-        <div class="links" aria-hidden="true"><span></span><span></span></div>
-        <div class="workers">
+        <p class="mcp-hint hint">{L.mcpHint}</p>
+        <div class="servers">
           {
-            workers.map((w) => (
-              <div class="member">
-                <div class="m-head">
-                  <span class={`avatar a-${w.name}`}>{w.label[0]}</span>
-                  <div>
-                    <strong>{w.label}</strong>
-                    <span class="m-role">{w.role}</span>
+            SERVERS.map((srv) => (
+              <div class="server" data-server={srv.name}>
+                <div class="srv-head">
+                  <button type="button" class="switch" role="switch" aria-checked="true" data-switch={srv.name} aria-label={srv.label}>
+                    <span class="knob" />
+                  </button>
+                  <div class="srv-title">
+                    <strong>{srv.label}</strong>
+                    <span class="srv-src">MCP <code>{srv.name}</code> · {srv.source}</span>
                   </div>
+                  <span class="srv-state" data-state-of={srv.name}>{L.on}</span>
                 </div>
-                <div class="m-meta">
-                  <span class="pill model">{w.model}</span>
-                  {w.tools.map((t) => <span class="pill">{t}</span>)}
-                </div>
+                {srv.agents.map((w) => (
+                  <div class="member">
+                    <div class="m-head">
+                      <span class={`avatar a-${w.name}`}>{w.label[0]}</span>
+                      <div>
+                        <strong>{w.label}</strong>
+                        <span class="m-role">{w.role}</span>
+                      </div>
+                    </div>
+                    <div class="m-meta">
+                      <span class="pill model">{w.model}</span>
+                      {w.tools.map((t) => <span class="pill">{t}</span>)}
+                    </div>
+                  </div>
+                ))}
               </div>
             ))
           }
         </div>
+        <p class="notice small" data-alloff hidden>{L.allOff}</p>
       </div>
       <p class="otel">{L.otel}</p>
     </aside>
@@ -222,6 +286,7 @@ const [lead, ...workers] = TEAM;
       </div>
       <div class="working" id="a-working" hidden><span class="spinner"></span>{L.working}</div>
       <div class="md" id="a-text" hidden></div>
+      <div id="a-consult" hidden></div>
     </section>
 
     <section class="panel full" id="a-run" hidden>
@@ -263,7 +328,7 @@ const [lead, ...workers] = TEAM;
     type Step,
   } from '../../lib/agentRun';
   import { errorFrom, fetchTrace, liveError, readSse } from '../../lib/api';
-  import { gate } from '../../lib/live';
+  import { consultCta, gate } from '../../lib/live';
   import { renderMarkdown } from '../../lib/markdown';
   import { fmtMs, renderWaterfall, type Span } from '../../lib/waterfall';
 
@@ -280,11 +345,75 @@ const [lead, ...workers] = TEAM;
     const sampleBtn = $<HTMLButtonElement>('a-sample');
     const copyBtn = $<HTMLButtonElement>('a-copy');
 
+    // ------------------------------------------------------------ MCPs ligados e desligados
+    const switches = [...root.querySelectorAll<HTMLButtonElement>('[data-switch]')];
+    const OFF_KEY = 'agents.mcpOff';
+    const readOff = (): string[] => {
+      try {
+        const v = JSON.parse(localStorage.getItem(OFF_KEY) ?? '[]');
+        return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : [];
+      } catch {
+        return [];
+      }
+    };
+    const paintServer = (b: HTMLButtonElement) => {
+      const name = b.dataset.switch!;
+      const on = b.getAttribute('aria-checked') === 'true';
+      const box = root.querySelector<HTMLElement>(`[data-server="${name}"]`)!;
+      box.classList.toggle('is-off', !on);
+      box.classList.toggle('is-down', b.disabled);
+      root.querySelector<HTMLElement>(`[data-state-of="${name}"]`)!.textContent = b.disabled ? L.down : on ? L.on : L.off;
+    };
+    const enabledServers = () =>
+      switches.filter((b) => !b.disabled && b.getAttribute('aria-checked') === 'true').map((b) => b.dataset.switch!);
+    const paintAll = () => {
+      switches.forEach(paintServer);
+      root.querySelector<HTMLElement>('[data-alloff]')!.hidden = enabledServers().length > 0;
+    };
+    const off = new Set(readOff());
+    switches.forEach((b) => {
+      b.setAttribute('aria-checked', String(!off.has(b.dataset.switch!)));
+      b.addEventListener('click', () => {
+        b.setAttribute('aria-checked', String(b.getAttribute('aria-checked') !== 'true'));
+        try {
+          const now = switches.filter((x) => x.getAttribute('aria-checked') !== 'true').map((x) => x.dataset.switch!);
+          localStorage.setItem(OFF_KEY, JSON.stringify(now));
+        } catch {
+          /* sem localStorage: a escolha vale só nesta visita */
+        }
+        paintAll();
+      });
+    });
+    paintAll();
+
+    // Servidor fora do ar no momento: chave travada e desligada.
+    const loadServerStatus = async () => {
+      try {
+        const res = await fetch('/api/demo/agents/servers', { credentials: 'same-origin' });
+        if (!res.ok) return;
+        const list = (await res.json()) as { name: string; up: boolean }[];
+        for (const srv of list) {
+          const b = switches.find((x) => x.dataset.switch === srv.name);
+          if (!b) continue;
+          b.disabled = !srv.up;
+          if (!srv.up) b.setAttribute('aria-checked', 'false');
+        }
+        paintAll();
+      } catch {
+        /* sem status: as chaves ficam como estão */
+      }
+    };
+
     // O texto de "restam hoje" vem com "· " na frente (feito para ir depois de um rótulo); aqui é uma pílula.
+    let statusLoaded = false;
     const refreshGate = async () => {
-      await gate(root, 'agents', s);
+      const g = await gate(root, 'agents', s);
       const r = root.querySelector<HTMLElement>('[data-remaining]');
       if (r) r.textContent = (r.textContent ?? '').replace(/^·\s*/, '');
+      if (g.me?.user && !statusLoaded) {
+        statusLoaded = true;
+        void loadServerStatus();
+      }
     };
 
     const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string) => {
@@ -423,7 +552,7 @@ const [lead, ...workers] = TEAM;
       submit.disabled = true;
       sampleBtn.disabled = true;
       submit.textContent = L.running;
-      for (const id of ['a-error', 'a-kpis', 'a-text', 'a-empty', 'a-trace', 'a-trace-wait']) $(id).hidden = true;
+      for (const id of ['a-error', 'a-kpis', 'a-text', 'a-empty', 'a-trace', 'a-trace-wait', 'a-consult']) $(id).hidden = true;
       copyBtn.hidden = true;
       $('a-working').hidden = false;
       $('a-question').hidden = false;
@@ -458,6 +587,8 @@ const [lead, ...workers] = TEAM;
       $('a-working').hidden = true;
       const ok = d.status === 'ok' || d.status === 'completed';
       setStatus(ok ? 'ready' : 'failed', sample ? L.sampleTag : fmtMs(d.durationMs));
+      $('a-consult').replaceChildren(consultCta(s, lang));
+      $('a-consult').hidden = false;
     };
     const onEvent = (event: string, data: unknown, at: number) => {
       applyEvent(state, event, data, at);
@@ -508,7 +639,7 @@ const [lead, ...workers] = TEAM;
           method: 'POST',
           credentials: 'same-origin',
           headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
-          body: JSON.stringify({ question }),
+          body: JSON.stringify({ question, servers: enabledServers() }),
         });
         if (!res.ok) throw await errorFrom(res);
         await readSse(res, (event, raw) => onEvent(event, raw, performance.now() - t0));
@@ -707,33 +838,105 @@ const [lead, ...workers] = TEAM;
     background: var(--accent-soft);
     color: var(--accent);
   }
-  .links {
-    position: relative;
-    height: 22px;
+  .mcp-hint {
+    margin: 14px 0 10px;
+    font-size: 13px;
   }
-  .links span {
-    position: absolute;
-    top: 0;
-    width: 25%;
-    height: 100%;
-    border-top: 0;
-    border: 1.5px solid var(--line-strong);
-    border-bottom: 0;
-  }
-  .links span:first-child {
-    left: 25%;
-    border-right: 0;
-    border-radius: 8px 0 0 0;
-  }
-  .links span:last-child {
-    left: 50%;
-    border-left: 0;
-    border-radius: 0 8px 0 0;
-  }
-  .workers {
+  .servers {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+  }
+  .server {
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    display: grid;
+    gap: 8px;
+    transition: opacity 0.15s;
+  }
+  .server.is-off .member,
+  .server.is-down .member {
+    opacity: 0.4;
+    filter: grayscale(1);
+  }
+  .srv-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .srv-title {
+    flex: 1;
+    min-width: 0;
+  }
+  .srv-title strong {
+    display: block;
+    font-size: 14px;
+  }
+  .srv-src {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+  .srv-src code {
+    font-size: 11.5px;
+  }
+  .srv-state {
+    flex: none;
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+  }
+  .server.is-off .srv-state {
+    color: var(--muted);
+  }
+  .server.is-down .srv-state {
+    color: var(--danger);
+  }
+  .switch {
+    flex: none;
+    position: relative;
+    width: 38px;
+    height: 22px;
+    border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    background: var(--bg-soft);
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .switch .knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: transform 0.15s, background 0.15s;
+  }
+  .switch[aria-checked='true'] {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .switch[aria-checked='true'] .knob {
+    transform: translateX(16px);
+    background: var(--accent-ink);
+  }
+  .switch:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+  .switch:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  [data-alloff] {
+    margin: 10px 0 0;
+    font-size: 13px;
   }
   .otel {
     margin: 14px 0 0;
@@ -882,12 +1085,6 @@ const [lead, ...workers] = TEAM;
     .panel {
       padding: 16px;
     }
-    .workers {
-      grid-template-columns: minmax(0, 1fr);
-    }
-    .links {
-      display: none;
-    }
     .org {
       gap: 10px;
     }
@@ -930,6 +1127,18 @@ const [lead, ...workers] = TEAM;
   #agents .a-company_researcher {
     background: var(--accent3);
     color: #1f1300;
+  }
+  #agents .a-news_researcher {
+    background: #e11d48;
+    color: #fff;
+  }
+  #agents .a-pix_specialist {
+    background: #0284c7;
+    color: #fff;
+  }
+  #agents .a-scheduler {
+    background: #65a30d;
+    color: #fff;
   }
   #agents .spinner {
     display: inline-block;

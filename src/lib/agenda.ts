@@ -201,6 +201,14 @@ export function errorText(err: unknown, messages: Record<string, string>, fallba
   return fallback;
 }
 
+/** `?tipo=` da URL (o convite das demos manda `consultoria`): o tipo de conversa a abrir, ou null. */
+export function kindFromQuery(search: string): Kind | null {
+  const t = new URLSearchParams(search).get('tipo');
+  if (t === 'consultoria' || t === 'consulting') return 'consulting';
+  if (t === 'vaga' || t === 'job') return 'job';
+  return null;
+}
+
 // ---- calendário ----
 
 /** 'AAAA-MM' do dia 'AAAA-MM-DD'. */

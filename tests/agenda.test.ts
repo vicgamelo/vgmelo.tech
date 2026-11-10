@@ -162,3 +162,20 @@ describe('calendário', () => {
     expect(monthsWithSlots([d('2026-12-30'), d('2027-01-02'), d('2026-12-31')])).toEqual(['2026-12', '2027-01']);
   });
 });
+
+describe('convite das demos', () => {
+  it('?tipo=consultoria abre a agenda em Consultoria', async () => {
+    const { kindFromQuery } = await import('../src/lib/agenda');
+    expect(kindFromQuery('?tipo=consultoria')).toBe('consulting');
+    expect(kindFromQuery('?tipo=vaga')).toBe('job');
+    expect(kindFromQuery('?tipo=consulting')).toBe('consulting');
+    expect(kindFromQuery('?tipo=<script>')).toBeNull();
+    expect(kindFromQuery('')).toBeNull();
+  });
+
+  it('o link do convite leva para a agenda certa em cada idioma', async () => {
+    const { consultHref } = await import('../src/lib/live');
+    expect(consultHref('pt')).toBe('/agenda/?tipo=consultoria');
+    expect(consultHref('en')).toBe('/en/schedule/?tipo=consultoria');
+  });
+});

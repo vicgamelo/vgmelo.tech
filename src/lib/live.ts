@@ -1,5 +1,27 @@
 // Portão das demos ao vivo: confere a sessão no portal e mostra login, cota ou o formulário.
+import { route } from '../i18n/routes';
 import { getMe, type Me } from './api';
+
+/** Link da agenda já com Consultoria escolhida: é para onde vai quem quer mais que a demo. */
+export function consultHref(lang: 'pt' | 'en'): string {
+  return `${route('agenda', lang)}?tipo=consultoria`;
+}
+
+/** Bloco "quer ir além? marcar uma conversa", usado quando a cota acaba e no fim das demos. */
+export function consultCta(s: Record<string, string>, lang: 'pt' | 'en'): HTMLElement {
+  const box = document.createElement('div');
+  box.className = 'consult-cta';
+  const p = document.createElement('p');
+  p.textContent = s['live.consultText'];
+  const a = document.createElement('a');
+  a.href = consultHref(lang);
+  a.className = 'btn primary';
+  a.textContent = s['live.consult'];
+  box.append(p, a);
+  return box;
+}
+
+const pageLang = (): 'pt' | 'en' => (document.documentElement.lang.startsWith('en') ? 'en' : 'pt');
 
 export interface Gate {
   me: Me | null;
@@ -53,7 +75,8 @@ export async function gate(root: HTMLElement, quotaKey: string, s: Record<string
     a.textContent = s['login.title'];
     notice.append(document.createElement('br'), a);
   }
+  if (state.kind === 'quota' || state.kind === 'budget') notice.append(consultCta(s, pageLang()));
   return { me, ready: false };
 }
 
-export const LIVE_KEYS = ['login.unavailable', 'live.needLogin', 'login.title', 'live.quota', 'live.budget', 'live.error', 'live.remaining', 'live.busy', 'live.invalid', 'login.oauthError'] as const;
+export const LIVE_KEYS = ['login.unavailable', 'live.needLogin', 'login.title', 'live.quota', 'live.budget', 'live.error', 'live.remaining', 'live.busy', 'live.invalid', 'login.oauthError', 'live.consultText', 'live.consult'] as const;

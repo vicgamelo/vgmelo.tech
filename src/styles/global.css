@@ -388,6 +388,25 @@ textarea:focus {
 [hidden] {
   display: none !important;
 }
+/* "Quer ir além? Marcar uma conversa": quando a cota da demo acaba e no fim das demos. */
+.consult-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.consult-cta p {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 550;
+}
 
 code,
 pre,

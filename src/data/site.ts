@@ -364,8 +364,8 @@ export const DEMOS: Demo[] = [
     project: 'agent-orchestrator',
     title: { pt: 'Agentes conversando', en: 'Agents at work' },
     text: {
-      pt: 'Faça uma pergunta sobre economia ou uma empresa brasileira e veja o coordenador delegar para os especialistas, com o trace completo.',
-      en: 'Ask about the Brazilian economy or a company and watch the coordinator delegate to specialists, with the full trace.',
+      pt: 'Pergunte sobre economia, notícias, empresas ou normas do Pix e veja o coordenador delegar para cinco especialistas. Ligue e desligue os MCPs e acompanhe o trace completo.',
+      en: 'Ask about the economy, the news, companies or Pix rules and watch the coordinator delegate to five specialists. Turn MCPs on and off and follow the full trace.',
     },
   },
   {
