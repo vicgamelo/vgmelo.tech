@@ -6,8 +6,16 @@ import {
   FIELDS,
   PLANTED,
   PRESETS,
+  BRL_PER_DM,
   afterGate,
+  askBetween,
+  modelLabel,
+  narrow,
   nextField,
+  readAgent,
+  toBrl,
+  toDm,
+  type AgentReply,
   parseAnswer,
   parseNumber,
   pct,
@@ -81,27 +89,61 @@ describe('agente de coleta', () => {
     ['5 mil', 5000],
     ['3k', 3000],
     ['uns 12000 marcos', 12000],
+    ['1,5 milhão', 1_500_000],
+    ['2 milhoes', 2_000_000],
   ])('número %s → %d', (text, n) => expect(parseNumber(text)).toBe(n));
 
   it('entende sinônimos e frases', () => {
-    expect(ask('housing', 'moro de aluguel')).toEqual({ ok: true, value: 'rent' });
-    expect(ask('housing', 'Casa PRÓPRIA')).toEqual({ ok: true, value: 'own' });
-    expect(ask('checking_status', 'não tenho conta')).toEqual({ ok: true, value: 'no checking' });
-    expect(ask('own_telephone', 'não tenho')).toEqual({ ok: true, value: 'none' });
-    expect(ask('own_telephone', 'sim')).toEqual({ ok: true, value: 'yes' });
-    expect(ask('purpose', 'quero trocar a geladeira')).toEqual({ ok: true, value: 'domestic appliance' });
-    expect(ask('purpose', 'used car', 'en')).toEqual({ ok: true, value: 'used car' });
-    expect(ask('purpose', '4')).toEqual({ ok: true, value: 'radio/tv' }); // número da opção
+    expect(ask('housing', 'moro de aluguel')).toMatchObject({ ok: true, value: 'rent', how: 'keyword' });
+    expect(ask('housing', 'Casa PRÓPRIA')).toMatchObject({ ok: true, value: 'own' });
+    expect(ask('checking_status', 'não tenho conta')).toMatchObject({ ok: true, value: 'no checking' });
+    expect(ask('own_telephone', 'não tenho')).toMatchObject({ ok: true, value: 'none' });
+    expect(ask('own_telephone', 'sim')).toMatchObject({ ok: true, value: 'yes', how: 'exact' });
+    expect(ask('purpose', 'quero trocar a geladeira')).toMatchObject({ ok: true, value: 'domestic appliance' });
+    expect(ask('purpose', 'used car', 'en')).toMatchObject({ ok: true, value: 'used car', how: 'exact' });
+    expect(ask('purpose', '4')).toMatchObject({ ok: true, value: 'radio/tv', how: 'exact' }); // número da opção
   });
 
   it('prazo em anos vira meses', () => {
-    expect(ask('duration', '2 anos')).toEqual({ ok: true, value: 24 });
-    expect(ask('duration', '36 meses')).toEqual({ ok: true, value: 36 });
+    expect(ask('duration', '2 anos')).toEqual({ ok: true, value: 24, how: 'keyword' });
+    expect(ask('duration', '36 meses')).toEqual({ ok: true, value: 36, how: 'keyword' });
+    expect(ask('duration', '24')).toEqual({ ok: true, value: 24, how: 'number' });
   });
 
   it('"não sei" vira null, que o pipeline imputa', () => {
-    expect(ask('age', 'não sei')).toEqual({ ok: true, value: null });
-    expect(ask('purpose', "don't know", 'en')).toEqual({ ok: true, value: null });
+    expect(ask('age', 'não sei')).toEqual({ ok: true, value: null, how: 'dontknow' });
+    expect(ask('purpose', "don't know", 'en')).toEqual({ ok: true, value: null, how: 'dontknow' });
+  });
+
+  it('resposta que serve para mais de uma opção vira pergunta de volta, só entre elas', () => {
+    // O print do Victor: "Um carro" → antes "Não entendi" com a lista inteira.
+    expect(ask('purpose', 'Um carro')).toEqual({ ok: false, hint: 'Carro novo ou carro usado?', options: ['new car', 'used car'] });
+    expect(ask('purpose', 'a car', 'en')).toEqual({ ok: false, hint: 'New car or used car?', options: ['new car', 'used car'] });
+    expect(askBetween(FIELD.employment, ['<1', '1<=X<4', '>=7'], 'pt')).toBe('Menos de 1 ano, de 1 a 4 anos ou 7 anos ou mais?');
+    const r = ask('housing', 'barraca');
+    expect(r.ok === false && r.options).toBeUndefined();
+    expect(!r.ok && r.hint).not.toContain('1.'); // sem despejar a lista: as opções já estão nos botões
+  });
+
+  it('valor em reais vira DM para o modelo', () => {
+    expect(BRL_PER_DM).toBe(10);
+    expect(ask('credit_amount', 'R$ 90 mil')).toEqual({ ok: true, value: 9000, how: 'number' });
+    expect(ask('credit_amount', '15.000')).toEqual({ ok: true, value: 1500, how: 'number' });
+    expect(ask('credit_amount', 'uns 15 mil reais')).toEqual({ ok: true, value: 1500, how: 'keyword' });
+    const zero = ask('credit_amount', '0');
+    expect(!zero.ok && zero.hint).toContain('> R$ 0');
+    expect(ask('credit_amount', 'R$ 1,5 milhão')).toEqual({ ok: true, value: 150_000, how: 'number' });
+    const big = ask('credit_amount', 'R$ 20 milhões', 'en'); // 2.000.000 DM: acima do teto do scoring
+    expect(!big.ok && big.hint).toContain('R$ 10,000,000');
+    expect(toDm(12_345)).toBe(1235);
+    expect(toBrl(9000)).toBe(90_000);
+  });
+
+  it('faixas do credit-g em DM aparecem em reais', () => {
+    const checking = FIELD.checking_status.options!.map((x) => x.label.pt);
+    expect(checking).toEqual(['negativa', 'de R$ 0 a R$ 2.000', 'R$ 2.000 ou mais', 'não tenho conta corrente']);
+    expect(FIELD.savings_status.options![3].label.en).toBe('R$ 10,000 or more');
+    expect(FIELDS.map((f) => [...Object.values(f.label), ...(f.options ?? []).flatMap((x) => Object.values(x.label))]).flat().join(' ')).not.toMatch(/\bDM\b/);
   });
 
   it('recusa fora da faixa do modelo, não inteiro e o que não entendeu, com dica', () => {
@@ -126,11 +168,42 @@ describe('agente de coleta', () => {
   it('mostra valores em palavras', () => {
     expect(show('housing', 'rent', 'pt')).toBe('alugada');
     expect(show('duration', 24, 'en')).toBe('24 months');
-    expect(show('credit_amount', 5000.5, 'pt')).toBe('5.000,5 DM');
+    expect(show('credit_amount', 9000, 'pt')).toBe('R$ 90.000 (9.000 DM)');
+    expect(show('credit_amount', 9000, 'en')).toBe('R$ 90,000 (9,000 DM)');
+    expect(modelLabel('credit_amount', 'pt')).toBe('Valor pedido (DM)');
+    expect(modelLabel('age', 'pt')).toBe('Idade');
     expect(show('age', null, 'pt')).toBe('não sei');
     expect(pct(0.9292, 'pt')).toBe('92,9%');
     expect(pp(0.1963, 'en')).toBe('+19.6 p.p.');
     expect(pp(-0.05, 'pt')).toBe('-5,0 p.p.');
+  });
+});
+
+describe('microagente', () => {
+  const read = (name: string, reply: AgentReply) => readAgent(FIELD[name], reply);
+
+  it('aceita só o que o modelo de crédito aceita e converte reais', () => {
+    expect(read('purpose', { status: 'ok', value: 'new car' })).toEqual({ kind: 'value', value: 'new car' });
+    expect(read('purpose', { status: 'ok', value: 'carro' })).toEqual({ kind: 'none' });
+    expect(read('purpose', { status: 'ask', options: ['used car', 'x', 'new car'] })).toEqual({ kind: 'ask', options: ['new car', 'used car'] });
+    expect(read('purpose', { status: 'ask', options: ['used car', 'x'] })).toEqual({ kind: 'value', value: 'used car' });
+    expect(read('age', { status: 'dont_know' })).toEqual({ kind: 'value', value: null });
+    expect(read('age', { status: 'ok', value: 30 })).toEqual({ kind: 'value', value: 30 });
+    expect(read('age', { status: 'ok', value: 30.5 })).toEqual({ kind: 'none' });
+    expect(read('age', { status: 'ok', value: '30' })).toEqual({ kind: 'none' });
+    expect(read('credit_amount', { status: 'ok', value: 15_000 })).toEqual({ kind: 'value', value: 1500 });
+    expect(read('credit_amount', { status: 'ok', value: 2 })).toEqual({ kind: 'none' }); // R$ 2 → 0 DM
+    expect(read('housing', { status: 'unknown' })).toEqual({ kind: 'none' });
+  });
+
+  it('a pergunta de volta restringe as opções seguintes', () => {
+    const f = narrow(FIELD.purpose, ['new car', 'used car']);
+    expect(f.options!.map((x) => x.value)).toEqual(['new car', 'used car']);
+    expect(parseAnswer(f, '2', 'pt')).toMatchObject({ ok: true, value: 'used car' });
+    expect(parseAnswer(f, 'novo', 'pt')).toMatchObject({ ok: true, value: 'new car' });
+    expect(parseAnswer(f, 'usado', 'pt')).toMatchObject({ ok: true, value: 'used car' });
+    // Fora da pergunta de volta, uma palavra solta não decide: "tenho conta" não é "não tenho conta corrente".
+    expect(parseAnswer(FIELD.checking_status, 'tenho conta', 'pt').ok).toBe(false);
   });
 });
 

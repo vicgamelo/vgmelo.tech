@@ -6,6 +6,24 @@
 export type Lang = 'pt' | 'en';
 type T = Record<Lang, string>;
 
+// ---------------------------------------------------------------- reais e marcos
+
+/**
+ * Reais por marco alemão (DM) de 1973–75, quando o credit-g foi coletado. O modelo foi treinado em DM,
+ * então a demo pergunta e mostra em reais e converte só na hora de mandar para o pipeline.
+ * Conta (poder de compra): 1 DM = 1/1,95583 € (paridade fixa) ≈ 0,511 €; os preços na Alemanha
+ * subiram ~3,25× desde 1975, então ≈ 1,66 € de hoje; com o euro a ~R$ 5,85, dá ~R$ 9,7. Arredondado.
+ */
+export const BRL_PER_DM = 10;
+/** Valor do credit-g é inteiro em DM. */
+export const toDm = (brl: number): number => Math.round(brl / BRL_PER_DM);
+export const toBrl = (dm: number): number => dm * BRL_PER_DM;
+export function brl(value: number, lang: Lang): string {
+  return `R$ ${Math.round(value).toLocaleString(lang === 'pt' ? 'pt-BR' : 'en-US')}`;
+}
+/** Faixa em DM do credit-g escrita em reais: R(200, 'pt') → "R$ 2.000". */
+const R = (dm: number, lang: Lang) => brl(toBrl(dm), lang);
+
 export interface Option {
   value: string;
   label: T;
@@ -27,6 +45,10 @@ export interface Field {
   unit?: T;
   /** Grupo do formulário guiado. */
   group: 'loan' | 'money' | 'person';
+  /** Perguntado e mostrado em reais; o modelo recebe DM (min, max e train continuam em DM). */
+  currency?: boolean;
+  /** Pergunta de volta entre poucas opções: aí uma palavra só ("novo") já decide. */
+  narrowed?: boolean;
 }
 
 const o = (value: string, pt: string, en: string, keywords: string[] = []): Option => ({
@@ -60,16 +82,13 @@ export const FIELDS: Field[] = [
     name: 'credit_amount',
     kind: 'float',
     group: 'loan',
-    label: { pt: 'Valor pedido (DM)', en: 'Amount (DM)' },
-    ask: {
-      pt: 'Qual o valor, em marcos alemães (DM)? O dataset é de um banco alemão dos anos 70.',
-      en: 'How much, in Deutsche Marks (DM)? The dataset comes from a 1970s German bank.',
-    },
+    label: { pt: 'Valor pedido', en: 'Amount' },
+    ask: { pt: 'Qual o valor do crédito, em reais?', en: 'How much do you need, in Brazilian reais (R$)?' },
+    currency: true,
     min: 0,
     minExclusive: true,
     max: 1_000_000,
     train: [250, 18424],
-    unit: { pt: 'DM', en: 'DM' },
   },
   {
     name: 'duration',
@@ -102,9 +121,9 @@ export const FIELDS: Field[] = [
     label: { pt: 'Saldo em conta corrente', en: 'Checking account' },
     ask: { pt: 'Como está a conta corrente?', en: 'How is the checking account?' },
     options: [
-      o('<0', 'negativa (< 0 DM)', 'overdrawn (< 0 DM)', ['negativo', 'negativa', 'devendo', 'overdrawn']),
-      o('0<=X<200', 'de 0 a 200 DM', '0 to 200 DM'),
-      o('>=200', '200 DM ou mais', '200 DM or more'),
+      o('<0', 'negativa', 'overdrawn', ['negativo', 'negativa', 'devendo', 'no vermelho', 'overdrawn']),
+      o('0<=X<200', `de R$ 0 a ${R(200, 'pt')}`, `R$ 0 to ${R(200, 'en')}`),
+      o('>=200', `${R(200, 'pt')} ou mais`, `${R(200, 'en')} or more`),
       o('no checking', 'não tenho conta corrente', 'no checking account', ['nao tenho', 'sem conta', 'none']),
     ],
   },
@@ -115,10 +134,10 @@ export const FIELDS: Field[] = [
     label: { pt: 'Poupança', en: 'Savings' },
     ask: { pt: 'E a poupança?', en: 'And savings?' },
     options: [
-      o('<100', 'menos de 100 DM', 'under 100 DM'),
-      o('100<=X<500', 'de 100 a 500 DM', '100 to 500 DM'),
-      o('500<=X<1000', 'de 500 a 1000 DM', '500 to 1000 DM'),
-      o('>=1000', '1000 DM ou mais', '1000 DM or more'),
+      o('<100', `menos de ${R(100, 'pt')}`, `under ${R(100, 'en')}`),
+      o('100<=X<500', `de ${R(100, 'pt')} a ${R(500, 'pt')}`, `${R(100, 'en')} to ${R(500, 'en')}`),
+      o('500<=X<1000', `de ${R(500, 'pt')} a ${R(1000, 'pt')}`, `${R(500, 'en')} to ${R(1000, 'en')}`),
+      o('>=1000', `${R(1000, 'pt')} ou mais`, `${R(1000, 'en')} or more`),
       o('no known savings', 'não tenho / não sei', 'none / unknown', ['nenhuma', 'sem poupanca']),
     ],
   },
@@ -277,13 +296,20 @@ export function label(name: string, lang: Lang): string {
   return FIELD[name]?.label[lang] ?? name;
 }
 
-/** Valor para mostrar: a categoria em palavras, o número com unidade. */
+/** Rótulo dentro do pipeline, onde o valor já está como o modelo recebe: o valor pedido vai em DM. */
+export function modelLabel(name: string, lang: Lang): string {
+  return FIELD[name]?.currency ? `${label(name, lang)} (DM)` : label(name, lang);
+}
+
+/** Valor para mostrar: a categoria em palavras, o número com unidade; o valor pedido em reais (e DM). */
 export function show(name: string, value: Value | undefined, lang: Lang): string {
   if (value === null || value === undefined || value === '') return lang === 'pt' ? 'não sei' : "don't know";
   const f = FIELD[name];
   if (f?.kind === 'cat') return f.options!.find((x) => x.value === value)?.label[lang] ?? String(value);
   const n = typeof value === 'number' ? value : Number(value);
-  const text = Number.isFinite(n) ? n.toLocaleString(lang === 'pt' ? 'pt-BR' : 'en-US') : String(value);
+  const locale = lang === 'pt' ? 'pt-BR' : 'en-US';
+  if (f?.currency && Number.isFinite(n)) return `${brl(toBrl(n), lang)} (${n.toLocaleString(locale)} DM)`;
+  const text = Number.isFinite(n) ? n.toLocaleString(locale) : String(value);
   return f?.unit ? `${text} ${f.unit[lang]}` : text;
 }
 
@@ -300,7 +326,7 @@ export function fold(text: string): string {
 
 const DONT_KNOW = /^(nao sei|n sei|sei la|nao lembro|pular|pula|skip|dont know|don't know|i don't know|not sure|\?)$/;
 
-/** "5.000,50" → 5000.5; "5,000.50" → 5000.5; "2,5" → 2.5; "5 mil" / "5k" → 5000. */
+/** "5.000,50" → 5000.5; "5,000.50" → 5000.5; "2,5" → 2.5; "5 mil" / "5k" → 5000; "1,5 milhão" → 1500000. */
 export function parseNumber(text: string): number | null {
   const t = fold(text);
   const m = t.match(/-?\d[\d.,]*/);
@@ -321,27 +347,45 @@ export function parseNumber(text: string): number | null {
   if (!Number.isFinite(n)) return null;
   const after = t.slice((m.index ?? 0) + m[0].length);
   if (/^\s*(mil\b|k\b)/.test(after)) n *= 1000;
+  else if (/^\s*(milhao|milhoes|mi\b|million|millions|mm\b)/.test(after)) n *= 1_000_000;
   return n;
 }
 
-export type Parsed = { ok: true; value: Value } | { ok: false; hint: string };
+/**
+ * Resultado da leitura de uma resposta. ``how`` diz se a leitura é segura sem o microagente:
+ * opção exata, número limpo ou "não sei" dispensam o LLM; palavra-chave numa frase ainda passa por ele.
+ */
+export type Parsed =
+  | { ok: true; value: Value; how: 'exact' | 'number' | 'dontknow' | 'keyword' }
+  | { ok: false; hint: string; options?: string[] };
 
 function range(f: Field, lang: Lang): string {
-  const lo = f.minExclusive ? `> ${f.min}` : String(f.min);
-  return lang === 'pt' ? `entre ${lo} e ${f.max}` : `between ${lo} and ${f.max}`;
+  const fmt = (n: number) => (f.currency ? brl(toBrl(n), lang) : String(n));
+  const lo = f.minExclusive ? `> ${fmt(f.min!)}` : fmt(f.min!);
+  return lang === 'pt' ? `entre ${lo} e ${fmt(f.max!)}` : `between ${lo} and ${fmt(f.max!)}`;
 }
 
-/** Interpreta a resposta do visitante para um campo. Sem LLM: regras, sinônimos e números. */
+const STOP = new Set(['um', 'uma', 'uns', 'umas', 'de', 'do', 'da', 'dos', 'das', 'para', 'pra', 'com', 'meu', 'minha', 'the', 'for', 'and', 'ou', 'e', 'o', 'a', 'my', 'an']);
+
+/** "Carro novo ou carro usado?" — a pergunta de volta quando a resposta serve para mais de uma opção. */
+export function askBetween(f: Field, values: string[], lang: Lang): string {
+  const labels = values.map((v) => f.options!.find((x) => x.value === v)?.label[lang] ?? v);
+  const or = lang === 'pt' ? ' ou ' : ' or ';
+  const text = labels.length > 1 ? `${labels.slice(0, -1).join(', ')}${or}${labels.at(-1)}` : labels[0];
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}?`;
+}
+
+/** Interpreta a resposta do visitante para um campo, por regras: sinônimos, números e "não sei". */
 export function parseAnswer(f: Field, text: string, lang: Lang): Parsed {
   const t = fold(text);
   if (!t) return { ok: false, hint: lang === 'pt' ? 'Escreva uma resposta ou toque numa opção.' : 'Type an answer or tap an option.' };
-  if (DONT_KNOW.test(t)) return { ok: true, value: null };
+  if (DONT_KNOW.test(t)) return { ok: true, value: null, how: 'dontknow' };
   if (f.kind === 'cat') {
     const opts = f.options!;
     const n = Number(t);
-    if (Number.isInteger(n) && n >= 1 && n <= opts.length) return { ok: true, value: opts[n - 1].value };
+    if (Number.isInteger(n) && n >= 1 && n <= opts.length) return { ok: true, value: opts[n - 1].value, how: 'exact' };
     const exact = opts.find((x) => fold(x.value) === t || fold(x.label.pt) === t || fold(x.label.en) === t);
-    if (exact) return { ok: true, value: exact.value };
+    if (exact) return { ok: true, value: exact.value, how: 'exact' };
     // Palavra-chave inteira dentro da frase ("moro de aluguel" → rent). A mais longa ganha.
     let best: { value: string; len: number } | null = null;
     for (const x of opts) {
@@ -350,21 +394,59 @@ export function parseAnswer(f: Field, text: string, lang: Lang): Parsed {
         if (re.test(t) && (!best || k.length > best.len)) best = { value: x.value, len: k.length };
       }
     }
-    if (best) return { ok: true, value: best.value };
-    const list = opts.map((x, i) => `${i + 1}. ${x.label[lang]}`).join(' · ');
-    return { ok: false, hint: (lang === 'pt' ? 'Não entendi. Opções: ' : "I didn't get that. Options: ") + list };
+    if (best) return { ok: true, value: best.value, how: 'keyword' };
+    // Palavra que aparece em mais de uma opção ("um carro": novo ou usado?): pergunta de volta só entre elas.
+    const words = t.split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !STOP.has(w));
+    const hits = opts.filter((x) => words.some((w) => [fold(x.label.pt), fold(x.label.en)].some((l) => l.split(/[^a-z0-9]+/).includes(w))));
+    // Na pergunta de volta, a palavra que só uma das opções tem decide ("novo" → carro novo).
+    if (f.narrowed && hits.length === 1) return { ok: true, value: hits[0].value, how: 'keyword' };
+    if (hits.length > 1 && hits.length < opts.length) {
+      return { ok: false, hint: askBetween(f, hits.map((x) => x.value), lang), options: hits.map((x) => x.value) };
+    }
+    return {
+      ok: false,
+      hint: lang === 'pt' ? 'Não consegui encaixar essa resposta. Toque numa opção abaixo ou diga de outro jeito.' : "I couldn't fit that answer. Tap an option below or say it another way.",
+    };
   }
   let n = parseNumber(t);
   if (n === null) {
     return { ok: false, hint: (lang === 'pt' ? 'Preciso de um número ' : 'I need a number ') + range(f, lang) + '.' };
   }
   if (f.name === 'duration' && /\b(ano|anos|year|years)\b/.test(t)) n *= 12;
+  if (f.currency) n = toDm(n);
   if (f.kind === 'int' && !Number.isInteger(n)) {
     return { ok: false, hint: lang === 'pt' ? 'Preciso de um número inteiro.' : 'I need a whole number.' };
   }
   const low = f.minExclusive ? n <= f.min! : n < f.min!;
   if (low || n > f.max!) return { ok: false, hint: (lang === 'pt' ? 'O modelo aceita valores ' : 'The model takes values ') + range(f, lang) + '.' };
-  return { ok: true, value: n };
+  // Número sozinho ("24", "R$ 15.000") é seguro; número no meio de uma frase passa pelo microagente.
+  const plain = /^(r\$\s*)?-?[\d.,]+\s*(mil|k|milhao|milhoes)?$/.test(t);
+  return { ok: true, value: n, how: plain ? 'number' : 'keyword' };
+}
+
+/** Resposta do /api/demo/score/agent (o portal já validou; aqui confere de novo e converte reais). */
+export type AgentReply = { status: 'ok'; value: string | number } | { status: 'ask'; options: string[] } | { status: 'dont_know' } | { status: 'unknown' };
+
+export type AgentRead = { kind: 'value'; value: Value } | { kind: 'ask'; options: string[] } | { kind: 'none' };
+
+export function readAgent(f: Field, reply: AgentReply): AgentRead {
+  if (reply.status === 'dont_know') return { kind: 'value', value: null };
+  if (reply.status === 'ask') {
+    const valid = f.kind === 'cat' ? f.options!.map((x) => x.value).filter((v) => reply.options.includes(v)) : [];
+    return valid.length > 1 ? { kind: 'ask', options: valid } : valid.length === 1 ? { kind: 'value', value: valid[0] } : { kind: 'none' };
+  }
+  if (reply.status !== 'ok') return { kind: 'none' };
+  if (f.kind === 'cat') return typeof reply.value === 'string' && f.options!.some((x) => x.value === reply.value) ? { kind: 'value', value: reply.value } : { kind: 'none' };
+  if (typeof reply.value !== 'number' || !Number.isFinite(reply.value)) return { kind: 'none' };
+  const n = f.currency ? toDm(reply.value) : reply.value;
+  if (f.kind === 'int' && !Number.isInteger(n)) return { kind: 'none' };
+  const low = f.minExclusive ? n <= f.min! : n < f.min!;
+  return low || n > f.max! ? { kind: 'none' } : { kind: 'value', value: n };
+}
+
+/** Só as opções citadas, para a pergunta de volta ("novo ou usado?"). */
+export function narrow(f: Field, values: string[]): Field {
+  return { ...f, narrowed: true, options: f.options!.filter((x) => values.includes(x.value)) };
 }
 
 /** Próximo campo sem resposta (null conta como respondido: "não sei"). */
