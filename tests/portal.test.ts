@@ -2,13 +2,14 @@
 // divergência real entre o que o site mandava/lia e o que o portal aceita/devolve.
 import { describe, expect, it } from 'vitest';
 import { contactBody, errorFromBody, fetchTrace, liveError, totpSecret, type ApiError, type Me } from '../src/lib/api';
-import { gateState } from '../src/lib/live';
+import { gateState, remainingText } from '../src/lib/live';
 import { pipelineBody, PRESETS } from '../src/lib/credit';
 
 const T = {
   'live.needLogin': 'login',
   'live.quota': 'quota',
   'live.budget': 'budget',
+  'live.tokensOut': 'tokens',
   'live.busy': 'busy',
   'live.invalid': 'invalid',
   'live.error': 'error',
@@ -82,6 +83,7 @@ describe('erros do portal', () => {
     [{ status: 429, reason: 'daily_quota' }, 'quota'],
     [{ status: 429, reason: 'global_budget' }, 'budget'],
     [{ status: 429, reason: 'busy' }, 'busy'],
+    [{ status: 429, reason: 'user_tokens' }, 'tokens'],
     [{ status: 502, reason: 'upstream_unavailable' }, 'error'],
   ] as [ApiError, string][])('liveError %o', (e, msg) => {
     expect(liveError(e, T)).toBe(msg);
@@ -156,6 +158,25 @@ describe('portão das demos ao vivo', () => {
   it('orçamento global só trava as demos com LLM (agentes e estúdio)', () => {
     expect(gateState(me({ budget_exhausted: true }), 'agents').kind).toBe('budget');
     expect(gateState(me({ budget_exhausted: true }), 'studio').kind).toBe('budget');
-    expect(gateState(me({ budget_exhausted: true }), 'score')).toEqual({ kind: 'ready', remaining: 3 });
+    expect(gateState(me({ budget_exhausted: true }), 'score')).toEqual({ kind: 'ready', remaining: 3, tokens: null });
+  });
+
+  it('tokens do usuário acabam só nas demos com LLM', () => {
+    const out = { tokens: { limit: 50000, used: 50210, remaining: 0 } };
+    expect(gateState(me(out), 'agents').kind).toBe('tokens');
+    expect(gateState(me(out), 'studio').kind).toBe('tokens');
+    expect(gateState(me(out), 'score')).toEqual({ kind: 'ready', remaining: 3, tokens: null });
+    const left = { tokens: { limit: 50000, used: 7000, remaining: 43000 } };
+    expect(gateState(me(left), 'agents')).toEqual({ kind: 'ready', remaining: 5, tokens: 43000 });
+    // portal antigo, sem o campo: segue como antes
+    expect(gateState(me(), 'agents')).toEqual({ kind: 'ready', remaining: 5, tokens: null });
+  });
+
+  it('texto de quanto resta', () => {
+    const t = { 'live.remaining': '· restam hoje:', 'live.tokensUnit': 'tokens' };
+    expect(remainingText({ remaining: 9, tokens: 43000 }, t, 'pt')).toBe('· restam hoje: 9 · 43\u00a0mil tokens'); // o Intl não deixa quebrar a linha entre 43 e mil
+    expect(remainingText({ remaining: 9, tokens: 43000 }, t, 'en')).toBe('· restam hoje: 9 · 43K tokens');
+    expect(remainingText({ remaining: 9, tokens: null }, t, 'pt')).toBe('· restam hoje: 9');
+    expect(remainingText({ remaining: null, tokens: null }, t, 'pt')).toBe('');
   });
 });

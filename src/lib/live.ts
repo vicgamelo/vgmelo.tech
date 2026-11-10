@@ -29,8 +29,11 @@ export interface Gate {
 }
 
 export type GateState =
-  | { kind: 'unavailable' | 'login' | 'oauthError' | 'quota' | 'budget' }
-  | { kind: 'ready'; remaining: number | null };
+  | { kind: 'unavailable' | 'login' | 'oauthError' | 'quota' | 'budget' | 'tokens' }
+  | { kind: 'ready'; remaining: number | null; tokens: number | null };
+
+/** Demos que gastam LLM: entram no teto global e no saldo de tokens de cada usuário. */
+const LLM_DEMOS = new Set(['agents', 'studio']);
 
 /** O que a demo mostra para essa sessão. Sem efeito colateral, para dar para testar. */
 export function gateState(me: Me | null, quotaKey: string, authError = false): GateState {
@@ -38,8 +41,23 @@ export function gateState(me: Me | null, quotaKey: string, authError = false): G
   if (!me.user) return { kind: authError ? 'oauthError' : 'login' };
   const q = me.quotas[quotaKey];
   if (q && q.remaining <= 0) return { kind: 'quota' };
-  if ((quotaKey === 'agents' || quotaKey === 'studio') && me.budget_exhausted) return { kind: 'budget' };
-  return { kind: 'ready', remaining: q ? q.remaining : null };
+  const llm = LLM_DEMOS.has(quotaKey);
+  if (llm && me.budget_exhausted) return { kind: 'budget' };
+  if (llm && me.tokens && me.tokens.remaining <= 0) return { kind: 'tokens' };
+  return { kind: 'ready', remaining: q ? q.remaining : null, tokens: llm && me.tokens ? me.tokens.remaining : null };
+}
+
+/** "· restam hoje: 9 · 43 mil tokens"; vazio quando a demo não tem cota. */
+export function remainingText(
+  state: { remaining: number | null; tokens: number | null },
+  s: Record<string, string>,
+  lang: 'pt' | 'en',
+): string {
+  if (state.remaining === null) return '';
+  const text = `${s['live.remaining']} ${state.remaining}`;
+  if (state.tokens === null) return text;
+  const n = new Intl.NumberFormat(lang === 'pt' ? 'pt-BR' : 'en', { notation: 'compact' }).format(state.tokens);
+  return `${text} · ${n} ${s['live.tokensUnit']}`;
 }
 
 const MESSAGE = {
@@ -48,6 +66,7 @@ const MESSAGE = {
   oauthError: 'login.oauthError',
   quota: 'live.quota',
   budget: 'live.budget',
+  tokens: 'live.tokensOut',
 } as const;
 
 export async function gate(root: HTMLElement, quotaKey: string, s: Record<string, string>): Promise<Gate> {
@@ -60,7 +79,7 @@ export async function gate(root: HTMLElement, quotaKey: string, s: Record<string
   if (state.kind === 'ready') {
     notice.hidden = true;
     form.hidden = false;
-    if (remaining) remaining.textContent = state.remaining === null ? '' : `${s['live.remaining']} ${state.remaining}`;
+    if (remaining) remaining.textContent = remainingText(state, s, pageLang());
     return { me, ready: true };
   }
   // Qualquer outro estado esconde o formulário: o resultado anterior continua na tela.
@@ -75,8 +94,8 @@ export async function gate(root: HTMLElement, quotaKey: string, s: Record<string
     a.textContent = s['login.title'];
     notice.append(document.createElement('br'), a);
   }
-  if (state.kind === 'quota' || state.kind === 'budget') notice.append(consultCta(s, pageLang()));
+  if (state.kind === 'quota' || state.kind === 'budget' || state.kind === 'tokens') notice.append(consultCta(s, pageLang()));
   return { me, ready: false };
 }
 
-export const LIVE_KEYS = ['login.unavailable', 'live.needLogin', 'login.title', 'live.quota', 'live.budget', 'live.error', 'live.remaining', 'live.busy', 'live.invalid', 'login.oauthError', 'live.consultText', 'live.consult'] as const;
+export const LIVE_KEYS = ['login.unavailable', 'live.needLogin', 'login.title', 'live.quota', 'live.budget', 'live.error', 'live.remaining', 'live.busy', 'live.invalid', 'login.oauthError', 'live.consultText', 'live.consult', 'live.tokensOut', 'live.tokensUnit'] as const;

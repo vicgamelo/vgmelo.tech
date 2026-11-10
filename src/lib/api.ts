@@ -15,6 +15,8 @@ export interface Me {
   quotas: Record<string, Quota>;
   resets_at: string;
   budget_exhausted: boolean;
+  /** Saldo de tokens do dia (agentes, estúdio e microagente de crédito). Portal antigo não manda. */
+  tokens?: Quota;
 }
 
 export type ApiError = { status: number; reason?: string; message?: string };
@@ -135,6 +137,7 @@ export function liveError(err: unknown, t: Record<string, string>): string {
   if (e?.status === 401) return t['live.needLogin'];
   if (e?.status === 429 && e.reason === 'global_budget') return t['live.budget'];
   if (e?.status === 429 && e.reason === 'busy') return t['live.busy'];
+  if (e?.status === 429 && e.reason === 'user_tokens') return t['live.tokensOut'];
   if (e?.status === 429) return t['live.quota'];
   if (e?.status === 422 && e.reason === 'tool_error' && e.message) return e.message;
   if (e?.status === 422) return t['live.invalid'];
