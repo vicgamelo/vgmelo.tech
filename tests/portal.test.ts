@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { contactBody, errorFromBody, fetchTrace, liveError, totpSecret, type ApiError, type Me } from '../src/lib/api';
 import { gateState } from '../src/lib/live';
-import { buildApplicant, FIXED } from '../src/lib/credit';
+import { pipelineBody, PRESETS } from '../src/lib/credit';
 
 const T = {
   'live.needLogin': 'login',
@@ -27,38 +27,31 @@ describe('contato', () => {
 });
 
 describe('score de crédito', () => {
-  // Campos do `Applicant` do portal (extra="forbid"), iguais ao /predict do mlops-platform.
+  // Campos do `Draft` do portal (extra="forbid", todos obrigatórios, null permitido), iguais ao /predict.
   const PORTAL_FIELDS = [
     'checking_status', 'duration', 'credit_history', 'purpose', 'credit_amount', 'savings_status',
     'employment', 'installment_commitment', 'other_parties', 'residence_since', 'property_magnitude',
     'age', 'other_payment_plans', 'housing', 'existing_credits', 'job', 'num_dependents', 'own_telephone',
   ].sort();
 
-  const form = {
-    checking_status: 'no checking',
-    credit_history: 'existing paid',
-    purpose: 'radio/tv',
-    savings_status: '<100',
-    employment: '1<=X<4',
-    housing: 'own',
-    duration: '24',
-    credit_amount: '3000',
-    age: '35',
-  };
-
-  it('manda o candidato direto no corpo, com exatamente os campos do portal', () => {
-    const body = buildApplicant(form);
-    expect(Object.keys(body).sort()).toEqual(PORTAL_FIELDS);
-    expect(body).not.toHaveProperty('applicant');
+  it('o pipeline recebe os 18 campos, com null no que ficou sem resposta', () => {
+    const body = pipelineBody({ age: 30, purpose: 'radio/tv', duration: '' }, 'en');
+    expect(Object.keys(body)).toEqual(['applicant', 'lang']);
+    expect(Object.keys(body.applicant).sort()).toEqual(PORTAL_FIELDS);
+    expect(body.applicant.age).toBe(30);
+    expect(body.applicant.duration).toBeNull();
+    expect(body.applicant.housing).toBeNull();
+    expect(body.lang).toBe('en');
   });
 
-  it('números vão como número e os campos fixos não são sobrescritos por lixo do formulário', () => {
-    const body = buildApplicant({ ...form, job: 'hacker', extra: 'x' });
-    expect(body.duration).toBe(24);
-    expect(body.credit_amount).toBe(3000);
-    expect(body.age).toBe(35);
-    expect(body.job).toBe(FIXED.job);
-    expect(body).not.toHaveProperty('extra');
+  it('não manda campo que o portal recusaria', () => {
+    const body = pipelineBody({ ...PRESETS.high, personal_status: 'male single', extra: 1 }, 'pt');
+    expect(body.applicant).not.toHaveProperty('personal_status');
+    expect(body.applicant).not.toHaveProperty('extra');
+  });
+
+  it('os perfis prontos têm todos os campos', () => {
+    for (const p of Object.values(PRESETS)) expect(Object.keys(p).sort()).toEqual(PORTAL_FIELDS);
   });
 });
 

@@ -384,8 +384,8 @@ export const DEMOS: Demo[] = [
     project: 'mlops-platform',
     title: { pt: 'Score de crédito', en: 'Credit score' },
     text: {
-      pt: 'Preencha um perfil e veja a probabilidade de inadimplência dada pelo modelo campeão do MLflow.',
-      en: 'Fill in a profile and get the default probability from the champion model in MLflow.',
+      pt: 'Um agente monta o perfil e você vê o pipeline do modelo campeão do MLflow rodar etapa por etapa, ou valida e pontua um CSV em lote.',
+      en: "An agent builds the profile and you watch the MLflow champion's pipeline run step by step, or validate and score a CSV in batch.",
     },
   },
   {

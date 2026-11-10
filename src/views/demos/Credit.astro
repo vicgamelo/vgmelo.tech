@@ -3,6 +3,7 @@ import DemoShell from '../../components/DemoShell.astro';
 import { route, type Lang } from '../../i18n/routes';
 import { uiStrings } from '../../i18n/ui';
 import { LIVE_KEYS } from '../../lib/live';
+import { FIELDS, MAX_FILE_BYTES, MAX_FILE_ROWS, STAGES } from '../../lib/credit';
 
 interface Props {
   lang: Lang;
@@ -10,175 +11,2771 @@ interface Props {
 const { lang } = Astro.props;
 const s = uiStrings(lang, [...LIVE_KEYS]);
 const pt = lang === 'pt';
-// Valores das categorias = os do dataset German Credit (OpenML credit-g) usados no treino.
-const selects = [
-  {
-    name: 'checking_status',
-    label: pt ? 'Conta corrente (DM)' : 'Checking account (DM)',
-    options: ['<0', '0<=X<200', '>=200', 'no checking'],
-    value: 'no checking',
-  },
-  {
-    name: 'credit_history',
-    label: pt ? 'Histórico de crédito' : 'Credit history',
-    options: ['existing paid', 'critical/other existing credit', 'delayed previously', 'all paid'],
-    value: 'existing paid',
-  },
-  {
-    name: 'purpose',
-    label: pt ? 'Finalidade' : 'Purpose',
-    options: ['new car', 'used car', 'furniture/equipment', 'radio/tv', 'education', 'business'],
-    value: 'radio/tv',
-  },
-  {
-    name: 'savings_status',
-    label: pt ? 'Poupança (DM)' : 'Savings (DM)',
-    options: ['<100', '100<=X<500', '500<=X<1000', '>=1000', 'no known savings'],
-    value: '<100',
-  },
-  {
-    name: 'employment',
-    label: pt ? 'Tempo no emprego (anos)' : 'Years employed',
-    options: ['unemployed', '<1', '1<=X<4', '4<=X<7', '>=7'],
-    value: '1<=X<4',
-  },
-  { name: 'housing', label: pt ? 'Moradia' : 'Housing', options: ['own', 'rent', 'for free'], value: 'own' },
-];
-const numbers = [
-  { name: 'duration', label: pt ? 'Prazo (meses)' : 'Term (months)', min: 4, max: 72, value: 24 },
-  { name: 'credit_amount', label: pt ? 'Valor (DM)' : 'Amount (DM)', min: 250, max: 20000, value: 3000 },
-  { name: 'age', label: pt ? 'Idade' : 'Age', min: 18, max: 75, value: 35 },
-];
+const kb = Math.round(MAX_FILE_BYTES / 1024);
 const L = pt
   ? {
-      run: 'Calcular',
+      introTitle: 'Um modelo de crédito de verdade, etapa por etapa',
+      introText:
+        'É o pipeline da mlops-platform: o @champion do MLflow, treinado no German Credit e servido pelo scoring interno. No modo ao vivo, você monta um perfil e vê cada etapa rodar no servidor. No modo lote, valida e pontua um CSV inteiro.',
+      kpis: [
+        ['1.000', 'casos no credit-g'],
+        ['18', 'variáveis de entrada'],
+        ['6', 'etapas ao vivo'],
+        [String(MAX_FILE_ROWS), 'linhas por CSV'],
+      ],
+      tabLive: 'ML em tempo real',
+      tabBatch: 'Lote (CSV)',
+      collectTitle: 'Monte o perfil',
+      collectHint: 'Converse com o agente ou preencha o formulário. O que você não souber, o pipeline imputa.',
+      chat: 'Conversa',
+      form: 'Formulário',
+      presets: 'Perfil pronto:',
+      presetLow: 'risco baixo',
+      presetHigh: 'risco alto',
+      clear: 'Recomeçar',
+      send: 'Enviar',
+      placeholder: 'Responda com suas palavras…',
+      dontKnow: 'não sei',
+      intro:
+        'Oi! Vou montar o perfil com 18 perguntas curtas, as mesmas variáveis que o modelo usa. Responda com suas palavras, toque numa opção ou diga "não sei" (o pipeline preenche com o valor típico do dataset).',
+      understood: 'Entendi:',
+      outside: 'fora do que o modelo viu no treino',
+      doneChat: 'Pronto, perfil completo. Confira o resumo e rode o pipeline.',
+      editing: 'Vamos corrigir',
+      profile: 'Perfil',
+      answered: 'respondidos',
+      imputed: 'vão ser imputados',
+      edit: 'corrigir',
+      run: 'Rodar o pipeline',
+      running: 'Rodando…',
+      agentNote:
+        'O agente roda no seu navegador, com regras e sinônimos (sem LLM). Só o perfil final vai para o pipeline.',
+      pipeTitle: 'O pipeline, etapa por etapa',
+      pipeHint: 'As etapas levam cerca de 100 ms no servidor; a página mostra uma por vez, com o tempo medido lá.',
+      onServer: 'no servidor',
+      stages: {
+        raw: 'Dados crus',
+        transform: 'Data transform',
+        normalize: 'Normalização',
+        fit: 'Fit ao vivo',
+        model: 'Inferência',
+        explain: 'O que pesou',
+      },
+      stageHints: {
+        raw: 'O que chegou do agente, sem mexer: cada campo no tipo em que veio.',
+        transform: 'Texto vira número, faltante vira valor típico e cada categoria vira colunas de 0 e 1.',
+        normalize: 'Cada número vira z-score, com a média e o desvio que o champion aprendeu no treino.',
+        fit: 'Uma regressão logística treinada agora, no servidor, só para comparar.',
+        model: 'O champion calcula o log-odds e a sigmoide transforma em probabilidade.',
+        explain: 'Cada variável trocada pelo valor típico: quanto a probabilidade se mexe.',
+      },
+      pending: 'na fila',
+      types: { string: 'texto', number: 'número', null: 'vazio' },
+      kFields: 'campos',
+      kCasts: 'conversões de tipo',
+      kImputed: 'imputados',
+      kOnehot: 'categóricas',
+      kMatrix: 'matriz final',
+      kAuc: 'AUC no teste',
+      kIter: 'iterações',
+      kFitMs: 'ms de treino',
+      kBaseP: 'risco (baseline)',
+      kTrees: 'árvores',
+      kVersion: 'versão',
+      kEstimator: 'estimador',
+      model: 'Modelo',
+      excluded: 'Fora do modelo por desenho (atributos protegidos):',
+      casts: 'Tipos convertidos',
+      missing: 'Faltantes preenchidos',
+      median: 'mediana',
+      mode: 'moda',
+      encoding: 'One-hot: a coluna que fica em 1',
+      infrequent: 'rara no treino: balde "infrequent"',
+      unseen: 'nunca vista no treino: tudo 0',
+      warnings: 'Avisos',
+      scaler: 'z = (x − média) / desvio. 0 é a média do treino; além de ±2 é um valor incomum.',
+      mean: 'média',
+      percentile: 'percentil',
+      train: 'treino',
+      test: 'teste',
+      fitNote: 'Só para comparar: quem decide é o champion, treinado e promovido pelos gates do MLflow.',
+      logOdds: 'log-odds',
+      sigmoid: 'sigmoide',
+      cutoff: 'corte',
+      explainNote: 'Barra para a direita: a variável aumentou o risco. Para a esquerda: reduziu. Em pontos percentuais.',
+      typical: 'típico',
+      nothing: 'Nenhuma variável mudou a probabilidade em mais de 0,01 p.p.',
+      resultTitle: 'Resultado',
+      resultHint: 'Probabilidade de inadimplência e a decisão pelo corte do champion.',
       prob: 'Probabilidade de inadimplência',
       approve: 'aprovar',
       review: 'mandar para análise',
-      model: 'modelo',
-      note: 'O German Credit é de um banco alemão dos anos 70 (valores em marcos). Sexo e estrangeiro ficam fora do modelo, e a diferença de desempenho entre faixas de idade é um dos critérios para promover. Quem responde é o @champion do MLflow.',
+      threshold: 'corte',
+      baseline: 'baseline ao vivo',
+      top: 'O que mais pesou',
+      raised: 'aumenta o risco',
+      lowered: 'reduz o risco',
+      invalid: 'O pipeline recusou o perfil:',
+      // lote
+      step1: 'Gere um arquivo de teste ou use o seu',
+      step1Hint: 'Dois CSVs de exemplo, gerados no seu navegador: um limpo e um com erros plantados.',
+      valid: 'Baixar CSV válido',
+      withErrors: 'Baixar CSV com erros',
+      schema: 'Colunas e valores aceitos',
+      schemaNote: `Uma coluna por variável (o cabeçalho é obrigatório; "id" é opcional e volta no resultado). Vírgula ou ponto e vírgula. Até ${MAX_FILE_ROWS} linhas e ${kb} KB.`,
+      step2: 'Envie e valide',
+      batchNote: 'O arquivo é tratado como dado não confiável: lido com o módulo csv do Python, sem eval, com limite de tamanho e de linhas. Validar não gasta cota.',
+      choose: 'Arquivo CSV',
+      validate: 'Validar',
+      validating: 'Validando…',
+      tooBig: `O arquivo passa de ${kb} KB.`,
+      pick: 'Escolha um arquivo .csv primeiro.',
+      ok: 'Arquivo correto: todas as linhas podem ir para o score.',
+      notOk: 'O arquivo tem problemas. Arrume o que está abaixo e envie de novo, ou faça o score só das linhas válidas.',
+      rows: 'linhas',
+      validRows: 'válidas',
+      invalidRows: 'com erro',
+      fileErrors: 'Problemas no arquivo',
+      colWarnings: 'Colunas',
+      summary: 'Problemas por coluna',
+      field: 'campo',
+      value: 'valor',
+      line: 'linha',
+      problem: 'o que arrumar',
+      warning: 'aviso',
+      error: 'erro',
+      step3: 'Faça o score',
+      step3Hint: 'Só as linhas válidas vão para o modelo. O lote inteiro conta como 1 uso.',
+      scoring: 'Calculando…',
+      download: 'Baixar resultado (CSV)',
+      scored: 'com score',
+      skipped: 'puladas',
+      avg: 'probabilidade média',
+      hist: 'Distribuição das probabilidades',
+      csvNote: 'O CSV de volta traz cada linha com status, probabilidade e decisão. Células que começam com =, +, - ou @ ganham um apóstrofo para a planilha não executar nada.',
+      tooLarge: `O arquivo passa de ${kb} KB.`,
+      notCsv: 'Envie um arquivo .csv.',
+      rateLimited: 'Muitas validações seguidas. Espere um pouco e tente de novo.',
+      howTitle: 'O que acontece em cada etapa',
+      how: [
+        ['Dados crus', 'O agente (ou o formulário) entrega um JSON com 18 campos, sem correção no navegador: número pode chegar como texto e campo pode vir vazio. Sexo e estrangeiro nem são pedidos, porque ficam fora do modelo.'],
+        ['Data transform', 'O serviço converte os tipos, preenche os faltantes com a mediana ou a moda do credit-g e passa as 11 categóricas pelo OneHotEncoder do próprio champion. Categoria rara no treino cai no balde "infrequent".'],
+        ['Normalização', 'As 7 numéricas passam pelo StandardScaler do champion: z = (x − média) / desvio, com a média e o desvio do treino. Assim prazo em meses e valor em marcos ficam na mesma escala.'],
+        ['Fit ao vivo', 'Para mostrar que o treino é real, uma regressão logística é treinada na hora em 750 linhas e medida em 250 que ela não viu (AUC). Ela não decide nada: é a linha de base.'],
+        ['Inferência', 'O champion, o modelo que passou pelos gates do MLflow, calcula o log-odds; a sigmoide vira probabilidade de inadimplência e o corte decide entre aprovar e mandar para análise.'],
+        ['O que pesou', 'Cada variável é trocada pelo valor típico do credit-g e o modelo roda de novo. A diferença, em pontos percentuais, mostra o que empurrou o risco para cima ou para baixo.'],
+      ],
+      note: 'O German Credit (OpenML credit-g, UCI) é de um banco alemão dos anos 70, com valores em marcos. Sexo e estrangeiro ficam fora do modelo, e a diferença de desempenho entre faixas de idade é um dos gates para promover. Quem responde é o @champion do MLflow.',
     }
   : {
-      run: 'Score',
+      introTitle: 'A real credit model, step by step',
+      introText:
+        "It's the mlops-platform pipeline: the MLflow @champion, trained on German Credit and served by the internal scoring service. In live mode, you build a profile and watch each step run on the server. In batch mode, you validate and score a whole CSV.",
+      kpis: [
+        ['1,000', 'credit-g cases'],
+        ['18', 'input variables'],
+        ['6', 'live steps'],
+        [String(MAX_FILE_ROWS), 'rows per CSV'],
+      ],
+      tabLive: 'Live ML',
+      tabBatch: 'Batch (CSV)',
+      collectTitle: 'Build the profile',
+      collectHint: "Chat with the agent or fill in the form. Whatever you don't know, the pipeline imputes.",
+      chat: 'Chat',
+      form: 'Form',
+      presets: 'Ready profile:',
+      presetLow: 'low risk',
+      presetHigh: 'high risk',
+      clear: 'Start over',
+      send: 'Send',
+      placeholder: 'Answer in your own words…',
+      dontKnow: "don't know",
+      intro:
+        'Hi! I\'ll build the profile with 18 short questions, the same variables the model uses. Answer in your own words, tap an option or say "don\'t know" (the pipeline fills it with the dataset\'s typical value).',
+      understood: 'Got it:',
+      outside: 'outside what the model saw in training',
+      doneChat: 'Done, the profile is complete. Check the summary and run the pipeline.',
+      editing: "Let's fix",
+      profile: 'Profile',
+      answered: 'answered',
+      imputed: 'will be imputed',
+      edit: 'fix',
+      run: 'Run the pipeline',
+      running: 'Running…',
+      agentNote: 'The agent runs in your browser, with rules and synonyms (no LLM). Only the final profile goes to the pipeline.',
+      pipeTitle: 'The pipeline, step by step',
+      pipeHint: 'The steps take about 100 ms on the server; the page shows one at a time, with the time measured there.',
+      onServer: 'on the server',
+      stages: {
+        raw: 'Raw data',
+        transform: 'Data transform',
+        normalize: 'Normalization',
+        fit: 'Live fit',
+        model: 'Inference',
+        explain: 'What weighed',
+      },
+      stageHints: {
+        raw: 'What came from the agent, untouched: each field in the type it arrived in.',
+        transform: 'Text becomes numbers, missing values become typical ones and each category becomes 0/1 columns.',
+        normalize: 'Each number becomes a z-score, with the mean and sd the champion learned in training.',
+        fit: 'A logistic regression trained right now, on the server, just for comparison.',
+        model: 'The champion computes the log-odds and the sigmoid turns it into a probability.',
+        explain: 'Each variable swapped for its typical value: how much the probability moves.',
+      },
+      pending: 'queued',
+      types: { string: 'text', number: 'number', null: 'empty' },
+      kFields: 'fields',
+      kCasts: 'type casts',
+      kImputed: 'imputed',
+      kOnehot: 'categoricals',
+      kMatrix: 'final matrix',
+      kAuc: 'test AUC',
+      kIter: 'iterations',
+      kFitMs: 'ms to train',
+      kBaseP: 'risk (baseline)',
+      kTrees: 'trees',
+      kVersion: 'version',
+      kEstimator: 'estimator',
+      model: 'Model',
+      excluded: 'Left out of the model by design (protected attributes):',
+      casts: 'Types cast',
+      missing: 'Missing values filled',
+      median: 'median',
+      mode: 'mode',
+      encoding: 'One-hot: the column set to 1',
+      infrequent: 'rare in training: "infrequent" bucket',
+      unseen: 'never seen in training: all 0',
+      warnings: 'Warnings',
+      scaler: 'z = (x − mean) / sd. 0 is the training mean; beyond ±2 is an unusual value.',
+      mean: 'mean',
+      percentile: 'percentile',
+      train: 'train',
+      test: 'test',
+      fitNote: 'Only for comparison: the champion decides, trained and promoted through the MLflow gates.',
+      logOdds: 'log-odds',
+      sigmoid: 'sigmoid',
+      cutoff: 'cutoff',
+      explainNote: 'Bar to the right: the variable raised the risk. To the left: lowered it. In percentage points.',
+      typical: 'typical',
+      nothing: 'No variable moved the probability by more than 0.01 p.p.',
+      resultTitle: 'Result',
+      resultHint: "Probability of default and the decision by the champion's cutoff.",
       prob: 'Probability of default',
       approve: 'approve',
       review: 'send to review',
-      model: 'model',
-      note: "German Credit comes from a 1970s German bank (amounts in Deutsche Marks). Sex and foreign-worker status are left out of the model, and the performance gap between age groups is one of the promotion gates. The answer comes from the @champion in MLflow.",
+      threshold: 'cutoff',
+      baseline: 'live baseline',
+      top: 'What weighed the most',
+      raised: 'raises the risk',
+      lowered: 'lowers the risk',
+      invalid: 'The pipeline refused the profile:',
+      step1: 'Generate a test file or use yours',
+      step1Hint: 'Two sample CSVs, generated in your browser: a clean one and one with planted errors.',
+      valid: 'Download valid CSV',
+      withErrors: 'Download CSV with errors',
+      schema: 'Columns and accepted values',
+      schemaNote: `One column per variable (the header is required; "id" is optional and comes back in the result). Comma or semicolon. Up to ${MAX_FILE_ROWS} rows and ${kb} KB.`,
+      step2: 'Upload and validate',
+      batchNote: "The file is treated as untrusted data: read with Python's csv module, no eval, with size and row limits. Validating doesn't use the quota.",
+      choose: 'CSV file',
+      validate: 'Validate',
+      validating: 'Validating…',
+      tooBig: `The file is over ${kb} KB.`,
+      pick: 'Pick a .csv file first.',
+      ok: 'The file is correct: every row can be scored.',
+      notOk: 'The file has problems. Fix what is below and upload again, or score only the valid rows.',
+      rows: 'rows',
+      validRows: 'valid',
+      invalidRows: 'with errors',
+      fileErrors: 'File problems',
+      colWarnings: 'Columns',
+      summary: 'Problems by column',
+      field: 'field',
+      value: 'value',
+      line: 'line',
+      problem: 'what to fix',
+      warning: 'warning',
+      error: 'error',
+      step3: 'Score it',
+      step3Hint: 'Only the valid rows go to the model. The whole batch counts as 1 use.',
+      scoring: 'Scoring…',
+      download: 'Download result (CSV)',
+      scored: 'scored',
+      skipped: 'skipped',
+      avg: 'mean probability',
+      hist: 'Distribution of probabilities',
+      csvNote: 'The CSV that comes back has each row with status, probability and decision. Cells starting with =, +, - or @ get an apostrophe so the spreadsheet runs nothing.',
+      tooLarge: `The file is over ${kb} KB.`,
+      notCsv: 'Upload a .csv file.',
+      rateLimited: 'Too many validations in a row. Wait a bit and try again.',
+      howTitle: 'What happens in each step',
+      how: [
+        ['Raw data', "The agent (or the form) sends a JSON with 18 fields, uncorrected in the browser: a number may arrive as text and a field may be empty. Sex and foreign-worker status aren't even asked, because they're left out of the model."],
+        ['Data transform', "The service casts the types, fills missing values with the credit-g median or mode and runs the 11 categoricals through the champion's own OneHotEncoder. A category rare in training falls into the \"infrequent\" bucket."],
+        ['Normalization', "The 7 numeric variables go through the champion's StandardScaler: z = (x − mean) / sd, with the training mean and sd. That puts months and Deutsche Marks on the same scale."],
+        ['Live fit', "To show the training is real, a logistic regression is trained on the spot on 750 rows and measured on 250 it didn't see (AUC). It decides nothing: it's the baseline."],
+        ['Inference', 'The champion, the model that passed the MLflow gates, computes the log-odds; the sigmoid turns it into a probability of default and the cutoff decides between approving and sending to review.'],
+        ['What weighed', 'Each variable is swapped for its typical credit-g value and the model runs again. The difference, in percentage points, shows what pushed the risk up or down.'],
+      ],
+      note: 'German Credit (OpenML credit-g, UCI) comes from a 1970s German bank, with amounts in Deutsche Marks. Sex and foreign-worker status are left out of the model, and the performance gap between age groups is one of the promotion gates. The answer comes from the @champion in MLflow.',
     };
+const groups = [
+  { key: 'loan', title: pt ? 'O pedido' : 'The request' },
+  { key: 'money', title: pt ? 'Situação financeira' : 'Finances' },
+  { key: 'person', title: pt ? 'Sobre a pessoa' : 'About the person' },
+];
+const { kpis, how, ...plain } = L;
+const client = { ...plain, groups };
 ---
 
 <DemoShell lang={lang} demo="demoCredit">
-  <div class="demo" id="credit" data-s={JSON.stringify(s)} data-l={JSON.stringify(L)} data-login={route('login', lang)}>
-    <p class="notice" data-gate>…</p>
-    <form class="grid-form" data-live hidden>
-      {
-        selects.map((f) => (
-          <div class="field">
-            <label for={`c-${f.name}`}>{f.label}</label>
-            <select id={`c-${f.name}`} name={f.name}>
-              {f.options.map((o) => (
-                <option value={o} selected={o === f.value}>
-                  {o}
-                </option>
-              ))}
-            </select>
-          </div>
-        ))
-      }
-      {
-        numbers.map((f) => (
-          <div class="field">
-            <label for={`c-${f.name}`}>{f.label}</label>
-            <input id={`c-${f.name}`} name={f.name} type="number" min={f.min} max={f.max} value={f.value} required />
-          </div>
-        ))
-      }
-      <div class="actions full">
-        <button class="btn primary" type="submit">{L.run}</button>
-        <span class="muted" data-remaining></span>
+  <div class="credit" id="credit" data-lang={lang} data-s={JSON.stringify(s)} data-l={JSON.stringify(client)} data-login={route('login', lang)}>
+    <section class="panel intro">
+      <div>
+        <h2>{L.introTitle}</h2>
+        <p class="hint">{L.introText}</p>
       </div>
-    </form>
-    <p class="notice error" id="c-error" hidden></p>
-    <div class="card out" id="c-out" hidden>
-      <span class="muted">{L.prob}</span>
-      <strong class="big mono" id="c-prob"></strong>
-      <span id="c-decision"></span>
-      <span class="muted small mono" id="c-model"></span>
+      <div class="kpis">
+        {
+          kpis.map(([v, label]) => (
+            <div class="kpi">
+              <span class="kpi-v mono">{v}</span>
+              <span class="kpi-l">{label}</span>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+
+    <p class="notice" data-gate>…</p>
+
+    <div class="live" data-live hidden>
+      <div class="topbar">
+        <div class="tabs" role="tablist">
+          <button type="button" role="tab" class="tab" id="tab-live" aria-selected="true" aria-controls="panel-live">{L.tabLive}</button>
+          <button type="button" role="tab" class="tab" id="tab-batch" aria-selected="false" aria-controls="panel-batch">{L.tabBatch}</button>
+        </div>
+        <span class="quota mono" data-remaining></span>
+      </div>
+
+      <div id="panel-live" role="tabpanel" aria-labelledby="tab-live" class="mode">
+        <div class="collect-grid">
+          <section class="panel collect">
+            <div class="panel-head">
+              <div>
+                <h2>{L.collectTitle}</h2>
+                <p class="hint">{L.collectHint}</p>
+              </div>
+              <div class="seg" role="group" aria-label={L.collectTitle}>
+                <button type="button" class="seg-btn" data-mode="chat" aria-pressed="true">{L.chat}</button>
+                <button type="button" class="seg-btn" data-mode="form" aria-pressed="false">{L.form}</button>
+              </div>
+            </div>
+            <div class="presets">
+              <span class="hint small">{L.presets}</span>
+              <button type="button" class="chip" data-preset="low">{L.presetLow}</button>
+              <button type="button" class="chip" data-preset="high">{L.presetHigh}</button>
+              <button type="button" class="chip ghost" id="clear">{L.clear}</button>
+            </div>
+
+            <div class="chat" id="chat">
+              <ol class="msgs" id="msgs" aria-live="polite"></ol>
+              <div class="chips" id="chips"></div>
+              <form class="chat-input" id="chat-form" autocomplete="off">
+                <input id="chat-text" maxlength="80" placeholder={L.placeholder} aria-label={L.placeholder} />
+                <button class="btn primary" type="submit">{L.send}</button>
+              </form>
+            </div>
+
+            <form class="guided" id="guided" hidden>
+              {
+                groups.map((g) => (
+                  <fieldset>
+                    <legend>{g.title}</legend>
+                    <div class="grid-form">
+                      {FIELDS.filter((f) => f.group === g.key).map((f) => (
+                        <div class="field">
+                          <label for={`f-${f.name}`}>{f.label[lang]}</label>
+                          {f.kind === 'cat' ? (
+                            <select id={`f-${f.name}`} name={f.name}>
+                              <option value="">— {L.dontKnow} —</option>
+                              {f.options!.map((op) => (
+                                <option value={op.value}>{op.label[lang]}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              id={`f-${f.name}`}
+                              name={f.name}
+                              type="number"
+                              inputmode={f.kind === 'int' ? 'numeric' : 'decimal'}
+                              step={f.kind === 'int' ? '1' : 'any'}
+                              min={f.minExclusive ? undefined : f.min}
+                              max={f.max}
+                              placeholder={L.dontKnow}
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </fieldset>
+                ))
+              }
+            </form>
+          </section>
+
+          <aside class="panel profile" id="profile">
+            <div class="profile-head">
+              <svg class="ring" viewBox="0 0 44 44" aria-hidden="true">
+                <circle class="ring-track" cx="22" cy="22" r="18"></circle>
+                <circle class="ring-fill" id="ring" cx="22" cy="22" r="18" stroke-dasharray="0 113.1" transform="rotate(-90 22 22)"></circle>
+              </svg>
+              <div>
+                <h2>{L.profile}</h2>
+                <p class="hint small mono" id="count"></p>
+              </div>
+            </div>
+            <div id="summary" class="summary"></div>
+            <div class="run">
+              <button class="btn primary" type="button" id="run">{L.run}</button>
+              <span class="hint small" id="imputed"></span>
+            </div>
+            <p class="hint small">{L.agentNote}</p>
+          </aside>
+        </div>
+
+        <p class="notice error" id="live-error" hidden></p>
+
+        <section class="panel pipe" id="pipe" hidden>
+          <div class="panel-head">
+            <div>
+              <h2>{L.pipeTitle}</h2>
+              <p class="hint">{L.pipeHint}</p>
+            </div>
+            <div class="kpi compact">
+              <span class="kpi-v mono" id="total-ms">0 ms</span>
+              <span class="kpi-l">{L.onServer}</span>
+            </div>
+          </div>
+          <ol class="rail" id="rail">
+            {
+              STAGES.map((id, i) => (
+                <li class="rail-step" data-stage={id}>
+                  <span class="rail-dot mono">{i + 1}</span>
+                  <span class="rail-label">{L.stages[id]}</span>
+                </li>
+              ))
+            }
+          </ol>
+          <ol class="stages" id="stages"></ol>
+        </section>
+
+        <section class="panel result" id="result" hidden>
+          <div class="gauge-box">
+            <svg id="gauge" class="gauge" viewBox="0 0 220 134" role="img" aria-labelledby="prob-value"></svg>
+            <span class="kpi-l">{L.prob}</span>
+            <span class="prob mono" id="prob-value"></span>
+            <span class="badge-dec" id="decision"></span>
+          </div>
+          <div class="result-side">
+            <div class="panel-head">
+              <div>
+                <h2>{L.resultTitle}</h2>
+                <p class="hint">{L.resultHint}</p>
+              </div>
+            </div>
+            <div class="kpis" id="result-kpis"></div>
+            <h3 class="sub">{L.top}</h3>
+            <div id="result-top"></div>
+          </div>
+        </section>
+      </div>
+
+      <div id="panel-batch" role="tabpanel" aria-labelledby="tab-batch" class="mode" hidden>
+        <section class="panel bstep">
+          <span class="step-n mono">1</span>
+          <div class="bstep-body">
+            <h2>{L.step1}</h2>
+            <p class="hint">{L.step1Hint}</p>
+            <div class="actions">
+              <button class="btn" type="button" data-sample="valid">{L.valid}</button>
+              <button class="btn" type="button" data-sample="errors">{L.withErrors}</button>
+            </div>
+            <details>
+              <summary>{L.schema}</summary>
+              <p class="hint small">{L.schemaNote}</p>
+              <div class="table-wrap">
+                <table class="schema">
+                  <tbody>
+                    {
+                      FIELDS.map((f) => (
+                        <tr>
+                          <td class="mono">{f.name}</td>
+                          <td>
+                            {f.kind === 'cat'
+                              ? f.options!.map((op) => op.value).join(' · ')
+                              : `${f.kind === 'int' ? (pt ? 'inteiro' : 'integer') : pt ? 'número' : 'number'} ${f.minExclusive ? '>' : ''}${f.min}–${f.max}`}
+                          </td>
+                        </tr>
+                      ))
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          </div>
+        </section>
+
+        <section class="panel bstep">
+          <span class="step-n mono">2</span>
+          <div class="bstep-body">
+            <h2>{L.step2}</h2>
+            <p class="hint">{L.batchNote}</p>
+            <div class="upload">
+              <div class="field">
+                <label for="file">{L.choose}</label>
+                <input id="file" type="file" accept=".csv,text/csv" />
+              </div>
+              <button class="btn primary" type="button" id="validate">{L.validate}</button>
+            </div>
+            <p class="notice error" id="batch-error" hidden></p>
+            <div id="report" class="report" hidden></div>
+          </div>
+        </section>
+
+        <section class="panel bstep" id="score-step" hidden>
+          <span class="step-n mono">3</span>
+          <div class="bstep-body">
+            <h2>{L.step3}</h2>
+            <p class="hint">{L.step3Hint}</p>
+            <div class="actions">
+              <button class="btn primary" type="button" id="score"></button>
+            </div>
+            <div id="scored" class="report" hidden></div>
+          </div>
+        </section>
+      </div>
     </div>
-    <p class="muted small">{L.note}</p>
+
+    <section class="how">
+      <h2>{L.howTitle}</h2>
+      <ol class="steps">
+        {
+          how.map(([title, text], i) => (
+            <li class="panel step">
+              <span class="step-n mono">{i + 1}</span>
+              <div>
+                <h3>{title}</h3>
+                <p>{text}</p>
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+      <p class="hint small note">{L.note}</p>
+    </section>
   </div>
 </DemoShell>
 
 <script>
-  import { api, liveError } from '../../lib/api';
-  import { buildApplicant } from '../../lib/credit';
+  import { errorFrom, liveError, readSse, type ApiError } from '../../lib/api';
+  import {
+    FIELD,
+    FIELDS,
+    MAX_FILE_BYTES,
+    PRESETS,
+    STAGES,
+    afterGate,
+    label,
+    nextField,
+    num,
+    parseAnswer,
+    pct,
+    pipelineBody,
+    pp,
+    sampleCsv,
+    show,
+    type Draft,
+    type Field,
+    type Lang,
+    type StageId,
+    type Value,
+  } from '../../lib/credit';
+  import { arcPath, diverging, histogram, logOddsDomain, polar, sigmoidPath, sigmoidScale, zPos } from '../../lib/creditCharts';
   import { gate } from '../../lib/live';
+
+  type Dict = Record<string, unknown>;
+  type Strings = Record<string, string> & {
+    stages: Record<StageId, string>;
+    stageHints: Record<StageId, string>;
+    types: Record<string, string>;
+    groups: { key: string; title: string }[];
+  };
 
   const root = document.getElementById('credit');
   if (root) {
+    const lang = root.dataset.lang as Lang;
     const s = JSON.parse(root.dataset.s!) as Record<string, string>;
-    const L = JSON.parse(root.dataset.l!) as Record<string, string>;
-    const form = root.querySelector<HTMLFormElement>('form')!;
-    const $ = (id: string) => document.getElementById(id)!;
-    form.addEventListener('submit', async (e) => {
+    const L = JSON.parse(root.dataset.l!) as Strings;
+    const $ = <E extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as E;
+    const NS = 'http://www.w3.org/2000/svg';
+
+    function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text?: string | number): HTMLElementTagNameMap[K] {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text !== undefined) e.textContent = String(text);
+      return e;
+    }
+    function svg(tag: string, attrs: Record<string, string | number>, text?: string): SVGElement {
+      const e = document.createElementNS(NS, tag);
+      for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, String(v));
+      if (text !== undefined) e.textContent = text;
+      return e;
+    }
+    function table(head: string[], rows: (string | number | Node)[][], cls = ''): HTMLElement {
+      const wrap = el('div', 'table-wrap');
+      const t = el('table', cls);
+      const tr = el('tr');
+      head.forEach((h) => tr.append(el('th', '', h)));
+      t.append(el('thead'));
+      t.tHead!.append(tr);
+      const body = el('tbody');
+      for (const r of rows) {
+        const row = el('tr');
+        for (const c of r) {
+          const td = el('td');
+          if (c instanceof Node) td.append(c);
+          else td.textContent = String(c);
+          row.append(td);
+        }
+        body.append(row);
+      }
+      t.append(body);
+      wrap.append(t);
+      return wrap;
+    }
+    const code = (text: string) => el('code', '', text);
+    /** Faixa de KPIs: [valor, rótulo, classe opcional]. */
+    function kpis(items: [string | number, string, string?][]): HTMLElement {
+      const box = el('div', 'kpis');
+      for (const [v, l, cls] of items) {
+        const k = el('div', `kpi ${cls ?? ''}`.trim());
+        k.append(el('span', 'kpi-v mono', v), el('span', 'kpi-l', l));
+        box.append(k);
+      }
+      return box;
+    }
+    const sub = (text: string) => el('h3', 'sub', text);
+    /** Barras divergentes de impacto (p.p.): direita aumenta o risco, esquerda reduz. */
+    function impactChart(items: { name: string; value: Value; reference?: Value; impact: number }[]): HTMLElement {
+      const max = Math.max(...items.map((f) => Math.abs(f.impact)), 1e-9);
+      const box = el('div', 'impacts');
+      const legend = el('div', 'legend');
+      const l1 = el('span');
+      l1.append(el('span', 'sw down'), L.lowered);
+      const l2 = el('span');
+      l2.append(el('span', 'sw up'), L.raised);
+      legend.append(l1, l2);
+      box.append(legend);
+      for (const f of items) {
+        const row = el('div', 'imp');
+        const name = el('div', 'imp-name');
+        name.append(el('strong', '', label(f.name, lang)), el('span', 'hint small', ` ${show(f.name, f.value, lang)}${f.reference !== undefined ? ` · ${L.typical}: ${show(f.name, f.reference, lang)}` : ''}`));
+        const track = el('div', 'imp-track');
+        const bar = el('span', f.impact > 0 ? 'imp-bar up' : 'imp-bar down');
+        const g = diverging(f.impact, max);
+        bar.style.left = `${g.left}%`;
+        bar.style.width = `${Math.max(g.width, 0.6)}%`;
+        track.append(el('span', 'imp-zero'), bar);
+        row.append(name, el('span', `imp-val mono ${f.impact > 0 ? 'up' : 'down'}`, pp(f.impact, lang)), track);
+        box.append(row);
+      }
+      return box;
+    }
+
+    let canSpend = false;
+    const spendButtons = () => [$<HTMLButtonElement>('run'), $<HTMLButtonElement>('score')];
+    async function refreshGate() {
+      const g = await gate(root!, 'score', s);
+      const after = afterGate(Boolean(g.me?.user), g.ready);
+      root!.querySelector<HTMLElement>('[data-live]')!.hidden = !after.showLive;
+      canSpend = after.canSpend;
+      spendButtons().forEach((b) => (b.disabled = !canSpend));
+    }
+
+    // ------------------------------------------------------------ abas
+    const tabs = { live: $('tab-live'), batch: $('tab-batch') };
+    const panels = { live: $('panel-live'), batch: $('panel-batch') };
+    (Object.keys(tabs) as (keyof typeof tabs)[]).forEach((k) =>
+      tabs[k].addEventListener('click', () => {
+        for (const other of Object.keys(tabs) as (keyof typeof tabs)[]) {
+          tabs[other].setAttribute('aria-selected', String(other === k));
+          panels[other].hidden = other !== k;
+        }
+      }),
+    );
+
+    // ------------------------------------------------------------ perfil (compartilhado por conversa e formulário)
+    let draft: Draft = {};
+    let mode: 'chat' | 'form' = 'chat';
+    const msgs = $('msgs');
+    const chips = $('chips');
+    const chatText = $<HTMLInputElement>('chat-text');
+    const guided = $<HTMLFormElement>('guided');
+
+    function say(who: 'agent' | 'user', text: string, cls = '') {
+      msgs.append(el('li', `msg ${who} ${cls}`.trim(), text));
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    function trainWarning(f: Field, v: Value): string {
+      if (f.kind === 'cat' || v === null || !f.train) return '';
+      const n = Number(v);
+      return n < f.train[0] || n > f.train[1] ? ` (${L.outside}: ${f.train[0]}–${f.train[1]})` : '';
+    }
+
+    function renderSummary() {
+      const box = $('summary');
+      box.replaceChildren();
+      let answered = 0;
+      for (const g of L.groups) {
+        box.append(el('h3', 'sub', g.title));
+        const dl = el('dl');
+        for (const f of FIELDS.filter((x) => x.group === g.key)) {
+          const has = f.name in draft;
+          const v = draft[f.name];
+          if (has && v !== null && v !== '') answered++;
+          const dt = el('dt', '', f.label[lang]);
+          const dd = el('dd', has ? '' : 'empty', has ? show(f.name, v, lang) : '—');
+          if (has) {
+            const b = el('button', 'link', L.edit);
+            b.type = 'button';
+            b.addEventListener('click', () => edit(f.name));
+            dd.append(' ', b);
+          }
+          dl.append(dt, dd);
+        }
+        box.append(dl);
+      }
+      $('count').textContent = `${answered}/${FIELDS.length} ${L.answered}`;
+      const C = 2 * Math.PI * 18;
+      $('ring').setAttribute('stroke-dasharray', `${((answered / FIELDS.length) * C).toFixed(2)} ${C.toFixed(2)}`);
+      const missing = FIELDS.length - answered;
+      $('imputed').textContent = missing ? `${missing} ${L.imputed}` : '';
+    }
+
+    function setChips(f: Field | null) {
+      chips.replaceChildren();
+      if (!f) return;
+      const add = (text: string, answer: string) => {
+        const b = el('button', 'chip', text);
+        b.type = 'button';
+        b.addEventListener('click', () => answer && respond(answer, text));
+        chips.append(b);
+      };
+      if (f.kind === 'cat') f.options!.forEach((op) => add(op.label[lang], op.value));
+      add(L.dontKnow, L.dontKnow);
+    }
+
+    function ask() {
+      const f = nextField(draft);
+      setChips(f);
+      if (f) say('agent', f.ask[lang]);
+      else say('agent', L.doneChat, 'done');
+      chatText.disabled = !f;
+    }
+
+    function respond(answer: string, shown = answer) {
+      const f = nextField(draft);
+      if (!f) return;
+      say('user', shown);
+      const r = parseAnswer(f, answer, lang);
+      if (!r.ok) {
+        say('agent', r.hint, 'hint');
+        return;
+      }
+      draft[f.name] = r.value;
+      say('agent', `${L.understood} ${show(f.name, r.value, lang)}${trainWarning(f, r.value)}`, 'quiet');
+      renderSummary();
+      ask();
+    }
+
+    function edit(name: string) {
+      delete draft[name];
+      renderSummary();
+      if (mode === 'chat') {
+        say('agent', `${L.editing}: ${label(name, lang)}.`, 'quiet');
+        ask();
+      } else {
+        writeForm();
+        guided.querySelector<HTMLElement>(`[name="${name}"]`)?.focus();
+      }
+    }
+
+    function writeForm() {
+      for (const f of FIELDS) {
+        const input = guided.elements.namedItem(f.name) as HTMLInputElement | HTMLSelectElement | null;
+        if (input) input.value = draft[f.name] === null || draft[f.name] === undefined ? '' : String(draft[f.name]);
+      }
+    }
+
+    guided.addEventListener('input', (e) => {
+      const input = e.target as HTMLInputElement | HTMLSelectElement;
+      // O formulário devolve texto, inclusive nos números: o pipeline mostra a conversão de tipo.
+      draft[input.name] = input.value === '' ? null : input.value;
+      renderSummary();
+    });
+
+    $<HTMLFormElement>('chat-form').addEventListener('submit', (e) => {
       e.preventDefault();
-      if (!form.reportValidity()) return;
-      const applicant = buildApplicant(Object.fromEntries(new FormData(form)) as Record<string, string>);
-      $('c-error').hidden = true;
+      const text = chatText.value.trim();
+      if (!text) return;
+      chatText.value = '';
+      respond(text);
+      chatText.focus();
+    });
+
+    function setMode(m: 'chat' | 'form') {
+      mode = m;
+      root!.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
+      $('chat').hidden = m !== 'chat';
+      guided.hidden = m !== 'form';
+      if (m === 'form') writeForm();
+      else {
+        msgs.replaceChildren();
+        say('agent', L.intro);
+        ask();
+      }
+    }
+    root.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) =>
+      b.addEventListener('click', () => setMode(b.dataset.mode as 'chat' | 'form')),
+    );
+    root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((b) =>
+      b.addEventListener('click', () => {
+        draft = { ...PRESETS[b.dataset.preset as 'low' | 'high'] };
+        renderSummary();
+        setMode(mode);
+      }),
+    );
+    $('clear').addEventListener('click', () => {
+      draft = {};
+      renderSummary();
+      setMode(mode);
+    });
+
+    // ------------------------------------------------------------ pipeline ao vivo
+    const stagesEl = $('stages');
+    const rail = new Map<StageId, HTMLElement>();
+    root.querySelectorAll<HTMLElement>('.rail-step').forEach((li) => rail.set(li.dataset.stage as StageId, li));
+    const stageNodes = new Map<StageId, { li: HTMLElement; body: HTMLElement; state: HTMLElement }>();
+    let totalMs = 0;
+
+    function setState(id: StageId, state: 'pending' | 'active' | 'done') {
+      const node = stageNodes.get(id);
+      if (node) {
+        node.li.className = `stage ${state}`;
+        if (state === 'active') node.state.textContent = L.running;
+      }
+      const r = rail.get(id);
+      if (r) r.className = `rail-step ${state}`;
+    }
+
+    function resetStages() {
+      stagesEl.replaceChildren();
+      stageNodes.clear();
+      totalMs = 0;
+      $('total-ms').textContent = '0 ms';
+      STAGES.forEach((id, i) => {
+        const li = el('li', 'stage pending');
+        const head = el('div', 'stage-head');
+        const title = el('div', 'stage-title');
+        title.append(el('h3', '', L.stages[id]), el('p', 'hint small', L.stageHints[id]));
+        const state = el('span', 'stage-state mono', L.pending);
+        head.append(el('span', 'step-n mono', i + 1), title, state);
+        const body = el('div', 'stage-body');
+        li.append(head, body);
+        stagesEl.append(li);
+        stageNodes.set(id, { li, body, state });
+        setState(id, 'pending');
+      });
+    }
+
+    function rawValue(f: { name: string; value: unknown; type: string }): HTMLElement {
+      if (f.value === null || f.value === undefined) return el('span', 'tile-v empty mono', '∅');
+      return el('span', 'tile-v mono', typeof f.value === 'string' && FIELD[f.name]?.kind !== 'cat' ? `"${f.value}"` : String(f.value));
+    }
+
+    function sigmoidChart(logOdds: number, p: number, threshold: number | null): SVGElement {
+      const frame = { w: 320, h: 190, pad: 28 };
+      const lim = logOddsDomain(logOdds);
+      const sc = sigmoidScale(frame, lim);
+      const root2 = svg('svg', { viewBox: `0 0 ${frame.w} ${frame.h}`, class: 'sig', role: 'img', 'aria-label': `${L.sigmoid}: ${L.logOdds} ${num(logOdds, lang, 2)} → ${pct(p, lang)}` });
+      for (const v of [0, 0.5, 1]) root2.append(svg('line', { x1: frame.pad, x2: frame.w - frame.pad, y1: sc.y(v), y2: sc.y(v), class: 'grid' }));
+      root2.append(svg('line', { x1: sc.x(0), x2: sc.x(0), y1: sc.y(0), y2: sc.y(1), class: 'grid' }));
+      if (threshold !== null) {
+        root2.append(svg('line', { x1: frame.pad, x2: frame.w - frame.pad, y1: sc.y(threshold), y2: sc.y(threshold), class: 'cut' }));
+        root2.append(svg('text', { x: frame.w - frame.pad, y: sc.y(threshold) - 5, class: 'cut-label', 'text-anchor': 'end' }, `${L.cutoff} ${pct(threshold, lang, 0)}`));
+      }
+      root2.append(svg('path', { d: sigmoidPath(frame, lim), class: 'curve' }));
+      const x = sc.x(logOdds);
+      const y = sc.y(p);
+      root2.append(svg('line', { x1: x, x2: x, y1: y, y2: sc.y(0), class: 'guide' }));
+      root2.append(svg('line', { x1: frame.pad, x2: x, y1: y, y2: y, class: 'guide' }));
+      const high = threshold !== null && p >= threshold;
+      root2.append(svg('circle', { cx: x, cy: y, r: 6, class: high ? 'dot up' : 'dot down' }));
+      const ty = frame.h - 8;
+      root2.append(svg('text', { x: frame.pad, y: ty, class: 'tick', 'text-anchor': 'middle' }, `−${lim}`));
+      root2.append(svg('text', { x: sc.x(0), y: ty, class: 'tick', 'text-anchor': 'middle' }, '0'));
+      root2.append(svg('text', { x: frame.w - frame.pad, y: ty, class: 'tick', 'text-anchor': 'middle' }, `+${lim}`));
+      root2.append(svg('text', { x: 4, y: sc.y(1) + 4, class: 'tick' }, '1'));
+      root2.append(svg('text', { x: 4, y: sc.y(0) + 4, class: 'tick' }, '0'));
+      root2.append(svg('text', { x: x + (logOdds > lim * 0.4 ? -10 : 10), y: y - 10, class: 'dot-label', 'text-anchor': logOdds > lim * 0.4 ? 'end' : 'start' }, pct(p, lang)));
+      return root2;
+    }
+
+    const render: Record<StageId, (d: Dict) => Node[]> = {
+      raw(d) {
+        const fields = d.fields as { name: string; value: unknown; type: string }[];
+        const count = (t: string) => fields.filter((f) => f.type === t).length;
+        const m = d.model as { name: string; alias: string; version: string };
+        const tiles = el('div', 'tiles');
+        for (const f of fields) {
+          const t = el('div', `tile t-${f.type}`);
+          const head = el('span', 'tile-l');
+          const dot = el('span', `type-dot t-${f.type}`);
+          dot.title = L.types[f.type] ?? f.type;
+          head.append(dot, el('span', 'tile-name', label(f.name, lang)));
+          t.title = `${f.name} · ${L.types[f.type] ?? f.type}`;
+          t.append(head, rawValue(f));
+          tiles.append(t);
+        }
+        const meta = el('p', 'hint small');
+        meta.append(`${L.model}: `, code(`${m.name}@${m.alias}`), ` v${m.version}. ${L.excluded} `, ...(d.excluded as string[]).flatMap((x, i) => [i ? ', ' : '', code(x)]));
+        return [
+          kpis([
+            [fields.length, L.kFields],
+            [count('number'), L.types.number, 'accent'],
+            [count('string'), L.types.string, 'accent2'],
+            [count('null'), L.types.null, 'warn'],
+          ]),
+          tiles,
+          meta,
+        ];
+      },
+      transform(d) {
+        const casts = (d.casts as { name: string; from: string; to: string; raw: unknown; value: unknown; coerced: boolean }[]).filter((c) => c.coerced);
+        const imputed = d.imputed as { name: string; value: Value; strategy: string }[];
+        const enc = d.encoding as { name: string; value: string; column: string | null; infrequent: boolean; seen_in_training: boolean; n_columns: number; active_index?: number | null }[];
+        const shape = d.shape as number[] | null;
+        const out: Node[] = [
+          kpis([
+            [casts.length, L.kCasts, casts.length ? 'accent2' : ''],
+            [imputed.length, L.kImputed, imputed.length ? 'warn' : ''],
+            [enc.length, L.kOnehot],
+            [shape ? `${shape[0]}×${shape[1]}` : '—', L.kMatrix, 'accent'],
+          ]),
+        ];
+        if (casts.length) {
+          out.push(sub(L.casts));
+          const list = el('div', 'pills');
+          for (const c of casts) {
+            const p = el('span', 'pill');
+            p.append(el('strong', '', label(c.name, lang)), ' ', code(JSON.stringify(c.raw)), el('span', 'arrow', '→'), code(String(c.value)), el('span', 'hint small', ` ${c.to}`));
+            list.append(p);
+          }
+          out.push(list);
+        }
+        if (imputed.length) {
+          out.push(sub(L.missing));
+          const list = el('div', 'pills');
+          for (const i of imputed) {
+            const p = el('span', 'pill warnish');
+            p.append(el('strong', '', label(i.name, lang)), el('span', 'arrow', '←'), show(i.name, i.value, lang), el('span', 'hint small', ` ${i.strategy === 'median' ? L.median : L.mode}`));
+            list.append(p);
+          }
+          out.push(list);
+        }
+        if (enc.length) {
+          out.push(sub(L.encoding));
+          const box = el('div', 'onehot');
+          for (const e of enc) {
+            const row = el('div', 'oh-row');
+            const name = el('div', 'oh-name');
+            name.append(el('strong', '', label(e.name, lang)), ' ', el('code', '', e.value));
+            if (!e.seen_in_training) name.append(el('span', 'tag warn', L.unseen));
+            else if (e.infrequent) name.append(el('span', 'tag warn', L.infrequent));
+            const cells = el('div', 'oh-cells');
+            cells.setAttribute('aria-label', e.column ?? L.unseen);
+            for (let k = 0; k < e.n_columns; k++) cells.append(el('span', k === e.active_index ? 'oh-cell on' : 'oh-cell', k === e.active_index ? 1 : 0));
+            row.append(name, cells);
+            box.append(row);
+          }
+          out.push(box);
+        }
+        const warnings = d.warnings as { column: string; message: string }[];
+        if (warnings.length) {
+          out.push(sub(L.warnings));
+          const list = el('ul', 'plain small warn');
+          warnings.forEach((w) => {
+            const li = el('li');
+            li.append(code(w.column), `: ${w.message}`);
+            list.append(li);
+          });
+          out.push(list);
+        }
+        return out;
+      },
+      normalize(d) {
+        const rows = d.rows as { name: string; before: number; mean: number; std: number; after: number; percentile: number }[];
+        if (!rows.length) return [el('p', 'hint small', '—')];
+        const box = el('div', 'zplot');
+        const axis = el('div', 'zrow zaxis');
+        const ticks = el('div', 'ztrack ticks');
+        for (const t of [-3, -2, -1, 0, 1, 2, 3]) {
+          const tk = el('span', 'ztick mono', t > 0 ? `+${t}` : t === 0 ? '0' : `−${-t}`);
+          tk.style.left = `${zPos(t)}%`;
+          ticks.append(tk);
+        }
+        axis.append(el('span'), ticks, el('span', 'zval mono', 'z'));
+        box.append(axis);
+        for (const r of rows) {
+          const row = el('div', 'zrow');
+          const name = el('div', 'zname');
+          name.append(el('strong', '', label(r.name, lang)), el('span', 'hint small', ` ${num(r.before, lang)} · ${L.mean} ${num(r.mean, lang, 1)} ± ${num(r.std, lang, 1)}`));
+          const track = el('div', 'ztrack');
+          const seg = el('span', r.after >= 0 ? 'zseg pos' : 'zseg neg');
+          const a = zPos(Math.min(0, r.after));
+          const b = zPos(Math.max(0, r.after));
+          seg.style.left = `${a}%`;
+          seg.style.width = `${b - a}%`;
+          const dot = el('span', r.after >= 0 ? 'zdot pos' : 'zdot neg');
+          dot.style.left = `${zPos(r.after)}%`;
+          track.append(el('span', 'zband'), el('span', 'zzero'), seg, dot);
+          const val = el('span', 'zval mono');
+          val.append(`${r.after > 0 ? '+' : ''}${num(r.after, lang, 2)}`, el('small', '', `p${Math.round(r.percentile * 100)}`));
+          row.append(name, track, val);
+          box.append(row);
+        }
+        return [el('p', 'hint small', L.scaler), box];
+      },
+      fit(d) {
+        const train = d.rows_train as number;
+        const test = d.rows_test as number;
+        const split = el('div', 'split');
+        const a = el('span', 'split-train', `${train} ${L.train}`);
+        const b = el('span', 'split-test', `${test} ${L.test}`);
+        a.style.flexGrow = String(train);
+        b.style.flexGrow = String(test);
+        split.append(a, b);
+        const params = d.params as { C: number };
+        return [
+          kpis([
+            [num(d.holdout_auc as number, lang, 3), L.kAuc, 'accent'],
+            [d.iterations as number, L.kIter],
+            [num(d.fit_ms as number, lang, 1), L.kFitMs],
+            [pct(d.probability as number, lang), L.kBaseP, 'accent2'],
+          ]),
+          split,
+          el('p', 'hint small', `LogisticRegression(C=${params.C}, class_weight="balanced") · ${L.fitNote}`),
+        ];
+      },
+      model(d) {
+        const params = (d.params ?? {}) as { learning_rate?: number; max_depth?: number };
+        const p = d.probability as number;
+        const thr = typeof d.threshold === 'number' ? d.threshold : null;
+        const out: Node[] = [
+          kpis([
+            // Quebra só entre as palavras do CamelCase (HistGradientBoosting).
+            [String(d.estimator).replace('Classifier', '').replace(/([a-z])([A-Z])/g, '$1​$2'), L.kEstimator, 'long'],
+            [d.trees ? String(d.trees) : '—', L.kTrees],
+            [`v${d.version}`, L.kVersion],
+            [pct(p, lang), L.prob, thr !== null && p >= thr ? 'warn' : 'ok'],
+          ]),
+        ];
+        if (typeof d.log_odds === 'number') {
+          const wrap = el('div', 'sig-wrap');
+          wrap.append(sigmoidChart(d.log_odds, p, thr));
+          const f = el('p', 'formula mono');
+          f.append(`${L.logOdds} = ${num(d.log_odds, lang, 3)} → ${L.sigmoid} → `, el('strong', '', pct(p, lang)));
+          if (d.trees) f.append(el('span', 'hint', ` · lr ${params.learning_rate ?? '—'}, depth ${params.max_depth ?? '—'}`));
+          wrap.append(f);
+          out.push(wrap);
+        }
+        return out;
+      },
+      explain(d) {
+        const feats = d.features as { name: string; value: Value; reference: Value; impact: number }[];
+        if (!feats.length) return [el('p', 'hint small', L.nothing)];
+        return [el('p', 'hint small', L.explainNote), impactChart(feats)];
+      },
+    };
+
+    function showStage(d: Dict) {
+      const id = d.id as StageId;
+      const node = stageNodes.get(id);
+      if (!node) return;
+      setState(id, 'done');
+      const ms = d.ms as number;
+      totalMs += ms;
+      $('total-ms').textContent = `${num(totalMs, lang, 1)} ms`;
+      node.state.textContent = `✓ ${num(ms, lang, 1)} ms`;
+      node.body.replaceChildren(...render[id](d));
+      const i = STAGES.indexOf(id);
+      if (i + 1 < STAGES.length) setState(STAGES[i + 1], 'active');
+    }
+
+    function gaugeSvg(p: number, threshold: number) {
+      const g = $('gauge') as unknown as SVGElement;
+      const cx = 110;
+      const cy = 110;
+      const r = 86;
+      g.replaceChildren(
+        svg('path', { d: arcPath(cx, cy, r, 0, 1), class: 'g-track' }),
+        svg('path', { d: arcPath(cx, cy, r, 0, threshold), class: 'g-zone ok' }),
+        svg('path', { d: arcPath(cx, cy, r, threshold, 1), class: 'g-zone warn' }),
+      );
+      // 0% e 100% embaixo das pontas do arco; o corte fica do lado de fora, onde ele cai.
+      g.append(svg('text', { x: cx - r, y: cy + 18, class: 'tick', 'text-anchor': 'middle' }, pct(0, lang, 0)));
+      g.append(svg('text', { x: cx + r, y: cy + 18, class: 'tick', 'text-anchor': 'middle' }, pct(1, lang, 0)));
+      const [tx, ty] = polar(cx, cy, r + 14, threshold);
+      g.append(svg('line', { x1: polar(cx, cy, r - 9, threshold)[0], y1: polar(cx, cy, r - 9, threshold)[1], x2: polar(cx, cy, r + 9, threshold)[0], y2: polar(cx, cy, r + 9, threshold)[1], class: 'g-cut' }));
+      g.append(svg('text', { x: tx.toFixed(1), y: (ty + 3).toFixed(1), class: 'tick', 'text-anchor': threshold < 0.4 ? 'end' : threshold > 0.6 ? 'start' : 'middle' }, `${L.cutoff} ${pct(threshold, lang, 0)}`));
+      const [nx, ny] = polar(cx, cy, r - 14, p);
+      g.append(svg('line', { x1: cx, y1: cy, x2: nx.toFixed(1), y2: ny.toFixed(1), class: 'needle' }), svg('circle', { cx, cy, r: 6, class: 'hub' }));
+    }
+
+    function showResult(d: Dict) {
+      const p = d.default_probability as number;
+      const thr = d.threshold as number;
+      const approve = d.decision === 'approve';
+      gaugeSvg(p, thr);
+      $('prob-value').textContent = pct(p, lang);
+      const dec = $('decision');
+      dec.className = `badge-dec ${approve ? 'ok' : 'warn'}`;
+      dec.textContent = approve ? `✓ ${L.approve}` : `⚑ ${L.review}`;
+      const items: [string | number, string, string?][] = [
+        [pct(thr, lang, 0), L.threshold],
+        [`v${d.model_version}`, '@champion'],
+      ];
+      if (d.baseline_probability != null) items.push([pct(d.baseline_probability as number, lang), L.baseline, 'accent2']);
+      $('result-kpis').replaceWith(Object.assign(kpis(items), { id: 'result-kpis' }));
+      const feats = d.top_features as { name: string; value: Value; impact: number }[];
+      const top = $('result-top');
+      top.replaceChildren(feats.length ? impactChart(feats) : el('p', 'hint small', L.nothing));
+      const box = $('result');
+      box.classList.toggle('is-ok', approve);
+      box.classList.toggle('is-warn', !approve);
+      box.hidden = false;
+    }
+
+    const runBtn = $<HTMLButtonElement>('run');
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    runBtn.addEventListener('click', async () => {
+      runBtn.disabled = true;
+      runBtn.textContent = L.running;
+      $('live-error').hidden = true;
+      $('result').hidden = true;
+      resetStages();
+      $('pipe').hidden = false;
+      setState(STAGES[0], 'active');
+      $('pipe').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Os eventos chegam juntos (o servidor leva ~100 ms); a página revela um por vez.
+      const queue: [string, Dict][] = [];
+      let streamDone = false;
+      const reveal = (async () => {
+        for (;;) {
+          const item = queue.shift();
+          if (!item) {
+            if (streamDone) return;
+            await wait(40);
+            continue;
+          }
+          const [event, data] = item;
+          if (event === 'stage') {
+            showStage(data);
+            await wait(450);
+          } else if (event === 'result') showResult(data);
+          else if (event === 'error') throw { status: 502 } as ApiError;
+        }
+      })();
       try {
-        // O portal recebe o candidato direto no corpo (campos extras são recusados).
-        const r = await api<{ model_version: string; prediction: { default_probability: number; decision: string } }>(
-          '/api/demo/score',
-          { method: 'POST', body: JSON.stringify(applicant) },
-        );
-        const p = r.prediction;
-        $('c-out').hidden = false;
-        $('c-prob').textContent = `${(p.default_probability * 100).toFixed(1)}%`;
-        $('c-decision').textContent = p.decision === 'approve' ? `✓ ${L.approve}` : `⚑ ${L.review}`;
-        $('c-decision').className = p.decision === 'approve' ? 'ok' : 'warn';
-        $('c-model').textContent = `${L.model} v${r.model_version}`;
-        await gate(root, 'score', s);
+        const res = await fetch('/api/demo/score/pipeline', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
+          body: JSON.stringify(pipelineBody(draft, lang)),
+        });
+        if (!res.ok) {
+          const body = (await res.clone().json().catch(() => null)) as { detail?: { problems?: { column: string; message: string }[] } } | null;
+          const problems = body?.detail?.problems;
+          if (res.status === 422 && problems?.length) {
+            streamDone = true;
+            $('pipe').hidden = true;
+            const box = $('live-error');
+            box.replaceChildren(el('span', '', L.invalid));
+            const ul = el('ul', 'plain');
+            problems.forEach((p) => {
+              const li = el('li');
+              li.append(code(p.column), `: ${p.message}`);
+              ul.append(li);
+            });
+            box.append(ul);
+            box.hidden = false;
+            return;
+          }
+          throw await errorFrom(res);
+        }
+        await readSse(res, (event, data) => queue.push([event, data as Dict]));
+        streamDone = true;
+        await reveal;
+        await refreshGate();
       } catch (err) {
-        $('c-error').hidden = false;
-        $('c-error').textContent = liveError(err, s);
+        streamDone = true;
+        $('live-error').textContent = liveError(err, s);
+        $('live-error').hidden = false;
+      } finally {
+        streamDone = true;
+        runBtn.disabled = !canSpend;
+        runBtn.textContent = L.run;
       }
     });
-    void gate(root, 'score', s);
+
+    // ------------------------------------------------------------ lote
+    function download(text: string, name: string) {
+      const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+      const a = el('a');
+      a.href = url;
+      a.download = name;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    root.querySelectorAll<HTMLButtonElement>('[data-sample]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const kind = b.dataset.sample as 'valid' | 'errors';
+        const name = lang === 'pt' ? `credito-exemplo-${kind === 'valid' ? 'valido' : 'com-erros'}.csv` : `credit-sample-${kind}.csv`;
+        download(sampleCsv(kind), name);
+      }),
+    );
+
+    const fileInput = $<HTMLInputElement>('file');
+    const batchError = $('batch-error');
+    const report = $('report');
+    const scoreStep = $('score-step');
+    const scoreBtn = $<HTMLButtonElement>('score');
+    let checked: ArrayBuffer | null = null;
+
+    function batchFail(text: string) {
+      batchError.textContent = text;
+      batchError.hidden = false;
+    }
+
+    async function readFile(): Promise<ArrayBuffer | null> {
+      batchError.hidden = true;
+      const file = fileInput.files?.[0];
+      if (!file) return batchFail(L.pick), null;
+      if (file.size > MAX_FILE_BYTES) return batchFail(L.tooBig), null;
+      return file.arrayBuffer();
+    }
+
+    function batchMessage(err: unknown): string {
+      const e = err as ApiError;
+      if (e?.status === 413) return L.tooLarge;
+      if (e?.status === 415) return L.notCsv;
+      if (e?.status === 429 && e.reason === 'rate_limited') return L.rateLimited;
+      return liveError(err, s);
+    }
+
+    async function post(path: string, body: ArrayBuffer): Promise<Response> {
+      return fetch(`${path}?lang=${lang}`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'text/csv' },
+        body,
+      });
+    }
+
+    /** Barra empilhada: partes proporcionais ao valor. */
+    function stack(parts: [number, string][]): HTMLElement {
+      const bar = el('div', 'stack');
+      for (const [n, cls] of parts) {
+        if (!n) continue;
+        const part = el('span', cls);
+        part.style.flexGrow = String(n);
+        bar.append(part);
+      }
+      return bar;
+    }
+
+    type Problem = { row: number; column: string; code: string; message: string; value: string | null; severity: string };
+    type Report = {
+      ok: boolean;
+      rows: number;
+      valid_rows: number;
+      invalid_rows: number;
+      file_errors: { code: string; message: string }[];
+      column_warnings: { column: string; message: string }[];
+      problems: Problem[];
+      problems_total: number;
+      truncated: boolean;
+      summary: { column: string; code: string; severity: string; count: number }[];
+    };
+
+    function renderReport(r: Report) {
+      report.replaceChildren();
+      const okAll = r.ok && !r.file_errors.length;
+      report.append(el('p', okAll ? 'notice ok' : 'notice error', okAll ? L.ok : L.notOk));
+      if (!r.file_errors.length) {
+        report.append(
+          kpis([
+            [r.rows, L.rows],
+            [r.valid_rows, L.validRows, 'ok'],
+            [r.invalid_rows, L.invalidRows, r.invalid_rows ? 'bad' : ''],
+          ]),
+          stack([
+            [r.valid_rows, 'ok'],
+            [r.invalid_rows, 'bad'],
+          ]),
+        );
+      }
+      if (r.file_errors.length) {
+        report.append(sub(L.fileErrors));
+        const ul = el('ul', 'plain');
+        r.file_errors.forEach((e) => ul.append(el('li', '', e.message)));
+        report.append(ul);
+      }
+      if (r.column_warnings.length) {
+        report.append(sub(L.colWarnings));
+        const ul = el('ul', 'plain small');
+        r.column_warnings.forEach((w) => {
+          const li = el('li');
+          li.append(code(w.column), `: ${w.message}`);
+          ul.append(li);
+        });
+        report.append(ul);
+      }
+      if (r.summary.length) {
+        report.append(sub(L.summary));
+        const max = Math.max(...r.summary.map((x) => x.count));
+        const box = el('div', 'bars');
+        for (const x of r.summary) {
+          const row = el('div', 'bar-row');
+          const name = el('span', 'bar-name');
+          // "*" é problema da linha inteira (número de campos), não de uma coluna.
+          name.append(x.column && x.column !== '*' ? code(x.column) : el('strong', '', L.line),el('span', 'hint small', ` ${x.severity === 'error' ? L.error : L.warning}: ${x.code}`));
+          const track = el('span', 'bar-track');
+          const fillEl = el('span', `bar-fill ${x.severity === 'error' ? 'bad' : 'warn'}`);
+          fillEl.style.width = `${(x.count / max) * 100}%`;
+          track.append(fillEl);
+          row.append(name, track, el('span', 'mono bar-n', x.count));
+          box.append(row);
+        }
+        report.append(box);
+      }
+      if (r.problems.length) {
+        report.append(sub(`${L.line} × ${L.field}`));
+        const box = el('div', 'scroll');
+        box.append(
+          table(
+            [L.line, L.field, L.value, L.problem],
+            r.problems.map((p) => [
+              p.row,
+              code(p.column),
+              p.value === null ? '∅' : el('code', '', p.value),
+              el('span', p.severity === 'error' ? '' : 'warn', p.message),
+            ]),
+            'problems',
+          ),
+        );
+        report.append(box);
+        if (r.truncated) report.append(el('p', 'hint small', lang === 'pt' ? `Mostrando os primeiros; são ${r.problems_total} no total.` : `Showing the first ones; there are ${r.problems_total} in total.`));
+      }
+      report.hidden = false;
+      scoreStep.hidden = !r.valid_rows;
+      scoreBtn.textContent = lang === 'pt' ? `Fazer o score das ${r.valid_rows} linhas válidas (usa 1 da cota)` : `Score the ${r.valid_rows} valid rows (uses 1 of the quota)`;
+      $('scored').hidden = true;
+    }
+
+    fileInput.addEventListener('change', () => {
+      checked = null;
+      report.hidden = true;
+      scoreStep.hidden = true;
+      batchError.hidden = true;
+    });
+
+    const validateBtn = $<HTMLButtonElement>('validate');
+    validateBtn.addEventListener('click', async () => {
+      const body = await readFile();
+      if (!body) return;
+      validateBtn.disabled = true;
+      validateBtn.textContent = L.validating;
+      try {
+        const res = await post('/api/demo/score/batch/validate', body);
+        if (!res.ok) throw await errorFrom(res);
+        renderReport((await res.json()) as Report);
+        checked = body;
+      } catch (err) {
+        batchFail(batchMessage(err));
+      } finally {
+        validateBtn.disabled = false;
+        validateBtn.textContent = L.validate;
+      }
+    });
+
+    function histChart(probs: number[], threshold: number): SVGElement {
+      const W = 320;
+      const H = 164;
+      const pad = 10;
+      // Espaço em cima para o rótulo do corte não encostar na contagem da barra mais alta.
+      const top = 34;
+      const bottom = 22;
+      const bins = histogram(probs, 10);
+      const max = Math.max(...bins, 1);
+      const bw = (W - 2 * pad) / bins.length;
+      const g = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'hist', role: 'img', 'aria-label': L.hist });
+      g.append(svg('line', { x1: pad, x2: W - pad, y1: H - bottom, y2: H - bottom, class: 'grid' }));
+      bins.forEach((n, i) => {
+        const h = (n / max) * (H - top - bottom);
+        const x = pad + i * bw + 2;
+        const mid = (i + 0.5) / bins.length;
+        g.append(svg('rect', { x: x.toFixed(1), y: (H - bottom - h).toFixed(1), width: (bw - 4).toFixed(1), height: h.toFixed(1), rx: 3, class: mid >= threshold ? 'hbar up' : 'hbar down' }));
+        if (n) g.append(svg('text', { x: (x + (bw - 4) / 2).toFixed(1), y: (H - bottom - h - 4).toFixed(1), class: 'tick', 'text-anchor': 'middle' }, String(n)));
+      });
+      const tx = pad + threshold * (W - 2 * pad);
+      g.append(svg('line', { x1: tx, x2: tx, y1: 6, y2: H - bottom, class: 'cut' }));
+      g.append(svg('text', { x: tx + 4, y: 12, class: 'cut-label' }, `${L.cutoff} ${pct(threshold, lang, 0)}`));
+      for (const v of [0, 0.5, 1]) g.append(svg('text', { x: pad + v * (W - 2 * pad), y: H - 6, class: 'tick', 'text-anchor': v === 0 ? 'start' : v === 1 ? 'end' : 'middle' }, pct(v, lang, 0)));
+      return g;
+    }
+
+    scoreBtn.addEventListener('click', async () => {
+      if (!checked) return;
+      scoreBtn.disabled = true;
+      const label0 = scoreBtn.textContent;
+      scoreBtn.textContent = L.scoring;
+      try {
+        const res = await post('/api/demo/score/batch', checked);
+        if (res.status === 422) {
+          const body = (await res.json().catch(() => null)) as { detail?: { report?: Report } } | null;
+          if (body?.detail?.report) {
+            renderReport(body.detail.report);
+            return;
+          }
+        }
+        if (!res.ok) throw await errorFrom(res);
+        const data = (await res.json()) as {
+          model_version: string;
+          threshold: number;
+          results: { line: number; id: string | null; status: string; default_probability: number | null; decision: string | null }[];
+          csv: string;
+        };
+        const box = $('scored');
+        box.replaceChildren();
+        const scored = data.results.filter((r) => r.status === 'scored');
+        const probs = scored.map((r) => r.default_probability ?? 0);
+        const mean = probs.reduce((a, b) => a + b, 0) / Math.max(1, probs.length);
+        const approve = scored.filter((r) => r.decision === 'approve').length;
+        const skipped = data.results.length - scored.length;
+        const dl = el('button', 'btn primary', L.download);
+        dl.type = 'button';
+        dl.addEventListener('click', () => download(data.csv, lang === 'pt' ? 'credito-score.csv' : 'credit-score.csv'));
+        const chart = el('div', 'hist-box');
+        chart.append(sub(L.hist), histChart(probs, data.threshold));
+        const shown = data.results.slice(0, 50);
+        box.append(
+          kpis([
+            [scored.length, L.scored, 'accent'],
+            [approve, L.approve, 'ok'],
+            [scored.length - approve, L.review, 'warn'],
+            [pct(mean, lang), L.avg],
+          ]),
+          stack([
+            [approve, 'ok'],
+            [scored.length - approve, 'warn'],
+            [skipped, 'bad'],
+          ]),
+          el('p', 'hint small mono', `@champion v${data.model_version} · ${L.threshold} ${pct(data.threshold, lang, 0)}${skipped ? ` · ${skipped} ${L.skipped}` : ''}`),
+          chart,
+          dl,
+          el('p', 'hint small', L.csvNote),
+          table(
+            [L.line, 'id', 'status', L.prob, ''],
+            shown.map((r) => [
+              r.line,
+              r.id ?? '',
+              r.status,
+              r.default_probability === null ? '—' : pct(r.default_probability, lang),
+              r.decision === null ? '' : el('span', r.decision === 'approve' ? 'ok' : 'warn', r.decision === 'approve' ? `✓ ${L.approve}` : `⚑ ${L.review}`),
+            ]),
+          ),
+        );
+        if (data.results.length > shown.length) box.append(el('p', 'hint small', lang === 'pt' ? `Primeiras ${shown.length} de ${data.results.length} linhas.` : `First ${shown.length} of ${data.results.length} rows.`));
+        box.hidden = false;
+        await refreshGate();
+      } catch (err) {
+        batchFail(batchMessage(err));
+      } finally {
+        scoreBtn.disabled = !canSpend;
+        scoreBtn.textContent = label0;
+      }
+    });
+
+    // ------------------------------------------------------------ início
+    renderSummary();
+    setMode('chat');
+    void refreshGate();
   }
 </script>
 
-<style>
-  .demo {
-    max-width: 900px;
+<style is:global>
+  /* Estilos globais com prefixo #credit: boa parte do DOM é criada pelo script, e o CSS com escopo não chega nele. */
+  #credit {
     display: grid;
-    gap: 18px;
+    gap: 16px;
+    padding-bottom: 48px;
+    min-width: 0;
   }
-  .grid-form {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
-    gap: 14px;
+  #credit > *,
+  #credit .mode > *,
+  #credit .collect-grid > * {
+    min-width: 0;
   }
-  .full {
-    grid-column: 1 / -1;
-    align-items: center;
+  #credit .panel {
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    min-width: 0;
   }
-  .out {
-    gap: 4px;
+  #credit h2 {
+    font-size: 17px;
+    margin: 0;
+    letter-spacing: -0.01em;
   }
-  .big {
-    font-size: 36px;
-  }
-  .small {
-    font-size: 14px;
+  #credit h3 {
     margin: 0;
   }
-  .ok {
+  #credit .hint {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 4px 0 0;
+  }
+  #credit .small {
+    font-size: 13px;
+  }
+  #credit .panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px 16px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  #credit .sub {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 14px 0 8px;
+  }
+  #credit code {
+    font-size: 0.92em;
+    overflow-wrap: anywhere;
+  }
+  #credit .ok {
     color: var(--ok);
+  }
+  #credit .warn {
+    color: var(--warn);
+  }
+  #credit .bad {
+    color: var(--danger);
+  }
+  #credit ul.plain {
+    margin: 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 3px;
+  }
+
+  /* Abertura e KPIs */
+  #credit .intro {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: 20px;
+    align-items: center;
+  }
+  #credit .kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 112px), 1fr));
+    gap: 10px;
+  }
+  #credit .intro .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #credit .kpi {
+    display: grid;
+    gap: 2px;
+    align-content: start;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--bg-soft) 60%, transparent);
+    min-width: 0;
+  }
+  #credit .kpi.compact {
+    padding: 8px 12px;
+    text-align: right;
+  }
+  #credit .kpi-v {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+  #credit .kpi-l {
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  #credit .kpi.long .kpi-v {
+    font-size: 14px;
+    line-height: 1.35;
+    padding-top: 4px;
+  }
+  #credit .kpi.accent .kpi-v {
+    color: var(--accent);
+  }
+  #credit .kpi.accent2 .kpi-v {
+    color: var(--accent2);
+  }
+  #credit .kpi.ok .kpi-v {
+    color: var(--ok);
+  }
+  #credit .kpi.warn .kpi-v {
+    color: var(--warn);
+  }
+  #credit .kpi.bad .kpi-v {
+    color: var(--danger);
+  }
+
+  /* Abas e cota */
+  #credit .live,
+  #credit .mode {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+  }
+  #credit .topbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    align-items: center;
+    justify-content: space-between;
+  }
+  #credit .tabs {
+    display: inline-flex;
+    padding: 4px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    box-shadow: var(--shadow);
+    max-width: 100%;
+  }
+  #credit .tab {
+    font: inherit;
+    font-weight: 600;
+    font-size: 14.5px;
+    background: none;
+    border: 0;
+    border-radius: 999px;
+    padding: 9px 18px;
+    color: var(--muted);
+    cursor: pointer;
+    min-height: 40px;
+  }
+  #credit .tab[aria-selected='true'] {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  #credit .quota {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* Coleta */
+  #credit .collect-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  #credit .collect {
+    display: grid;
+    gap: 12px;
+  }
+  #credit .collect .panel-head {
+    margin-bottom: 0;
+  }
+  #credit .seg {
+    display: inline-flex;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 3px;
+    background: var(--bg-soft);
+  }
+  #credit .seg-btn {
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    padding: 7px 14px;
+    color: var(--muted);
+    cursor: pointer;
+    min-height: 36px;
+  }
+  #credit .seg-btn[aria-pressed='true'] {
+    background: var(--panel);
+    color: var(--text);
+    box-shadow: var(--shadow);
+  }
+  #credit .presets,
+  #credit .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  #credit .presets .hint {
+    margin: 0 4px 0 0;
+  }
+  #credit .chip {
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    padding: 6px 12px;
+    cursor: pointer;
+    text-align: left;
+    min-height: 34px;
+  }
+  #credit .chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  #credit .chip.ghost {
+    border-style: dashed;
+    color: var(--muted);
+  }
+  #credit .chat {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: var(--bg-soft);
+  }
+  #credit .msgs {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    height: 340px;
+    overflow-y: auto;
+  }
+  #credit .msg {
+    max-width: 88%;
+    padding: 9px 13px;
+    border-radius: 14px;
+    font-size: 14.5px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+  #credit .msg.agent {
+    align-self: flex-start;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-bottom-left-radius: 4px;
+  }
+  #credit .msg.user {
+    align-self: flex-end;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-bottom-right-radius: 4px;
+  }
+  #credit .msg.quiet {
+    color: var(--muted);
+    font-size: 13.5px;
+    background: transparent;
+    border-style: dashed;
+  }
+  #credit .msg.hint {
+    border-color: var(--warn);
+    margin: 0;
+    color: var(--text);
+  }
+  #credit .msg.done {
+    border-color: var(--ok);
+  }
+  #credit .chat-input {
+    display: flex;
+    gap: 8px;
+  }
+  #credit .chat-input input {
+    flex: 1;
+    min-width: 0;
+  }
+  #credit .guided fieldset {
+    border: 0;
+    padding: 0;
+    margin: 0 0 12px;
+    min-width: 0;
+  }
+  #credit .guided legend {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  #credit .grid-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr));
+    gap: 12px;
+  }
+
+  /* Perfil */
+  #credit .profile {
+    display: grid;
+    gap: 6px;
+  }
+  #credit .profile-head {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  #credit .profile-head .hint {
+    margin: 0;
+  }
+  #credit .ring {
+    width: 48px;
+    height: 48px;
+    flex: none;
+  }
+  #credit .ring-track {
+    fill: none;
+    stroke: var(--line);
+    stroke-width: 5;
+  }
+  #credit .ring-fill {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 5;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.3s;
+  }
+  #credit .summary .sub {
+    margin: 10px 0 4px;
+  }
+  #credit .summary dl {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    gap: 3px 10px;
+    margin: 0;
+    font-size: 13.5px;
+  }
+  #credit .summary dt {
+    color: var(--muted);
+  }
+  #credit .summary dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  #credit .summary dd.empty {
+    color: var(--line-strong);
+  }
+  #credit .link {
+    font: inherit;
+    font-size: 12px;
+    background: none;
+    border: 0;
+    padding: 0;
+    color: var(--accent);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  #credit .run {
+    display: grid;
+    gap: 6px;
+    margin-top: 12px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+  #credit .run .btn {
+    width: 100%;
+  }
+  #credit .run .hint {
+    margin: 0;
+    text-align: center;
+  }
+
+  /* Trilho das etapas */
+  #credit .rail {
+    list-style: none;
+    margin: 0 0 16px;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    position: relative;
+  }
+  #credit .rail::before {
+    content: '';
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    top: 15px;
+    height: 2px;
+    background: var(--line-strong);
+  }
+  #credit .rail-step {
+    display: grid;
+    justify-items: center;
+    gap: 6px;
+    text-align: center;
+    position: relative;
+  }
+  #credit .rail-dot {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 13px;
+    font-weight: 700;
+    background: var(--panel);
+    border: 2px solid var(--line-strong);
+    color: var(--muted);
+    transition: all 0.2s;
+  }
+  #credit .rail-label {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.25;
+  }
+  #credit .rail-step.active .rail-dot {
+    border-color: var(--accent);
+    color: var(--accent);
+    animation: credit-pulse 1s ease-in-out infinite;
+  }
+  #credit .rail-step.done .rail-dot {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+  #credit .rail-step.done .rail-label,
+  #credit .rail-step.active .rail-label {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  /* Cartões das etapas */
+  #credit .stages {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+  }
+  #credit .stage {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--panel);
+    padding: 14px 16px;
+    min-width: 0;
+    transition:
+      border-color 0.2s,
+      opacity 0.2s;
+  }
+  #credit .stage.pending {
+    opacity: 0.45;
+  }
+  #credit .stage.active {
+    border-color: var(--accent);
+    animation: credit-pulse 1s ease-in-out infinite;
+  }
+  #credit .stage.done {
+    border-left: 3px solid var(--accent);
+  }
+  @keyframes credit-pulse {
+    50% {
+      box-shadow: 0 0 0 4px var(--accent-soft);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #credit .stage.active,
+    #credit .rail-step.active .rail-dot {
+      animation: none;
+    }
+  }
+  #credit .stage-head {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  #credit .stage-title {
+    flex: 1;
+    min-width: 0;
+  }
+  #credit .stage-title h3 {
+    font-size: 15.5px;
+    margin-top: 4px;
+  }
+  #credit .stage-title .hint {
+    margin-top: 2px;
+  }
+  #credit .stage-state {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    margin-top: 6px;
+  }
+  #credit .stage.done .stage-state {
+    color: var(--accent);
+  }
+  #credit .step-n {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    flex: none;
+    border-radius: 8px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    font-weight: 700;
+    font-size: 14px;
+  }
+  #credit .stage-body {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+    min-width: 0;
+  }
+  #credit .stage-body:empty {
+    display: none;
+  }
+
+  /* Dados crus */
+  #credit .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 128px), 1fr));
+    gap: 6px;
+  }
+  #credit .tile {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+    padding: 7px 9px;
+    border-radius: 8px;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    min-width: 0;
+  }
+  #credit .tile.t-string {
+    border-color: color-mix(in srgb, var(--accent2) 40%, transparent);
+  }
+  #credit .tile.t-null {
+    border-color: color-mix(in srgb, var(--warn) 45%, transparent);
+    border-style: dashed;
+  }
+  #credit .tile-l {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    color: var(--muted);
+    min-width: 0;
+  }
+  #credit .tile-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  #credit .type-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: none;
+    background: var(--accent);
+  }
+  #credit .type-dot.t-string {
+    background: var(--accent2);
+  }
+  #credit .type-dot.t-null {
+    background: var(--warn);
+  }
+  #credit .tile-v {
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+  #credit .tile-v.empty {
+    color: var(--warn);
+  }
+
+  /* Transform */
+  #credit .pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  #credit .pill {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: var(--accent2-soft);
+    max-width: 100%;
+  }
+  #credit .pill.warnish {
+    background: color-mix(in srgb, var(--warn) 12%, transparent);
+  }
+  #credit .pill .hint {
+    margin: 0;
+  }
+  #credit .arrow {
+    color: var(--muted);
+  }
+  #credit .onehot {
+    display: grid;
+    gap: 6px;
+  }
+  #credit .oh-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 12px;
+    align-items: center;
+    font-size: 13px;
+  }
+  #credit .oh-name {
+    min-width: 0;
+  }
+  #credit .oh-cells {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  #credit .oh-cell {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    display: grid;
+    place-items: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+  }
+  #credit .oh-cell.on {
+    background: var(--accent);
+    color: var(--accent-ink);
     font-weight: 700;
   }
-  .warn {
-    color: var(--warn);
+  #credit .tag {
+    font-size: 11.5px;
+    margin-left: 6px;
+  }
+
+  /* Normalização */
+  #credit .zplot {
+    display: grid;
+    gap: 8px;
+  }
+  #credit .zrow {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(110px, 1fr) 64px;
+    gap: 4px 12px;
+    align-items: center;
+    font-size: 13px;
+  }
+  #credit .zname {
+    min-width: 0;
+  }
+  #credit .ztrack {
+    position: relative;
+    height: 14px;
+  }
+  #credit .ztrack.ticks {
+    height: 14px;
+  }
+  #credit .ztick {
+    position: absolute;
+    transform: translateX(-50%);
+    font-size: 10.5px;
+    color: var(--muted);
+  }
+  /* Trilha de -3 a +3; as pontas (|z| > 2) ficam marcadas como valores incomuns. */
+  #credit .zband {
+    position: absolute;
+    inset: 5px 0;
+    border-radius: 2px;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--warn) 35%, var(--line)) 0 16.67%,
+      var(--line) 16.67% 83.33%,
+      color-mix(in srgb, var(--warn) 35%, var(--line)) 83.33%
+    );
+  }
+  #credit .zzero {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--line-strong);
+  }
+  #credit .zseg {
+    position: absolute;
+    top: 4px;
+    height: 6px;
+    border-radius: 3px;
+  }
+  #credit .zseg.pos,
+  #credit .zdot.pos {
+    background: var(--accent2);
+  }
+  #credit .zseg.neg,
+  #credit .zdot.neg {
+    background: var(--accent);
+  }
+  #credit .zdot {
+    position: absolute;
+    top: 1px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    transform: translateX(-50%);
+    border: 2px solid var(--panel);
+  }
+  #credit .zval {
+    text-align: right;
+    font-weight: 600;
+    display: grid;
+  }
+  #credit .zval small {
+    font-weight: 400;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  /* Fit */
+  #credit .split {
+    display: flex;
+    height: 26px;
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 12px;
+    font-family: var(--mono);
+  }
+  #credit .split > span {
+    display: grid;
+    place-items: center;
+    flex-basis: 0;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  #credit .split-train {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  #credit .split-test {
+    background: var(--accent2-soft);
+    color: var(--accent2);
+  }
+
+  /* Inferência */
+  #credit .sig-wrap {
+    display: grid;
+    grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
+    gap: 12px 20px;
+    align-items: center;
+  }
+  #credit .sig,
+  #credit .hist {
+    width: 100%;
+    height: auto;
+    display: block;
+    overflow: visible;
+  }
+  #credit .hist {
+    max-width: 400px;
+  }
+  #credit .grid {
+    stroke: var(--line);
+  }
+  #credit .curve {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2.5;
+  }
+  #credit .cut {
+    stroke: var(--text);
+    stroke-dasharray: 4 4;
+    stroke-opacity: 0.6;
+  }
+  #credit .cut-label,
+  #credit .tick {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    fill: var(--muted);
+  }
+  #credit .guide {
+    stroke: var(--muted);
+    stroke-dasharray: 2 3;
+  }
+  #credit .dot {
+    stroke: var(--panel);
+    stroke-width: 2;
+  }
+  #credit .dot.up,
+  #credit .hbar.up {
+    fill: var(--warn);
+  }
+  #credit .dot.down,
+  #credit .hbar.down {
+    fill: var(--ok);
+  }
+  #credit .dot-label {
+    font-family: var(--mono);
+    font-size: 12px;
     font-weight: 700;
+    fill: var(--text);
+    paint-order: stroke;
+    stroke: var(--panel);
+    stroke-width: 4px;
+  }
+  #credit .formula {
+    font-size: 13.5px;
+    background: var(--bg-soft);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  #credit .formula .hint {
+    font-size: 12.5px;
+  }
+
+  /* Impactos */
+  #credit .impacts {
+    display: grid;
+    gap: 10px;
+  }
+  #credit .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  #credit .legend > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #credit .sw {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    display: inline-block;
+  }
+  #credit .sw.up {
+    background: var(--warn);
+  }
+  #credit .sw.down {
+    background: var(--ok);
+  }
+  /* Nome e valor na primeira linha, barra embaixo: funciona em qualquer largura. */
+  #credit .imp {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 12px;
+    align-items: end;
+  }
+  #credit .imp .imp-track {
+    grid-column: 1 / -1;
+  }
+  #credit .imp-name {
+    font-size: 13.5px;
+    min-width: 0;
+  }
+  #credit .imp-name .hint {
+    margin: 0;
+  }
+  #credit .imp-track {
+    position: relative;
+    height: 14px;
+    border-radius: 4px;
+    background: var(--bg-soft);
+  }
+  #credit .imp-zero {
+    position: absolute;
+    left: 50%;
+    top: -3px;
+    bottom: -3px;
+    width: 1px;
+    background: var(--line-strong);
+  }
+  #credit .imp-bar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: 4px;
+  }
+  #credit .imp-bar.up {
+    background: var(--warn);
+  }
+  #credit .imp-bar.down {
+    background: var(--ok);
+  }
+  #credit .imp-val {
+    font-size: 13px;
+    text-align: right;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  #credit .imp-val.up {
+    color: var(--warn);
+  }
+  #credit .imp-val.down {
+    color: var(--ok);
+  }
+
+  /* Resultado */
+  #credit .result {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    gap: 24px;
+    align-items: start;
+    transition:
+      border-color 0.2s,
+      box-shadow 0.2s;
+  }
+  #credit .result.is-ok {
+    border-color: color-mix(in srgb, var(--ok) 45%, var(--line));
+  }
+  #credit .result.is-warn {
+    border-color: color-mix(in srgb, var(--warn) 50%, var(--line));
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--warn) 20%, transparent),
+      0 16px 50px -24px var(--warn);
+  }
+  #credit .gauge-box {
+    display: grid;
+    justify-items: center;
+    text-align: center;
+    gap: 4px;
+  }
+  #credit .gauge {
+    width: 100%;
+    max-width: 280px;
+    overflow: visible;
+  }
+  #credit .g-track {
+    fill: none;
+    stroke: var(--bg-soft);
+    stroke-width: 16;
+  }
+  #credit .g-zone {
+    fill: none;
+    stroke-width: 14;
+  }
+  #credit .g-zone.ok {
+    stroke: color-mix(in srgb, var(--ok) 75%, transparent);
+  }
+  #credit .g-zone.warn {
+    stroke: color-mix(in srgb, var(--warn) 75%, transparent);
+  }
+  #credit .g-cut {
+    stroke: var(--text);
+    stroke-width: 2;
+  }
+  #credit .needle {
+    stroke: var(--text);
+    stroke-width: 3.5;
+    stroke-linecap: round;
+  }
+  #credit .hub {
+    fill: var(--text);
+  }
+  #credit .prob {
+    font-size: 40px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+  #credit .badge-dec {
+    font-size: 13px;
+    font-weight: 700;
+    padding: 4px 14px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  #credit .badge-dec.ok {
+    color: var(--ok);
+    background: color-mix(in srgb, var(--ok) 14%, transparent);
+  }
+  #credit .badge-dec.warn {
+    color: var(--warn);
+    background: color-mix(in srgb, var(--warn) 14%, transparent);
+  }
+  #credit .result-side {
+    min-width: 0;
+  }
+
+  /* Lote */
+  #credit .bstep {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  #credit .bstep-body {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    gap: 12px;
+  }
+  #credit .bstep-body > .hint {
+    margin-top: -8px;
+  }
+  #credit .upload {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: end;
+  }
+  #credit .upload .field {
+    flex: 1 1 220px;
+    min-width: 0;
+  }
+  #credit details summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  #credit .schema {
+    font-size: 13px;
+  }
+  #credit .schema td:first-child {
+    white-space: nowrap;
+  }
+  #credit .report {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+  }
+  #credit .report .sub {
+    margin: 6px 0 0;
+  }
+  #credit .stack {
+    display: flex;
+    height: 10px;
+    border-radius: 5px;
+    overflow: hidden;
+    background: var(--bg-soft);
+    gap: 2px;
+  }
+  #credit .stack > span {
+    flex-basis: 0;
+  }
+  #credit .stack > .ok {
+    background: var(--ok);
+  }
+  #credit .stack > .warn {
+    background: var(--warn);
+  }
+  #credit .stack > .bad {
+    background: var(--danger);
+  }
+  #credit .bars {
+    display: grid;
+    gap: 6px;
+  }
+  #credit .bar-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(60px, 1fr) 28px;
+    gap: 4px 10px;
+    align-items: center;
+    font-size: 13px;
+  }
+  #credit .bar-name {
+    min-width: 0;
+  }
+  #credit .bar-name .hint {
+    margin: 0;
+  }
+  #credit .bar-track {
+    height: 10px;
+    border-radius: 5px;
+    background: var(--bg-soft);
+    overflow: hidden;
+  }
+  #credit .bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: 5px;
+  }
+  #credit .bar-fill.bad {
+    background: var(--danger);
+  }
+  #credit .bar-fill.warn {
+    background: var(--warn);
+  }
+  #credit .bar-n {
+    text-align: right;
+  }
+  #credit .hist-box .sub {
+    margin-top: 4px;
+  }
+  #credit #scored > .btn {
+    justify-self: start;
+  }
+  #credit .scroll {
+    max-height: 360px;
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  #credit .report table {
+    font-size: 13px;
+  }
+  #credit .problems td {
+    vertical-align: top;
+  }
+  #credit .problems td:nth-child(4) {
+    min-width: 220px;
+  }
+  #credit td code {
+    white-space: nowrap;
+  }
+  #credit .problems td:nth-child(3) code {
+    white-space: normal;
+  }
+
+  /* Passo a passo */
+  #credit .how h2 {
+    font-size: 22px;
+    margin: 16px 0 14px;
+  }
+  #credit .steps {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 12px;
+  }
+  #credit .step {
+    display: flex;
+    gap: 14px;
+    padding: 16px;
+  }
+  #credit .step h3 {
+    font-size: 15.5px;
+    margin: 4px 0 4px;
+  }
+  #credit .step p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  #credit .note {
+    margin-top: 16px;
+  }
+
+  @media (max-width: 860px) {
+    #credit .intro,
+    #credit .collect-grid,
+    #credit .sig-wrap,
+    #credit .result {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    #credit .intro .kpis {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 560px) {
+    #credit .intro .kpis {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 560px) {
+    #credit .panel {
+      padding: 16px;
+    }
+    #credit .rail-label {
+      display: none;
+    }
+    #credit .zrow {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+    #credit .zrow .ztrack {
+      grid-column: 1 / -1;
+      grid-row: 2;
+    }
+    #credit .zaxis > span:first-child,
+    #credit .zaxis .zval {
+      display: none;
+    }
+    #credit .bar-row {
+      grid-template-columns: minmax(0, 1fr) 28px;
+    }
+    #credit .bar-row .bar-track {
+      grid-column: 1 / -1;
+      grid-row: 2;
+    }
+    #credit .stage {
+      padding: 12px;
+    }
+    #credit .stage-head {
+      flex-wrap: wrap;
+    }
+    #credit .stage-title {
+      flex-basis: calc(100% - 42px);
+    }
+    #credit .stage-state {
+      margin-left: 42px;
+      margin-top: -4px;
+    }
+    #credit .kpis {
+      gap: 8px;
+    }
+    #credit .kpi {
+      padding: 8px 10px;
+    }
+    #credit .kpi-v {
+      font-size: 18px;
+    }
+    #credit .bstep {
+      flex-direction: column;
+    }
+    #credit .msgs {
+      height: 300px;
+    }
   }
 </style>
