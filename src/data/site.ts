@@ -18,7 +18,7 @@ export interface Project {
   highlights: Record<Lang, string[]>;
   tags: string[];
   demo?: 'demoCnpj' | 'demoMcp' | 'demoAgents' | 'demoCredit' | 'demoDrift' | 'demoAttention' | 'demoOcr';
-  detail?: 'projectAgentAuth';
+  detail?: 'projectAgentAuth' | 'projectRag';
   featured?: boolean;
 }
 
@@ -99,6 +99,31 @@ export const PROJECTS: Project[] = [
     },
     tags: ['OAuth 2.1', 'MCP', 'Security'],
     detail: 'projectAgentAuth',
+  },
+  {
+    slug: 'rag-normas',
+    name: 'rag-normas',
+    repo: 'https://github.com/vicgamelo/rag-normas',
+    summary: {
+      pt: 'RAG sobre as normas do Pix do Banco Central, só com peças open source: busca híbrida em um arquivo SQLite, modelos ONNX na CPU, citação do ato e do artigo em cada resposta e avaliação que roda no CI.',
+      en: "RAG over the Banco Central do Brasil's Pix regulations, built only from open-source parts: hybrid search in one SQLite file, ONNX models on CPU, the act and article cited in every answer, and an evaluation that runs in CI.",
+    },
+    highlights: {
+      pt: [
+        'Indexa só o texto em vigor: as redações revogadas que o BCB deixa riscadas ficam de fora',
+        'BM25 + vetores + re-ranker: o primeiro resultado certo sobe de 60% para 80%',
+        'Toda frase cita [n]; citação inválida é marcada e fora do corpus vira "NÃO ENCONTREI"',
+        'Ferramenta MCP para agentes, com trace no genai-lens',
+      ],
+      en: [
+        'Indexes only the text in force: the superseded wording the BCB keeps struck through stays out',
+        'BM25 + vectors + re-ranker: the right first result goes from 60% to 80%',
+        'Every sentence cites [n]; invalid citations are flagged and out-of-scope questions get "NÃO ENCONTREI"',
+        'An MCP tool for agents, traced in genai-lens',
+      ],
+    },
+    tags: ['RAG', 'Evaluation', 'MCP'],
+    detail: 'projectRag',
   },
   {
     slug: 'genai-lens',

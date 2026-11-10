@@ -1,0 +1,265 @@
+---
+// Página do projeto rag-normas: o pipeline, os números da avaliação e o que custa rodar.
+// Estática, sem script. Os números vêm de eval/results no repositório do projeto.
+import Base from '../layouts/Base.astro';
+import { PROJECTS } from '../data/site';
+import { ROUTES, route, type Lang } from '../i18n/routes';
+import { useT } from '../i18n/ui';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const t = useT(lang);
+const project = PROJECTS.find((p) => p.slug === 'rag-normas')!;
+const pt = lang === 'pt';
+
+// eval/results/retrieval.json (e5-small int8, 70 perguntas com resposta)
+const retrieval = [
+  { mode: 'BM25', r1: 0.571, r5: 0.9, mrr: 0.703, p50: '0,5 ms' },
+  { mode: pt ? 'Vetor (e5-small)' : 'Vector (e5-small)', r1: 0.543, r5: 0.764, mrr: 0.66, p50: '4 ms' },
+  { mode: pt ? 'Híbrida (RRF)' : 'Hybrid (RRF)', r1: 0.6, r5: 0.843, mrr: 0.719, p50: '5 ms' },
+  { mode: pt ? 'Híbrida + re-ranker' : 'Hybrid + re-ranker', r1: 0.8, r5: 0.9, mrr: 0.845, p50: '315 ms', best: true },
+];
+const fmt = (v: number) => (pt ? v.toFixed(2).replace('.', ',') : v.toFixed(2));
+
+const L = pt
+  ? {
+      title: 'rag-normas: perguntas sobre as normas do Pix',
+      lead: 'Um chatbot genérico responde sobre o Pix de memória: limites que mudaram, o MED, o que o banco pode cobrar. Este projeto responde só a partir do texto oficial em vigor do Banco Central, diz de onde veio cada frase e mede quantas vezes acerta.',
+      pipeline: 'O caminho de uma pergunta',
+      boxes: ['Pergunta', 'BM25 + vetor', 'RRF', 'Re-ranker', 'LLM grátis', 'Resposta [n]'],
+      pipelineNote:
+        'O índice é um arquivo SQLite feito offline (FTS5 para o BM25, sqlite-vec para os vetores) e aberto só para leitura. Se o re-ranker diz que nada do que veio é sobre a pergunta, a resposta é "NÃO ENCONTREI" e o LLM nem é chamado.',
+      corpus: 'O corpus',
+      corpusText:
+        '14 atos em vigor do BCB sobre o Pix: o Regulamento do Pix consolidado, tarifas, Manual de Penalidades, limites de valor, Pix Automático e Agendado, Pix Saque e Troco, adesão, DICT. São 649 trechos, um por artigo. Atos oficiais não têm proteção de direito autoral (Lei 9.610/98, art. 8º, IV), e cada trecho guarda o link da página oficial.',
+      corpusDetail:
+        'O BCB publica o texto consolidado com todas as redações antigas riscadas. O ingestor descarta o riscado, e o Regulamento do Pix cai de 56 mil para 29 mil palavras: sem isso, a busca devolveria regra revogada.',
+      evalTitle: 'Avaliação',
+      evalText:
+        '82 perguntas: 70 escritas à mão a partir de artigos sorteados (estratificado por ato, semente fixa), cada uma com o artigo que responde e uma resposta de referência, e 12 de fora do corpus (Selic, TED, imposto de renda, LGPD) para medir se o sistema sabe dizer que não sabe.',
+      cols: ['Busca', 'Recall@1', 'Recall@5', 'MRR@10', 'p50'],
+      evalNote:
+        'O CI falha se Recall@5 ou MRR@10 caírem mais de 0,03 em relação à linha de base guardada no repositório. O BM25 vai bem aqui em parte porque as perguntas foram escritas a partir do texto: os números servem para pegar regressão, não como benchmark.',
+      answers: 'Respostas',
+      answersText: 'Com um modelo local (qwen3.5:9b no Ollama) gerando e outro (gemma4:12b) julgando: 66 de 70 perguntas respondidas, todas com citação e 95% citando o artigo esperado, nenhuma citação inventada e as 12 perguntas de fora do corpus respondidas com "NÃO ENCONTREI". As 4 que ficaram sem resposta são casos em que a busca não trouxe o artigo certo, e o modelo disse que não encontrou em vez de chutar.',
+      cost: 'Quanto custa rodar',
+      costItems: [
+        'Tudo na CPU, sem torch: e5-small e um cross-encoder mMiniLM em ONNX int8',
+        'Tokenizer SentencePiece de 5 MB no lugar do tokenizer.json, que ocupava 370 MB de RAM por instância (os ids são iguais, e há teste conferindo isso no corpus inteiro)',
+        'Container com 512 MB e 0,5 CPU, só leitura e sem root: 404 MB de pico e cerca de 1 busca por segundo com re-ranker; sem o re-ranker, 261 MB e 74 buscas por segundo',
+        'LLM só em plano grátis: Groq, depois OpenRouter :free, depois Ollama local',
+      ],
+      integration: 'Com os outros projetos',
+      integrationItems: [
+        'Servidor MCP com duas ferramentas: buscar_normas (só busca, sem LLM) e perguntar_normas_pix (resposta com citação)',
+        'Cada resposta vira um trace no genai-lens, e o traceparent de quem chamou coloca os spans dentro do trace do agente',
+      ],
+      run: 'Rodar local',
+      limits: 'Limites',
+      limitsText:
+        'As perguntas foram escritas pelo autor, e os ajustes do re-ranker e o corte de abstenção foram escolhidos neste mesmo conjunto. Os manuais em PDF que completam o regulamento (Manual de Tempos, Manual do DICT) ainda não estão no corpus. Não é orientação jurídica: a resposta aponta o artigo para você conferir.',
+      back: 'Todos os projetos',
+    }
+  : {
+      title: 'rag-normas: questions about the Pix rules',
+      lead: "A generic chatbot answers about Pix from memory: limits that changed, the MED refund flow, what a bank may charge. This project answers only from the Banco Central's official text in force, says where each sentence comes from and measures how often it gets it right.",
+      pipeline: 'The path of a question',
+      boxes: ['Question', 'BM25 + vector', 'RRF', 'Re-ranker', 'Free LLM', 'Answer [n]'],
+      pipelineNote:
+        'The index is one SQLite file built offline (FTS5 for BM25, sqlite-vec for vectors) and opened read-only. If the re-ranker says nothing retrieved is about the question, the answer is "NÃO ENCONTREI" and the LLM is never called.',
+      corpus: 'The corpus',
+      corpusText:
+        "14 BCB acts in force about Pix: the consolidated Pix Regulation, fees, the penalties manual, value limits, Pix Automático and Agendado, cash withdrawal, onboarding, the DICT key directory. 649 chunks, one per article. Official acts are not copyrighted in Brazil (Lei 9.610/98, art. 8º, IV), and each chunk keeps the link to the official page.",
+      corpusDetail:
+        'The BCB publishes the consolidated text with every past wording struck through. The ingester drops the struck text, and the Pix Regulation goes from 56k to 29k words: without that, search would return revoked rules.',
+      evalTitle: 'Evaluation',
+      evalText:
+        '82 questions: 70 written by hand from randomly sampled articles (stratified by act, fixed seed), each with the article that answers it and a reference answer, plus 12 out of scope (Selic, TED, income tax, LGPD) to check that the system can say it does not know.',
+      cols: ['Search', 'Recall@1', 'Recall@5', 'MRR@10', 'p50'],
+      evalNote:
+        'CI fails if Recall@5 or MRR@10 drop more than 0.03 below the baseline committed in the repo. BM25 does well here partly because the questions were written from the text: the numbers are there to catch regressions, not as a benchmark.',
+      answers: 'Answers',
+      answersText: 'With a local model (qwen3.5:9b on Ollama) answering and another (gemma4:12b) judging: 66 of 70 questions answered, all with citations and 95% citing the expected article, no made-up citations, and all 12 out-of-scope questions answered "NÃO ENCONTREI". The 4 left unanswered are cases where search missed the right article, and the model said it did not find it instead of guessing.',
+      cost: 'What it costs to run',
+      costItems: [
+        'All on CPU, no torch: e5-small and an mMiniLM cross-encoder in int8 ONNX',
+        'A 5 MB SentencePiece tokenizer instead of tokenizer.json, which took 370 MB of RAM per instance (same ids, and a test checks that on the whole corpus)',
+        'A 512 MB, 0.5 CPU, read-only, non-root container: 404 MB peak and about 1 search per second with the re-ranker; without it, 261 MB and 74 searches per second',
+        'Free-tier LLMs only: Groq, then OpenRouter :free, then local Ollama',
+      ],
+      integration: 'With the other projects',
+      integrationItems: [
+        'An MCP server with two tools: buscar_normas (search only, no LLM) and perguntar_normas_pix (answer with citations)',
+        "Each answer is a trace in genai-lens, and the caller's traceparent puts the spans inside the agent's trace",
+      ],
+      run: 'Run it locally',
+      limits: 'Limits',
+      limitsText:
+        'The questions were written by the author, and the re-ranker settings and abstention threshold were picked on this same set. The PDF manuals that complete the regulation (Manual de Tempos, DICT manual) are not in the corpus yet. This is not legal advice: the answer points to the article so you can check it.',
+      back: 'All projects',
+    };
+---
+
+<Base lang={lang} title={L.title} description={project.summary[lang]} alt={ROUTES.projectRag}>
+  <div class="container">
+    <header class="page-head">
+      <h1>{L.title}</h1>
+      <p>{L.lead}</p>
+      <ul class="tags">
+        {project.tags.map((tag) => <li class="tag">{tag}</li>)}
+      </ul>
+    </header>
+
+    <section class="section">
+      <div class="section-title"><h2>{L.pipeline}</h2></div>
+      <figure class="flow">
+        <div class="flow-scroll">
+          <svg viewBox="0 0 744 96" role="img" aria-labelledby="flow-title">
+            <title id="flow-title">{L.boxes.join(' → ')}</title>
+            <defs>
+              <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+                <path d="M0,0 L10,5 L0,10 z" class="head" />
+              </marker>
+            </defs>
+            {
+              L.boxes.map((label, i) => (
+                <g>
+                  <rect class={i === 3 ? 'box accent' : 'box'} x={8 + i * 124} y="22" width="108" height="52" rx="10" />
+                  <text class="box-text" x={62 + i * 124} y="53">
+                    {label}
+                  </text>
+                  {i < L.boxes.length - 1 && (
+                    <line class="arrow" x1={117 + i * 124} y1="48" x2={130 + i * 124} y2="48" marker-end="url(#head)" />
+                  )}
+                </g>
+              ))
+            }
+          </svg>
+        </div>
+        <figcaption class="muted">{L.pipelineNote}</figcaption>
+      </figure>
+    </section>
+
+    <section class="section">
+      <div class="section-title"><h2>{L.corpus}</h2></div>
+      <p>{L.corpusText}</p>
+      <p class="muted">{L.corpusDetail}</p>
+    </section>
+
+    <section class="section">
+      <div class="section-title"><h2>{L.evalTitle}</h2></div>
+      <p>{L.evalText}</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>{L.cols.map((c) => <th>{c}</th>)}</tr>
+          </thead>
+          <tbody>
+            {
+              retrieval.map((r) => (
+                <tr class={r.best ? 'best' : ''}>
+                  <td>{r.mode}</td>
+                  <td>{fmt(r.r1)}</td>
+                  <td>{fmt(r.r5)}</td>
+                  <td>{fmt(r.mrr)}</td>
+                  <td>{pt ? r.p50 : r.p50.replace(',', '.')}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">{L.evalNote}</p>
+      <h3>{L.answers}</h3>
+      <p>{L.answersText}</p>
+    </section>
+
+    <section class="section">
+      <div class="section-title"><h2>{L.cost}</h2></div>
+      <ul class="checks">
+        {L.costItems.map((i) => <li>{i}</li>)}
+      </ul>
+    </section>
+
+    <section class="section">
+      <div class="section-title"><h2>{L.integration}</h2></div>
+      <ul class="checks">
+        {L.integrationItems.map((i) => <li>{i}</li>)}
+      </ul>
+    </section>
+
+    <section class="section">
+      <div class="section-title"><h2>{L.run}</h2></div>
+      <pre>git clone {project.repo}
+cd rag-normas && uv sync
+uv run rag-normas models && uv run rag-normas build
+uv run rag-normas search "devolução de Pix por fraude"</pre>
+    </section>
+
+    <section class="section">
+      <div class="section-title"><h2>{L.limits}</h2></div>
+      <p>{L.limitsText}</p>
+      <div class="links">
+        <a href={project.repo} rel="noopener">{t('projects.repo')}</a>
+        <a href={route('projects', lang)}>{L.back}</a>
+      </div>
+    </section>
+  </div>
+</Base>
+
+<style>
+  .flow {
+    margin: 0 0 16px;
+  }
+  /* No celular o diagrama rola na horizontal em vez de encolher até o texto ficar ilegível. */
+  .flow-scroll {
+    overflow-x: auto;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+  .flow svg {
+    width: 100%;
+    min-width: 560px;
+    height: auto;
+    display: block;
+  }
+  .box {
+    fill: var(--bg-soft);
+    stroke: var(--line);
+  }
+  .box.accent {
+    fill: var(--accent-soft);
+    stroke: var(--accent);
+  }
+  .box-text {
+    fill: var(--text);
+    font: 600 12px var(--sans);
+    text-anchor: middle;
+  }
+  .arrow {
+    stroke: var(--muted);
+    stroke-width: 1.5;
+  }
+  .head {
+    fill: var(--muted);
+  }
+  figcaption {
+    margin-top: 8px;
+  }
+  tr.best td {
+    font-weight: 600;
+  }
+  td:not(:first-child),
+  th:not(:first-child) {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .links {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+</style>

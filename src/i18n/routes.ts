@@ -21,6 +21,7 @@ export const ROUTES = {
   demoMcp: { pt: '/demos/mcp/', en: '/en/demos/mcp/' },
   demoOcr: { pt: '/demos/ocr/', en: '/en/demos/ocr/' },
   projectAgentAuth: { pt: '/projetos/agent-auth/', en: '/en/projects/agent-auth/' },
+  projectRag: { pt: '/projetos/rag-normas/', en: '/en/projects/rag-normas/' },
 } as const satisfies Record<string, Record<Lang, string>>;
 
 export type RouteKey = keyof typeof ROUTES;
