@@ -350,7 +350,7 @@ export const STACK = [
 ];
 
 export interface Demo {
-  key: 'demoCnpj' | 'demoDrift' | 'demoAttention' | 'demoAgents' | 'demoCredit' | 'demoMcp' | 'demoOcr';
+  key: 'demoCnpj' | 'demoDrift' | 'demoAttention' | 'demoAgents' | 'demoCredit' | 'demoMcp' | 'demoOcr' | 'demoPca';
   live: boolean;
   title: T;
   text: T;
@@ -416,6 +416,16 @@ export const DEMOS: Demo[] = [
     text: {
       pt: 'Mude a distribuição de produção e veja o PSI e o alerta que disparam o retreino.',
       en: 'Shift the production distribution and watch the PSI and the alert that triggers retraining.',
+    },
+  },
+  {
+    key: 'demoPca',
+    live: false,
+    project: 'ml-from-scratch',
+    title: { pt: 'PCA visual', en: 'PCA, visually' },
+    text: {
+      pt: 'Veja 4 medidas virarem 2 componentes: projeção das flores, variância explicada, pesos e a intuição de girar a reta.',
+      en: 'Watch 4 measurements become 2 components: the projected flowers, explained variance, loadings and the rotate-the-line intuition.',
     },
   },
   {

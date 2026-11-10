@@ -1,0 +1,799 @@
+---
+import DemoShell from '../../components/DemoShell.astro';
+import type { Lang } from '../../i18n/routes';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const pt = lang === 'pt';
+const L = pt
+  ? {
+      data: 'Os dados',
+      dataText:
+        '150 flores do conjunto Iris, de 3 espécies, com 4 medidas cada. Não dá para ver 4 dimensões de uma vez: o PCA acha as 2 direções que guardam a maior parte da informação.',
+      features: ['Comp. sépala', 'Larg. sépala', 'Comp. pétala', 'Larg. pétala'],
+      species: ['setosa', 'versicolor', 'virginica'],
+      standardize: 'Padronizar as medidas (z-score)',
+      standardizeHint: 'Sem padronizar, a medida com mais variação (comprimento da pétala) domina o PC1.',
+      xAxis: 'Eixo X',
+      yAxis: 'Eixo Y',
+      biplot: 'As flores no plano dos componentes',
+      biplotHint: 'As setas mostram quanto cada medida pesa em cada componente.',
+      scree: 'Variância explicada',
+      screeHint: 'Quanto da informação cada componente guarda.',
+      cumulative: 'acumulado',
+      loadings: 'Pesos (loadings)',
+      loadingsHint: 'Cada componente é uma mistura das medidas originais.',
+      intuition: 'A intuição em 2D',
+      intuitionText:
+        'Gire a reta. Cada flor é projetada nela, e a barra mostra a variância dos pontos projetados. O PC1 é exatamente a direção em que essa variância é máxima.',
+      angle: 'Ângulo da reta',
+      projected: 'Variância projetada',
+      ofMax: 'do máximo',
+      findPc1: 'Mostrar o PC1',
+      xFeat: 'comp. sépala (padronizado)',
+      yFeat: 'comp. pétala (padronizado)',
+      howTitle: 'O PCA passo a passo',
+      steps: [
+        ['Centralizar', 'Subtrai a média de cada medida (e divide pelo desvio, se padronizar), para todas começarem do zero.'],
+        ['Covariância', 'Monta a matriz 4×4 que diz o quanto cada par de medidas varia junto. É a do quadro ao lado.'],
+        ['Autovetores', 'Os autovetores da covariância são as direções dos componentes; os autovalores, a variância em cada uma.'],
+        ['Projetar', 'Cada flor vira coordenadas nos componentes. Ficando com PC1 e PC2, saem 4 medidas e entram 2 números.'],
+      ],
+      covTitle: 'Covariância',
+      corrTitle: 'Correlação',
+      code: 'O mesmo PCA está implementado do zero em NumPy, via SVD, no ml-from-scratch, e validado contra o scikit-learn. Aqui ele roda no seu navegador, com os autovetores pelo método de Jacobi.',
+    }
+  : {
+      data: 'The data',
+      dataText:
+        "150 flowers from the Iris dataset, 3 species, 4 measurements each. You can't see 4 dimensions at once: PCA finds the 2 directions that keep most of the information.",
+      features: ['Sepal length', 'Sepal width', 'Petal length', 'Petal width'],
+      species: ['setosa', 'versicolor', 'virginica'],
+      standardize: 'Standardize the measurements (z-score)',
+      standardizeHint: 'Without it, the measurement with the most spread (petal length) dominates PC1.',
+      xAxis: 'X axis',
+      yAxis: 'Y axis',
+      biplot: 'The flowers on the component plane',
+      biplotHint: 'Arrows show how much each measurement weighs in each component.',
+      scree: 'Explained variance',
+      screeHint: 'How much of the information each component keeps.',
+      cumulative: 'cumulative',
+      loadings: 'Loadings',
+      loadingsHint: 'Each component is a mix of the original measurements.',
+      intuition: 'The intuition in 2D',
+      intuitionText:
+        'Rotate the line. Every flower is projected onto it, and the bar shows the variance of the projected points. PC1 is exactly the direction where that variance peaks.',
+      angle: 'Line angle',
+      projected: 'Projected variance',
+      ofMax: 'of the maximum',
+      findPc1: 'Show PC1',
+      xFeat: 'sepal length (standardized)',
+      yFeat: 'petal length (standardized)',
+      howTitle: 'PCA step by step',
+      steps: [
+        ['Center', 'Subtract each measurement’s mean (and divide by its sd when standardizing), so all start at zero.'],
+        ['Covariance', 'Build the 4×4 matrix of how each pair of measurements varies together. It’s the one on the side.'],
+        ['Eigenvectors', 'The covariance eigenvectors are the component directions; the eigenvalues, the variance along each.'],
+        ['Project', 'Each flower becomes coordinates on the components. Keeping PC1 and PC2, 4 measurements become 2 numbers.'],
+      ],
+      covTitle: 'Covariance',
+      corrTitle: 'Correlation',
+      code: 'The same PCA is implemented from scratch in NumPy, via SVD, in ml-from-scratch, and validated against scikit-learn. Here it runs in your browser, with eigenvectors from the Jacobi method.',
+    };
+const pcs = ['PC1', 'PC2', 'PC3', 'PC4'];
+---
+
+<DemoShell lang={lang} demo="demoPca">
+  <div class="pca" id="pca" data-l={JSON.stringify(L)} data-lang={lang}>
+    <section class="panel intro">
+      <div>
+        <h2>{L.data}</h2>
+        <p class="hint">{L.dataText}</p>
+      </div>
+      <div class="opts">
+        <label class="switch">
+          <input type="checkbox" id="std" checked />
+          <span class="track" aria-hidden="true"><span class="thumb"></span></span>
+          <span>{L.standardize}</span>
+        </label>
+        <p class="hint small">{L.standardizeHint}</p>
+        <div class="axes">
+          <label>
+            {L.xAxis}
+            <select id="ax-x">{pcs.map((p, i) => <option value={i} selected={i === 0}>{p}</option>)}</select>
+          </label>
+          <label>
+            {L.yAxis}
+            <select id="ax-y">{pcs.map((p, i) => <option value={i} selected={i === 1}>{p}</option>)}</select>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel biplot-panel">
+      <div class="panel-head">
+        <div>
+          <h2>{L.biplot}</h2>
+          <p class="hint">{L.biplotHint}</p>
+        </div>
+        <div class="legend">
+          {
+            L.species.map((s, i) => (
+              <span>
+                <span class={`sw sp${i}`} />
+                {s}
+              </span>
+            ))
+          }
+        </div>
+      </div>
+      <svg id="biplot" class="biplot" viewBox="0 0 520 420" role="img" aria-label={L.biplot}>
+        <g id="grid"></g>
+        <g id="points"></g>
+        <g id="arrows"></g>
+        <text id="lx" class="axis-label" x="510" y="404" text-anchor="end">PC1</text>
+        <text id="ly" class="axis-label" x="14" y="18">PC2</text>
+      </svg>
+    </section>
+
+    <div class="side">
+      <section class="panel">
+        <h2>{L.scree}</h2>
+        <p class="hint">{L.screeHint}</p>
+        <div id="scree" class="scree"></div>
+      </section>
+      <section class="panel">
+        <h2>{L.loadings}</h2>
+        <p class="hint">{L.loadingsHint}</p>
+        <div class="table-wrap">
+          <table class="heat">
+            <thead><tr><th></th>{pcs.map((p) => <th>{p}</th>)}</tr></thead>
+            <tbody id="loadings"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel intuition">
+      <div class="intuition-text">
+        <h2>{L.intuition}</h2>
+        <p class="hint">{L.intuitionText}</p>
+        <div class="field">
+          <label for="angle"><span>{L.angle}</span><output id="angle-out" class="mono">30°</output></label>
+          <input id="angle" type="range" min="0" max="179" step="1" value="30" />
+        </div>
+        <div class="meter">
+          <div class="meter-head">
+            <span>{L.projected}</span>
+            <span class="mono" id="pv"></span>
+          </div>
+          <div class="meter-track"><span id="pv-bar" class="meter-bar"></span></div>
+          <span class="hint small" id="pv-pct"></span>
+        </div>
+        <button type="button" class="btn primary" id="find">{L.findPc1}</button>
+      </div>
+      <svg id="proj" class="proj" viewBox="0 0 400 400" role="img" aria-label={L.intuition}>
+        <line class="axis" x1="0" y1="200" x2="400" y2="200"></line>
+        <line class="axis" x1="200" y1="0" x2="200" y2="400"></line>
+        <g id="drops"></g>
+        <g id="raw"></g>
+        <line id="pline" class="pline" x1="0" y1="0" x2="0" y2="0"></line>
+        <g id="onl"></g>
+        <text class="axis-label" x="394" y="392" text-anchor="end">{L.xFeat} →</text>
+        <text class="axis-label" x="8" y="14">↑ {L.yFeat}</text>
+      </svg>
+    </section>
+
+    <section class="how">
+      <h2>{L.howTitle}</h2>
+      <div class="how-grid">
+        <ol class="steps">
+          {
+            L.steps.map(([title, text], i) => (
+              <li class="panel step">
+                <span class="step-n mono">{i + 1}</span>
+                <div>
+                  <h3>{title}</h3>
+                  <p>{text}</p>
+                </div>
+              </li>
+            ))
+          }
+        </ol>
+        <div class="panel cov-panel">
+          <h3 id="cov-title">{L.corrTitle}</h3>
+          <div class="table-wrap">
+            <table class="heat">
+              <thead><tr><th></th>{L.features.map((f) => <th>{f}</th>)}</tr></thead>
+              <tbody id="cov"></tbody>
+            </table>
+          </div>
+          <p class="hint small">{L.code}</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</DemoShell>
+
+<script>
+  import { IRIS } from '../../data/iris';
+  import { pca, projectedVariance } from '../../lib/pca';
+
+  const root = document.getElementById('pca');
+  if (root) {
+    const L = JSON.parse(root.dataset.l!) as { features: string[]; species: string[]; cumulative: string; ofMax: string; corrTitle: string; covTitle: string };
+    const pt = root.dataset.lang === 'pt';
+    const nf = (v: number, d = 2) => new Intl.NumberFormat(pt ? 'pt-BR' : 'en', { minimumFractionDigits: d, maximumFractionDigits: d }).format(v);
+    const pf = (v: number) => new Intl.NumberFormat(pt ? 'pt-BR' : 'en', { style: 'percent', maximumFractionDigits: 1 }).format(v);
+    const X = IRIS.map((r) => r.slice(0, 4));
+    const species = IRIS.map((r) => r[4]);
+    const NS = 'http://www.w3.org/2000/svg';
+    const el = (tag: string, attrs: Record<string, string | number>) => {
+      const e = document.createElementNS(NS, tag);
+      for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, String(v));
+      return e;
+    };
+    const std = document.getElementById('std') as HTMLInputElement;
+    const axX = document.getElementById('ax-x') as HTMLSelectElement;
+    const axY = document.getElementById('ax-y') as HTMLSelectElement;
+
+    // Cor de uma célula de heatmap: verde-água para positivo, violeta para negativo.
+    const heat = (td: HTMLElement, v: number, max: number) => {
+      const a = Math.round((Math.min(Math.abs(v) / max, 1)) * 70);
+      td.style.background = `color-mix(in srgb, var(${v >= 0 ? '--accent' : '--accent2'}) ${a}%, transparent)`;
+    };
+
+    function drawPca() {
+      const r = pca(X, std.checked);
+      const i = Number(axX.value);
+      const j = Number(axY.value);
+
+      // Biplot
+      const W = 520;
+      const H = 420;
+      const P = 34;
+      const xs = r.scores.map((s) => s[i]);
+      const ys = r.scores.map((s) => s[j]);
+      const m = Math.max(...xs.map(Math.abs), ...ys.map(Math.abs)) * 1.1;
+      const sx = (v: number) => W / 2 + (v / m) * (W / 2 - P);
+      const sy = (v: number) => H / 2 - (v / m) * (H / 2 - P);
+      const grid = document.getElementById('grid')!;
+      grid.replaceChildren(
+        el('line', { x1: P / 2, y1: H / 2, x2: W - P / 2, y2: H / 2, class: 'axis' }),
+        el('line', { x1: W / 2, y1: P / 2, x2: W / 2, y2: H - P / 2, class: 'axis' }),
+      );
+      const points = document.getElementById('points')!;
+      points.replaceChildren(
+        ...xs.map((x, k) => el('circle', { cx: sx(x).toFixed(1), cy: sy(ys[k]).toFixed(1), r: 4.2, class: `pt sp${species[k]}` })),
+      );
+      const arrows = document.getElementById('arrows')!;
+      const reach = m * 0.8;
+      // Rótulos que ficariam um em cima do outro descem até ter espaço.
+      const placed: [number, number][] = [];
+      arrows.replaceChildren(
+        ...L.features.flatMap((f, k) => {
+          const ex = sx(r.components[i][k] * reach);
+          const ey = sy(r.components[j][k] * reach);
+          const tx = sx(r.components[i][k] * reach * 1.13);
+          let ty = sy(r.components[j][k] * reach * 1.13);
+          while (placed.some(([px2, py2]) => Math.abs(px2 - tx) < 80 && Math.abs(py2 - ty) < 15)) ty += 15;
+          placed.push([tx, ty]);
+          const label = el('text', { x: tx.toFixed(1), y: ty.toFixed(1), class: 'arrow-label', 'text-anchor': 'middle', 'dominant-baseline': 'middle' });
+          label.textContent = f;
+          return [el('line', { x1: W / 2, y1: H / 2, x2: ex.toFixed(1), y2: ey.toFixed(1), class: 'arrow', 'marker-end': 'url(#head)' }), label];
+        }),
+      );
+      document.getElementById('lx')!.textContent = `PC${i + 1} · ${pf(r.explained[i])}`;
+      document.getElementById('ly')!.textContent = `PC${j + 1} · ${pf(r.explained[j])}`;
+
+      // Variância explicada
+      const scree = document.getElementById('scree')!;
+      let acc = 0;
+      scree.replaceChildren(
+        ...r.explained.map((e, k) => {
+          acc += e;
+          const row = document.createElement('div');
+          row.className = `scree-row${k === i || k === j ? ' on' : ''}`;
+          const name = document.createElement('span');
+          name.className = 'mono';
+          name.textContent = `PC${k + 1}`;
+          const track = document.createElement('span');
+          track.className = 'scree-track';
+          const bar = document.createElement('span');
+          bar.className = 'scree-bar';
+          bar.style.width = `${e * 100}%`;
+          track.append(bar);
+          const val = document.createElement('span');
+          val.className = 'mono val';
+          val.textContent = pf(e);
+          const cum = document.createElement('span');
+          cum.className = 'mono cum';
+          cum.textContent = `${pf(acc)} ${L.cumulative}`;
+          row.append(name, track, val, cum);
+          return row;
+        }),
+      );
+
+      // Loadings
+      const loadings = document.getElementById('loadings')!;
+      loadings.replaceChildren(
+        ...L.features.map((f, k) => {
+          const tr = document.createElement('tr');
+          const th = document.createElement('th');
+          th.textContent = f;
+          tr.append(th);
+          r.components.forEach((c) => {
+            const td = document.createElement('td');
+            td.className = 'mono';
+            td.textContent = nf(c[k]);
+            heat(td, c[k], 1);
+            tr.append(td);
+          });
+          return tr;
+        }),
+      );
+
+      // Covariância (ou correlação, quando padroniza)
+      document.getElementById('cov-title')!.textContent = std.checked ? L.corrTitle : L.covTitle;
+      const max = Math.max(...r.cov.flat().map(Math.abs));
+      const cov = document.getElementById('cov')!;
+      cov.replaceChildren(
+        ...r.cov.map((row, a) => {
+          const tr = document.createElement('tr');
+          const th = document.createElement('th');
+          th.textContent = L.features[a];
+          tr.append(th);
+          row.forEach((v) => {
+            const td = document.createElement('td');
+            td.className = 'mono';
+            td.textContent = nf(v);
+            heat(td, v, max);
+            tr.append(td);
+          });
+          return tr;
+        }),
+      );
+    }
+
+    // Intuição em 2D: comprimento da sépala × comprimento da pétala, padronizados
+    const two = pca(X.map((r) => [r[0], r[2]]), true);
+    const z = X.map((r) => [(r[0] - two.means[0]) / two.scales[0], (r[2] - two.means[1]) / two.scales[1]] as [number, number]);
+    const best = Math.atan2(two.components[0][1], two.components[0][0]);
+    const bestDeg = ((best * 180) / Math.PI + 180) % 180;
+    const maxVar = projectedVariance(z, best);
+    const S = 400;
+    const k = S / 2 / 3.2;
+    const px = (v: number) => S / 2 + v * k;
+    const py = (v: number) => S / 2 - v * k;
+    document.getElementById('raw')!.replaceChildren(
+      ...z.map(([a, b], n) => el('circle', { cx: px(a).toFixed(1), cy: py(b).toFixed(1), r: 3.6, class: `pt sp${species[n]}` })),
+    );
+    const angle = document.getElementById('angle') as HTMLInputElement;
+
+    function drawProj() {
+      const deg = Number(angle.value);
+      const th = (deg * Math.PI) / 180;
+      const u = [Math.cos(th), Math.sin(th)];
+      document.getElementById('angle-out')!.textContent = `${deg}°`;
+      const line = document.getElementById('pline')!;
+      line.setAttribute('x1', px(-u[0] * 4).toFixed(1));
+      line.setAttribute('y1', py(-u[1] * 4).toFixed(1));
+      line.setAttribute('x2', px(u[0] * 4).toFixed(1));
+      line.setAttribute('y2', py(u[1] * 4).toFixed(1));
+      const drops: Element[] = [];
+      const on: Element[] = [];
+      z.forEach(([a, b], n) => {
+        const t = a * u[0] + b * u[1];
+        drops.push(el('line', { x1: px(a).toFixed(1), y1: py(b).toFixed(1), x2: px(t * u[0]).toFixed(1), y2: py(t * u[1]).toFixed(1), class: 'drop' }));
+        on.push(el('circle', { cx: px(t * u[0]).toFixed(1), cy: py(t * u[1]).toFixed(1), r: 2.6, class: `on sp${species[n]}` }));
+      });
+      document.getElementById('drops')!.replaceChildren(...drops);
+      document.getElementById('onl')!.replaceChildren(...on);
+      const v = projectedVariance(z, th);
+      document.getElementById('pv')!.textContent = nf(v);
+      const bar = document.getElementById('pv-bar')!;
+      bar.style.width = `${(v / maxVar) * 100}%`;
+      bar.classList.toggle('best', v / maxVar > 0.995);
+      document.getElementById('pv-pct')!.textContent = `${pf(v / maxVar)} ${L.ofMax}`;
+    }
+
+    let frame = 0;
+    const later = (fn: () => void) => () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(fn);
+    };
+    [std, axX, axY].forEach((c) => c.addEventListener('change', drawPca));
+    angle.addEventListener('input', later(drawProj));
+    document.getElementById('find')!.addEventListener('click', () => {
+      angle.value = String(Math.round(bestDeg));
+      drawProj();
+    });
+    // Ponta das setas do biplot
+    const defs = el('defs', {});
+    const marker = el('marker', { id: 'head', viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' });
+    marker.append(el('path', { d: 'M0 0 L10 5 L0 10 z', class: 'arrow-head' }));
+    defs.append(marker);
+    document.getElementById('biplot')!.prepend(defs);
+    drawPca();
+    drawProj();
+  }
+</script>
+
+<style>
+  /* Item de grid encolhe abaixo do conteúdo (a fórmula e as tabelas rolam dentro do painel). */
+  .pca > * {
+    min-width: 0;
+  }
+  .pca {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 16px;
+    padding-bottom: 48px;
+  }
+  .panel {
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    min-width: 0;
+  }
+  h2 {
+    font-size: 17px;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .hint {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 4px 0 0;
+  }
+  .small {
+    font-size: 13px;
+  }
+  .panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .intro {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+  .opts {
+    display: grid;
+    gap: 8px;
+  }
+  .switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 14.5px;
+    cursor: pointer;
+  }
+  .switch input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    min-height: 0;
+  }
+  .track {
+    width: 40px;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--line-strong);
+    position: relative;
+    flex: none;
+    transition: background 0.15s;
+  }
+  .thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.15s;
+  }
+  .switch input:checked + .track {
+    background: var(--accent);
+  }
+  .switch input:checked + .track .thumb {
+    transform: translateX(18px);
+  }
+  .switch input:focus-visible + .track {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .axes {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .axes label {
+    display: grid;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--muted);
+    min-width: 120px;
+  }
+  .axes select {
+    min-height: 38px;
+    padding: 6px 10px;
+  }
+  .legend {
+    display: flex;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .legend > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sw {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .sw.sp0,
+  .pca :global(.pt.sp0),
+  .pca :global(.on.sp0) {
+    background: #2dd4bf;
+    fill: #2dd4bf;
+  }
+  .sw.sp1,
+  .pca :global(.pt.sp1),
+  .pca :global(.on.sp1) {
+    background: #a78bfa;
+    fill: #a78bfa;
+  }
+  .sw.sp2,
+  .pca :global(.pt.sp2),
+  .pca :global(.on.sp2) {
+    background: #fbbf24;
+    fill: #fbbf24;
+  }
+  .pca :global(.pt) {
+    fill-opacity: 0.8;
+    stroke: var(--panel);
+    stroke-width: 1;
+  }
+  .biplot,
+  .proj {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .pca :global(.axis) {
+    stroke: var(--line-strong);
+    stroke-dasharray: 4 5;
+  }
+  .axis-label {
+    font-family: var(--mono);
+    font-size: 12px;
+    fill: var(--muted);
+  }
+  .pca :global(.arrow) {
+    stroke: var(--text);
+    stroke-width: 1.8;
+  }
+  .pca :global(.arrow-head) {
+    fill: var(--text);
+  }
+  .pca :global(.arrow-label) {
+    font-size: 12px;
+    font-weight: 600;
+    fill: var(--text);
+    paint-order: stroke;
+    stroke: var(--panel);
+    stroke-width: 4px;
+  }
+  .side {
+    display: grid;
+    gap: 16px;
+    align-content: start;
+  }
+  .scree {
+    display: grid;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .scree :global(.scree-row) {
+    display: grid;
+    grid-template-columns: 36px 1fr 52px;
+    grid-template-areas: 'n t v' '. c c';
+    align-items: center;
+    gap: 2px 10px;
+    font-size: 13px;
+    opacity: 0.7;
+  }
+  .scree :global(.scree-row.on) {
+    opacity: 1;
+  }
+  .scree :global(.scree-track) {
+    grid-area: t;
+    height: 12px;
+    border-radius: 6px;
+    background: var(--bg-soft);
+    overflow: hidden;
+  }
+  .scree :global(.scree-bar) {
+    display: block;
+    height: 100%;
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width 0.3s;
+  }
+  .scree :global(.val) {
+    grid-area: v;
+    text-align: right;
+    font-weight: 600;
+  }
+  .scree :global(.cum) {
+    grid-area: c;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .heat {
+    font-size: 13px;
+    margin-top: 10px;
+  }
+  .heat th {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .heat :global(td) {
+    text-align: center;
+    border-radius: 4px;
+    border-bottom: 2px solid var(--panel);
+  }
+  .heat :global(tbody th) {
+    text-align: left;
+  }
+
+  /* Intuição */
+  .intuition {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 24px;
+    align-items: center;
+  }
+  .intuition-text {
+    display: grid;
+    gap: 14px;
+  }
+  .field label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+  }
+  .field output {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  input[type='range'] {
+    padding: 0;
+    min-height: 32px;
+    accent-color: var(--accent);
+    border: 0;
+    background: transparent;
+  }
+  .meter-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+  .meter-track {
+    height: 14px;
+    border-radius: 7px;
+    background: var(--bg-soft);
+    overflow: hidden;
+  }
+  .meter-bar {
+    display: block;
+    height: 100%;
+    background: var(--accent2);
+    border-radius: 7px;
+    transition:
+      width 0.15s,
+      background 0.2s;
+  }
+  .meter-bar.best {
+    background: var(--accent);
+  }
+  .intuition .btn {
+    justify-self: start;
+  }
+  .proj {
+    max-width: 440px;
+    justify-self: center;
+  }
+  .pline {
+    stroke: var(--accent);
+    stroke-width: 2.5;
+  }
+  .pca :global(.drop) {
+    stroke: var(--muted);
+    stroke-opacity: 0.25;
+  }
+  .pca :global(.on) {
+    fill-opacity: 0.9;
+  }
+
+  /* Passo a passo */
+  .how {
+    grid-column: 1 / -1;
+  }
+  .how h2 {
+    font-size: 22px;
+    margin: 16px 0 14px;
+  }
+  .how-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px;
+  }
+  .steps {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 10px;
+  }
+  .step {
+    display: flex;
+    gap: 14px;
+    padding: 16px;
+  }
+  .step h3 {
+    font-size: 15.5px;
+    margin: 2px 0 4px;
+  }
+  .step p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .step-n {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    flex: none;
+    border-radius: 8px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    font-weight: 700;
+  }
+  .cov-panel h3 {
+    margin: 0;
+    font-size: 16px;
+  }
+
+  @media (max-width: 860px) {
+    .pca,
+    .intro,
+    .intuition,
+    .how-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
