@@ -10,6 +10,13 @@ const L =
   lang === 'pt'
     ? {
         upload: 'Escolher foto',
+        camera: 'Usar a câmera',
+        shoot: 'Tirar foto',
+        closeCam: 'Fechar câmera',
+        camHint: 'Enquadre o boleto ou o documento reto, de perto e com boa luz, e toque em Tirar foto.',
+        camDenied: 'A câmera foi bloqueada: a permissão foi negada ou o navegador não libera a câmera nesta página.',
+        camMissing: 'Não achei nenhuma câmera neste aparelho.',
+        camOther: 'Não consegui abrir a câmera: ',
         examples: 'ou teste com um exemplo:',
         ex: {
           boleto: 'Boleto',
@@ -63,6 +70,13 @@ const L =
       }
     : {
         upload: 'Choose a photo',
+        camera: 'Use the camera',
+        shoot: 'Take photo',
+        closeCam: 'Close camera',
+        camHint: 'Frame the boleto or document straight, close up and with good light, then tap Take photo.',
+        camDenied: "The camera was blocked: permission was denied or the browser doesn't allow the camera on this page.",
+        camMissing: 'No camera found on this device.',
+        camOther: "Couldn't open the camera: ",
         examples: 'or try an example:',
         ex: {
           boleto: 'Boleto',
@@ -127,9 +141,18 @@ const examples = Object.entries(L.ex).map(([key, label]) => ({
         {L.upload}
         <input id="file" type="file" accept="image/*" />
       </label>
+      <button type="button" class="btn" id="cam" hidden>{L.camera}</button>
       <span class="muted small">{L.examples}</span>
       <div class="examples">
         {examples.map((e) => <button type="button" class="btn ex" data-src={e.src}>{e.label}</button>)}
+      </div>
+    </div>
+    <div class="camera" id="camera" hidden>
+      <video id="video" muted playsinline></video>
+      <p class="muted small">{L.camHint}</p>
+      <div class="cam-actions">
+        <button type="button" class="btn primary" id="shoot" disabled>{L.shoot}</button>
+        <button type="button" class="btn" id="close-cam">{L.closeCam}</button>
       </div>
     </div>
     <div class="opts small">
@@ -155,6 +178,7 @@ const examples = Object.entries(L.ex).map(([key, label]) => ({
   import type { Boleto } from '../../lib/ocr/boleto';
   import type { Finding } from '../../lib/ocr/extract';
   import { wordsInSpan, minConfidence } from '../../lib/ocr/layout';
+  import { cameraError, hasCamera, openCamera, stopStream } from '../../lib/camera';
   import { createReader, type ReadResult, type Reader } from '../../lib/ocr/ocr';
   import { grayToRgba, prepare, targetSize, toPgm } from '../../lib/ocr/preprocess';
 
@@ -176,6 +200,11 @@ const examples = Object.entries(L.ex).map(([key, label]) => ({
     const raw = $<HTMLDetailsElement>('raw');
     const text = $('text');
     const buttons = [...root.querySelectorAll<HTMLButtonElement>('button.ex')];
+    const camBtn = $<HTMLButtonElement>('cam');
+    const camera = $('camera');
+    const video = $<HTMLVideoElement>('video');
+    const shoot = $<HTMLButtonElement>('shoot');
+    const closeCam = $<HTMLButtonElement>('close-cam');
 
     const money = new Intl.NumberFormat(pt ? 'pt-BR' : 'en', { style: 'currency', currency: 'BRL' });
     const day = new Intl.DateTimeFormat(pt ? 'pt-BR' : 'en', { dateStyle: 'medium', timeZone: 'UTC' });
@@ -238,7 +267,7 @@ const examples = Object.entries(L.ex).map(([key, label]) => ({
 
     function setBusy(b: boolean) {
       busy = b;
-      for (const x of [file, bin, reread, ...buttons]) x.disabled = b;
+      for (const x of [file, bin, reread, camBtn, ...buttons]) x.disabled = b;
       root!.setAttribute('aria-busy', String(b));
     }
 
@@ -388,12 +417,82 @@ const examples = Object.entries(L.ex).map(([key, label]) => ({
       await run();
     }
 
+    // Câmera: prévia ao vivo e uma foto na resolução cheia do vídeo, que segue o mesmo caminho do arquivo.
+    // Cada abertura ganha um número; se fecharem enquanto o navegador pergunta, a câmera aberta tarde é solta.
+    let stream: MediaStream | null = null;
+    let camGen = 0;
+
+    function stopCamera() {
+      camGen++;
+      stopStream(stream);
+      stream = null;
+      video.srcObject = null;
+      camera.hidden = true;
+      shoot.disabled = true;
+      camBtn.hidden = !hasCamera();
+    }
+
+    async function startCamera() {
+      const gen = ++camGen;
+      camBtn.disabled = true;
+      let s: MediaStream;
+      try {
+        s = await openCamera();
+      } catch (e) {
+        camBtn.disabled = false;
+        const why = cameraError(e);
+        status.textContent =
+          why === 'denied' ? L.camDenied : why === 'missing' ? L.camMissing : L.camOther + (e instanceof Error ? e.message : String(e));
+        return;
+      }
+      camBtn.disabled = false;
+      if (gen !== camGen) return stopStream(s);
+      stream = s;
+      video.srcObject = s;
+      camera.hidden = false;
+      camBtn.hidden = true;
+      status.textContent = '';
+      try {
+        await video.play();
+      } catch (e) {
+        if (gen !== camGen) return;
+        stopCamera();
+        status.textContent = L.camOther + (e instanceof Error ? e.message : String(e));
+        return;
+      }
+      if (gen !== camGen) return;
+      shoot.disabled = false;
+      camera.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    async function takePhoto() {
+      if (!stream || !video.videoWidth) return;
+      const shot = await createImageBitmap(video);
+      stopCamera();
+      bitmap?.close();
+      bitmap = shot;
+      await run();
+    }
+
+    camBtn.hidden = !hasCamera();
+    camBtn.addEventListener('click', () => void startCamera());
+    shoot.addEventListener('click', () => void takePhoto());
+    closeCam.addEventListener('click', stopCamera);
+    // Sai da página ou troca de aba do navegador: solta a câmera.
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && stream) stopCamera();
+    });
+
     file.addEventListener('change', () => {
       const f = file.files?.[0];
-      if (f) void load(f);
+      if (f) {
+        stopCamera();
+        void load(f);
+      }
     });
     for (const b of buttons) {
       b.addEventListener('click', async () => {
+        stopCamera();
         const res = await fetch(b.dataset.src!);
         if (res.ok) await load(await res.blob());
       });
@@ -439,6 +538,33 @@ const examples = Object.entries(L.ex).map(([key, label]) => ({
   .upload:focus-within {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
+  }
+  .camera {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--panel);
+  }
+  .camera[hidden],
+  .btn[hidden] {
+    display: none;
+  }
+  .camera video {
+    width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+    border-radius: calc(var(--radius) - 4px);
+    background: #000;
+  }
+  .camera p {
+    margin: 0;
+  }
+  .cam-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
   .btn.ex {
     font-size: 14px;
