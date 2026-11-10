@@ -1,6 +1,7 @@
 ---
 import DemoShell from '../../components/DemoShell.astro';
 import '../../styles/run.css';
+import '../../styles/workbench.css';
 import { route, type Lang } from '../../i18n/routes';
 import { uiStrings } from '../../i18n/ui';
 import { LIVE_KEYS } from '../../lib/live';
@@ -171,41 +172,49 @@ const SERVERS = [
 ];
 ---
 
-<DemoShell lang={lang} demo="demoAgents">
-  <div class="agents" id="agents" data-s={JSON.stringify(s)} data-l={JSON.stringify(L)} data-lang={lang} data-login={route('login', lang)}>
-    <section class="panel ask">
-      <div class="panel-head">
-        <div>
-          <h2>{L.askTitle}</h2>
-          <p class="hint">{L.askHint}</p>
-        </div>
-        <span class="quota mono" data-remaining></span>
+<DemoShell lang={lang} demo="demoAgents" wide>
+  <div class="wb agents" id="agents" data-s={JSON.stringify(s)} data-l={JSON.stringify(L)} data-lang={lang} data-login={route('login', lang)}>
+    <header class="wb-bar">
+      <span class="wb-ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2.5"></circle><circle cx="5" cy="18" r="2.5"></circle><circle cx="19" cy="18" r="2.5"></circle><path d="M12 7.5v3M12 10.5L6.5 16M12 10.5l5.5 5.5"></path></svg>
+      </span>
+      <div class="wb-title">
+        <strong>{L.askTitle}</strong>
+        <span>{L.askHint}</span>
       </div>
-      <p class="notice" data-gate>…</p>
-      <form class="ask-form" data-live hidden>
-        <label class="sr-only" for="q">{L.question}</label>
-        <textarea id="q" name="question" maxlength="600" required placeholder={L.placeholder}></textarea>
-        <div class="chips">
-          {L.examples.map((e) => <button type="button" class="chip" data-example={e}>{e}</button>)}
-        </div>
-        <div class="ask-actions">
-          <button class="btn primary" type="submit">{L.run}</button>
-          <p class="hint small">{L.note}</p>
-        </div>
-      </form>
-      <div class="sample-row">
-        <button type="button" class="btn" id="a-sample">
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"></path></svg>
-          {L.sample}
-        </button>
-        <span class="hint small">{L.sampleHint}</span>
-      </div>
-    </section>
+      <span class="wb-spacer"></span>
+      <span class="wb-pill" data-remaining></span>
+      <button type="button" class="btn sm" id="a-sample" title={L.sampleHint}>
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"></path></svg>
+        {L.sample}
+      </button>
+    </header>
 
-    <aside class="panel team">
-      <h2>{L.teamTitle}</h2>
-      <p class="hint">{L.teamHint}</p>
-      <div class="org">
+    <div class="wb-grid a-grid">
+      <section class="wb-pane a-ask">
+        <div class="wb-head"><h2>{L.question}</h2></div>
+        <div class="wb-body">
+          <p class="notice" data-gate>…</p>
+          <form class="ask-form" data-live hidden>
+            <label class="wb-sr" for="q">{L.question}</label>
+            <textarea id="q" name="question" maxlength="600" required placeholder={L.placeholder}></textarea>
+            <div class="wb-chips">
+              {L.examples.map((e) => <button type="button" class="wb-chip" data-example={e}>{e}</button>)}
+            </div>
+            <div class="ask-actions">
+              <button class="btn primary" type="submit">{L.run}</button>
+              <p class="wb-hint">{L.note}</p>
+            </div>
+          </form>
+          <p class="wb-hint">{L.sampleHint}</p>
+        </div>
+      </section>
+
+      <aside class="wb-pane a-team">
+        <div class="wb-head"><h2>{L.teamTitle}</h2></div>
+        <div class="wb-body">
+          <p class="wb-hint">{L.teamHint}</p>
+          <div class="org">
         <div class="member m-lead">
           <div class="m-head">
             <span class="avatar a-coordinator">{lead.label[0]}</span>
@@ -252,64 +261,62 @@ const SERVERS = [
         </div>
         <p class="notice small" data-alloff hidden>{L.allOff}</p>
       </div>
-      <p class="otel">{L.otel}</p>
-    </aside>
+          <p class="otel">{L.otel}</p>
+        </div>
+      </aside>
 
-    <section class="panel full answer-panel">
-      <div class="panel-head">
-        <div class="grow">
+      <section class="wb-pane a-out">
+        <div class="wb-head">
           <h2>{L.answer}</h2>
-          <p class="hint q-echo" id="a-question" hidden></p>
+          <p class="wb-hint q-echo" id="a-question" hidden></p>
+          <span class="wb-spacer"></span>
+          <button type="button" class="btn xs" id="a-copy" hidden>{L.copy}</button>
         </div>
-        <div class="head-actions">
-          <span class="status" id="a-status" data-state="idle"><span class="st-dot"></span><span id="a-status-text">{L.idle}</span></span>
-          <button type="button" class="btn copy" id="a-copy" hidden>{L.copy}</button>
+        <div class="wb-runs">
+          <div class="wb-run">
+            <span class="wb-status" id="a-status" data-state="idle"><span class="st-dot"></span><span id="a-status-text">{L.idle}</span></span>
+            <div class="wb-kpis" id="a-kpis" hidden>
+              <span class="wb-kpi"><strong id="k-time"></strong>{L.kTime}</span>
+              <span class="wb-kpi"><strong id="k-tokens"></strong>{L.kTokens}</span>
+              <span class="wb-kpi"><strong id="k-llm"></strong>{L.kLlm}</span>
+              <span class="wb-kpi"><strong id="k-tools"></strong>{L.kTools}</span>
+              <span class="wb-kpi"><strong id="k-agents"></strong>{L.kAgents}</span>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="kpis" id="a-kpis" hidden>
-        <div class="kpi"><strong id="k-time"></strong><span>{L.kTime}</span></div>
-        <div class="kpi"><strong id="k-tokens"></strong><span>{L.kTokens}</span></div>
-        <div class="kpi"><strong id="k-llm"></strong><span>{L.kLlm}</span></div>
-        <div class="kpi"><strong id="k-tools"></strong><span>{L.kTools}</span></div>
-        <div class="kpi"><strong id="k-agents"></strong><span>{L.kAgents}</span></div>
-      </div>
-      <p class="notice error" id="a-error" hidden></p>
-      <div class="empty" id="a-empty">
-        <svg viewBox="0 0 120 70" aria-hidden="true">
-          <line x1="60" y1="18" x2="24" y2="52"></line>
-          <line x1="60" y1="18" x2="96" y2="52"></line>
-          <circle class="n1" cx="60" cy="16" r="10"></circle>
-          <circle class="n2" cx="24" cy="54" r="9"></circle>
-          <circle class="n3" cx="96" cy="54" r="9"></circle>
-        </svg>
-        <strong>{L.emptyTitle}</strong>
-        <span>{L.emptyText}</span>
-      </div>
-      <div class="working" id="a-working" hidden><span class="spinner"></span>{L.working}</div>
-      <div class="md" id="a-text" hidden></div>
-      <div id="a-consult" hidden></div>
-    </section>
-
-    <section class="panel full" id="a-run" hidden>
-      <div class="panel-head">
-        <div>
-          <h2>{L.steps}</h2>
-          <p class="hint">{L.stepsHint}</p>
+        <div class="wb-tabs" id="a-tabs">
+          <button class="wb-tab" data-tab="answer" aria-controls="a-p-answer">{L.answer}</button>
+          <button class="wb-tab" data-tab="steps" aria-controls="a-p-steps">{L.steps}</button>
+          <button class="wb-tab" data-tab="trace" aria-controls="a-p-trace">{L.trace} <span class="dot" id="a-trace-dot" hidden></span></button>
         </div>
-      </div>
-      <div class="run-tree" id="a-tree"></div>
-    </section>
-
-    <section class="panel full" id="a-trace" hidden>
-      <div class="panel-head">
-        <div>
-          <h2>{L.trace}</h2>
-          <p class="hint">{L.traceHint}</p>
+        <div class="wb-body" id="a-p-answer" data-pane>
+          <p class="notice error" id="a-error" hidden></p>
+          <div class="wb-empty" id="a-empty">
+            <svg viewBox="0 0 120 70" aria-hidden="true">
+              <line x1="60" y1="18" x2="24" y2="52"></line>
+              <line x1="60" y1="18" x2="96" y2="52"></line>
+              <circle cx="60" cy="16" r="10"></circle>
+              <circle cx="24" cy="54" r="9"></circle>
+              <circle cx="96" cy="54" r="9"></circle>
+            </svg>
+            <strong>{L.emptyTitle}</strong>
+            <span>{L.emptyText}</span>
+          </div>
+          <div class="working" id="a-working" hidden><span class="spinner"></span>{L.working}</div>
+          <div class="md" id="a-text" hidden></div>
+          <div id="a-consult" hidden></div>
         </div>
-      </div>
-      <p class="hint" id="a-trace-wait" hidden></p>
-      <div class="waterfall" id="a-waterfall"></div>
-    </section>
+        <div class="wb-body" id="a-p-steps" data-pane hidden>
+          <p class="wb-hint">{L.stepsHint}</p>
+          <div class="run-tree" id="a-tree"></div>
+        </div>
+        <div class="wb-body" id="a-p-trace" data-pane hidden>
+          <p class="wb-hint">{L.traceHint}</p>
+          <p class="wb-hint" id="a-trace-wait" hidden></p>
+          <div id="a-lens"></div>
+        </div>
+      </section>
+    </div>
   </div>
 </DemoShell>
 
@@ -320,7 +327,8 @@ const SERVERS = [
   import { consultCta, gate } from '../../lib/live';
   import { renderMarkdown } from '../../lib/markdown';
   import { runTree } from '../../lib/runTree';
-  import { fmtMs, renderWaterfall, type Span } from '../../lib/waterfall';
+  import { tabs } from '../../lib/tabs';
+  import { fmtMs, renderLensTrace, type Span } from '../../lib/waterfall';
 
   const root = document.getElementById('agents');
   if (root) {
@@ -334,6 +342,10 @@ const SERVERS = [
     const textarea = form.querySelector<HTMLTextAreaElement>('textarea')!;
     const sampleBtn = $<HTMLButtonElement>('a-sample');
     const copyBtn = $<HTMLButtonElement>('a-copy');
+    const outTabs = tabs($('a-tabs'), (key) => {
+      if (key === 'trace') $('a-trace-dot').hidden = true;
+    });
+    const traceReady = () => ($('a-trace-dot').hidden = outTabs.current() === 'trace');
 
     // ------------------------------------------------------------ MCPs ligados e desligados
     const switches = [...root.querySelectorAll<HTMLButtonElement>('[data-switch]')];
@@ -449,13 +461,13 @@ const SERVERS = [
       submit.disabled = true;
       sampleBtn.disabled = true;
       submit.textContent = L.running;
-      for (const id of ['a-error', 'a-kpis', 'a-text', 'a-empty', 'a-trace', 'a-trace-wait', 'a-consult']) $(id).hidden = true;
+      for (const id of ['a-error', 'a-kpis', 'a-text', 'a-empty', 'a-trace-wait', 'a-consult', 'a-trace-dot']) $(id).hidden = true;
       copyBtn.hidden = true;
       $('a-working').hidden = false;
       $('a-question').hidden = false;
       $('a-question').textContent = `“${question}”`;
-      $('a-run').hidden = false;
-      $('a-waterfall').replaceChildren();
+      $('a-lens').replaceChildren();
+      outTabs.select('steps');
       renderTree();
       startClock();
     };
@@ -486,6 +498,7 @@ const SERVERS = [
       setStatus(ok ? 'ready' : 'failed', sample ? L.sampleTag : fmtMs(d.durationMs));
       $('a-consult').replaceChildren(consultCta(s, lang));
       $('a-consult').hidden = false;
+      outTabs.select('answer');
     };
     const onEvent = (event: string, data: unknown, at: number) => {
       applyEvent(state, event, data, at);
@@ -520,8 +533,8 @@ const SERVERS = [
       }
       finish();
       showDone(true);
-      $('a-trace').hidden = false;
-      renderWaterfall($('a-waterfall'), run.spans, lang);
+      renderLensTrace($('a-lens'), '', run.spans, lang);
+      traceReady();
     });
 
     // ------------------------------------------------------------ execução de verdade
@@ -543,6 +556,7 @@ const SERVERS = [
         if (!state.done) throw { status: 502 };
       } catch (err) {
         failed = true;
+        outTabs.select('answer');
         $('a-error').hidden = false;
         $('a-error').textContent = liveError(err, s);
         setStatus('failed');
@@ -552,13 +566,13 @@ const SERVERS = [
       }
       const traceId = state.done?.traceId;
       if (!failed && traceId) {
-        $('a-trace').hidden = false;
         $('a-trace-wait').hidden = false;
         $('a-trace-wait').textContent = L.traceWait;
         try {
           const spans = await fetchTrace<Span[]>(traceId);
           $('a-trace-wait').hidden = true;
-          renderWaterfall($('a-waterfall'), spans, lang);
+          renderLensTrace($('a-lens'), traceId, spans, lang);
+          traceReady();
         } catch {
           $('a-trace-wait').textContent = L.traceMissing;
         }
@@ -571,71 +585,25 @@ const SERVERS = [
 </script>
 
 <style>
-  .agents > * {
-    min-width: 0;
+  .a-grid {
+    grid-template-columns: minmax(0, 1fr) 380px;
+    grid-template-areas:
+      'ask team'
+      'out team';
+    align-items: start;
   }
-  .agents {
-    display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
-    gap: 16px;
-    padding-bottom: 48px;
+  .a-ask {
+    grid-area: ask;
   }
-  .full {
-    grid-column: 1 / -1;
+  .a-out {
+    grid-area: out;
+    min-height: 420px;
   }
-  .panel {
-    background: linear-gradient(180deg, var(--panel-2), var(--panel));
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 20px;
-    box-shadow: var(--shadow);
-    min-width: 0;
-  }
-  h2 {
-    font-size: 17px;
-    margin: 0;
-    letter-spacing: -0.01em;
-  }
-  .hint {
-    color: var(--muted);
-    font-size: 14px;
-    margin: 4px 0 0;
-  }
-  .small {
-    font-size: 13px;
-  }
-  .panel-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px 16px;
-    flex-wrap: wrap;
-    margin-bottom: 14px;
-  }
-  .grow {
-    flex: 1 1 260px;
-    min-width: 0;
-  }
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
-
-  /* Pergunta */
-  .quota:not(:empty) {
-    font-size: 12.5px;
-    color: var(--accent);
-    background: var(--accent-soft);
-    border-radius: 999px;
-    padding: 4px 10px;
-  }
-  .ask {
-    display: grid;
-    align-content: start;
+  .a-team {
+    grid-area: team;
+    position: sticky;
+    top: 76px;
+    max-height: calc(100vh - 92px);
   }
   .ask-form {
     display: grid;
@@ -645,41 +613,17 @@ const SERVERS = [
     width: 100%;
     min-height: 96px;
   }
-  .chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .chip {
-    font: inherit;
-    font-size: 13px;
-    padding: 6px 12px;
-    border-radius: 999px;
-    border: 1px solid var(--line-strong);
-    background: var(--panel);
-    color: var(--text);
-    cursor: pointer;
-    text-align: left;
-  }
-  .chip:hover {
-    border-color: var(--accent);
-  }
-  .ask-actions,
-  .sample-row {
+  .ask-actions {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
     gap: 8px 14px;
   }
-  .ask-actions .hint,
-  .sample-row .hint {
-    margin: 0;
+  .ask-actions .wb-hint {
     flex: 1 1 200px;
   }
-  .sample-row {
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px dashed var(--line-strong);
+  .a-ask .notice {
+    margin: 0;
   }
 
   /* Time */
@@ -738,6 +682,7 @@ const SERVERS = [
   .mcp-hint {
     margin: 14px 0 10px;
     font-size: 13px;
+    color: var(--muted);
   }
   .servers {
     display: grid;
@@ -847,109 +792,11 @@ const SERVERS = [
   .q-echo {
     font-style: italic;
     overflow-wrap: anywhere;
+    flex: 1 1 200px;
+    margin: 0;
   }
-  .head-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .status {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    font-size: 13px;
-    font-family: var(--mono);
-    padding: 5px 11px;
-    border-radius: 999px;
-    border: 1px solid var(--line);
-    background: var(--panel);
-    color: var(--muted);
-    white-space: nowrap;
-  }
-  .st-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--line-strong);
-  }
-  .status[data-state='live'] {
-    color: var(--accent);
-    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
-  }
-  .status[data-state='live'] .st-dot {
-    background: var(--accent);
-    animation: pulse 1s ease-in-out infinite;
-  }
-  .status[data-state='ready'] .st-dot {
-    background: var(--ok);
-  }
-  .status[data-state='ready'] {
-    color: var(--ok);
-  }
-  .status[data-state='failed'] .st-dot {
-    background: var(--danger);
-  }
-  .status[data-state='failed'] {
-    color: var(--danger);
-  }
-  .copy {
-    min-height: 32px;
-    padding: 4px 12px;
-    font-size: 13px;
-  }
-  .kpis {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 10px;
-    margin-bottom: 16px;
-  }
-  .kpi {
-    border: 1px solid var(--line);
-    background: var(--panel);
-    border-radius: var(--radius-sm);
-    padding: 10px 12px;
-    display: grid;
-    gap: 2px;
-  }
-  .kpi strong {
-    font-family: var(--mono);
-    font-size: 20px;
-    font-weight: 600;
-  }
-  .kpi span {
-    font-size: 12px;
-    color: var(--muted);
-  }
-  .empty {
-    display: grid;
-    justify-items: center;
-    text-align: center;
-    gap: 6px;
-    padding: 18px 10px 10px;
-    color: var(--muted);
-    font-size: 14px;
-  }
-  .empty strong {
-    color: var(--text);
-  }
-  .empty svg {
-    width: 120px;
-    height: 70px;
-    margin-bottom: 6px;
-  }
-  .empty line {
-    stroke: var(--line-strong);
-    stroke-width: 2;
-    stroke-dasharray: 4 4;
-  }
-  .empty .n1 {
-    fill: var(--accent);
-  }
-  .empty .n2 {
-    fill: var(--accent2);
-  }
-  .empty .n3 {
-    fill: var(--accent3);
+  .q-echo[hidden] {
+    display: none;
   }
   .working {
     display: flex;
@@ -958,47 +805,27 @@ const SERVERS = [
     color: var(--muted);
     padding: 8px 0;
   }
-  .empty[hidden],
   .working[hidden],
-  .kpis[hidden] {
+  .wb-empty[hidden] {
     display: none;
   }
 
-  @keyframes pulse {
-    50% {
-      opacity: 0.35;
-    }
-  }
-
-  @media (max-width: 860px) {
-    .agents {
+  @media (max-width: 1079px) {
+    .a-grid {
       grid-template-columns: minmax(0, 1fr);
+      grid-template-areas: 'ask' 'out' 'team';
     }
-    .kpis {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+    .a-team {
+      position: static;
+      max-height: none;
+    }
+    .a-out {
+      min-height: 0;
     }
   }
   @media (max-width: 480px) {
-    .panel {
-      padding: 16px;
-    }
     .org {
       gap: 10px;
-    }
-    .kpis {
-      grid-template-columns: repeat(6, minmax(0, 1fr));
-      gap: 8px;
-    }
-    /* 5 KPIs: 3 em cima e 2 embaixo, sem sobrar um sozinho */
-    .kpi {
-      grid-column: span 2;
-      padding: 8px 10px;
-    }
-    .kpi:nth-child(n + 4) {
-      grid-column: span 3;
-    }
-    .kpi strong {
-      font-size: 16px;
     }
   }
 </style>

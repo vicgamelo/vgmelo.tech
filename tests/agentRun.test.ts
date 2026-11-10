@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { sampleRun } from '../src/data/agentsSample';
 import { applyEvent, argsLine, newRun, prettyResult, runCounts, toolLabel, type ToolStep } from '../src/lib/agentRun';
-import { treeOrder } from '../src/lib/waterfall';
+import { byModel, treeOrder, type Span } from '../src/lib/waterfall';
 
 function replay(lang: 'pt' | 'en' = 'pt') {
   const { events } = sampleRun(lang);
@@ -69,4 +69,32 @@ describe('árvore da execução dos agentes', () => {
     expect(prettyResult('{"a":1}')).toBe('{\n  "a": 1\n}');
     expect(prettyResult('texto')).toBe('texto');
   });
+});
+
+describe('trace por modelo (genai-lens)', () => {
+  const sp = (kind: string, model: string | null, tin: number, tout: number, ms: number): Span => ({
+    span_id: `${kind}${model}${tin}`,
+    parent_id: null,
+    name: kind,
+    kind,
+    status: 'ok',
+    start_time: '2026-11-10T12:00:00Z',
+    duration_ms: ms,
+    model,
+    input_tokens: tin,
+    output_tokens: tout,
+  });
+  it('soma chamadas, tokens e tempo de cada modelo, maior gasto primeiro', () => {
+    const rows = byModel([
+      sp('llm', 'openai/gpt-oss-20b', 100, 20, 300),
+      sp('llm', 'openai/gpt-oss-120b', 900, 100, 1200),
+      sp('tool', null, 0, 0, 50),
+      sp('llm', 'openai/gpt-oss-20b', 200, 30, 400),
+    ]);
+    expect(rows).toEqual([
+      { model: 'openai/gpt-oss-120b', calls: 1, tokens: 1000, ms: 1200 },
+      { model: 'openai/gpt-oss-20b', calls: 2, tokens: 350, ms: 700 },
+    ]);
+  });
+  it('sem chamada ao LLM, lista vazia', () => expect(byModel([sp('tool', null, 0, 0, 5)])).toEqual([]));
 });

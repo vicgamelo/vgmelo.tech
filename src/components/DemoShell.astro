@@ -7,15 +7,17 @@ import { useT } from '../i18n/ui';
 interface Props {
   lang: Lang;
   demo: Demo['key'];
+  /** Painel largo (estúdio, agentes): usa a tela toda até 1440 px. */
+  wide?: boolean;
 }
-const { lang, demo } = Astro.props;
+const { lang, demo, wide = false } = Astro.props;
 const t = useT(lang);
 const d = DEMOS.find((x) => x.key === demo)!;
 const project = PROJECTS.find((p) => p.slug === d.project)!;
 ---
 
 <Base lang={lang} title={d.title[lang]} description={d.text[lang]} alt={ROUTES[demo]}>
-  <div class="container">
+  <div class:list={['container', { wide }]}>
     <header class="page-head">
       <a class="back" href={route('demos', lang)}>← {t('nav.demos')}</a>
       <span class={d.live ? 'badge live' : 'badge'}>{d.live ? t('demos.live') : t('demos.browser')}</span>
@@ -30,6 +32,16 @@ const project = PROJECTS.find((p) => p.slug === d.project)!;
 </Base>
 
 <style>
+  .wide {
+    max-width: 1440px;
+  }
+  /* No painel o trabalho é a tela: cabeçalho mais baixo */
+  .wide .page-head h1 {
+    font-size: clamp(28px, 3.2vw, 38px);
+  }
+  .wide .page-head {
+    padding-bottom: 18px;
+  }
   .back {
     display: block;
     font-size: 14px;

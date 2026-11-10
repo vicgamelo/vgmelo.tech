@@ -1,6 +1,7 @@
 ---
 import DemoShell from '../../components/DemoShell.astro';
 import '../../styles/run.css';
+import '../../styles/workbench.css';
 import { route, type Lang } from '../../i18n/routes';
 import { uiStrings } from '../../i18n/ui';
 import { LIVE_KEYS } from '../../lib/live';
@@ -110,6 +111,27 @@ const L = pt
       delete: 'Excluir',
       confirmDelete: 'Excluir esta versão? Não dá para desfazer.',
       tokensCap: 'máx. de tokens por resposta',
+      studio: 'Estúdio de agentes',
+      studioHint: 'Entre para escrever, salvar e rodar seus agentes.',
+      viewAgent: 'Agente',
+      viewRun: 'Rodar',
+      viewVersions: 'Versões',
+      explorer: 'Explorador',
+      newBlank: 'Novo em branco',
+      settings: 'Modelo',
+      tabInstr: 'Instruções',
+      tabTools: 'Ferramentas',
+      filterTools: 'Filtrar ferramentas',
+      noMatch: 'Nenhuma ferramenta com esse nome.',
+      outTitle: 'Saída',
+      tabAnswer: 'Resposta',
+      tabTrace: 'Trace · genai-lens',
+      emptyTitle: 'Nada rodou ainda',
+      emptyText: 'Escreva uma pergunta no playground e clique em Rodar. A resposta, o passo a passo e o trace do genai-lens aparecem aqui.',
+      noAnswer: 'Sem resposta.',
+      lensWait: 'Buscando o trace no genai-lens…',
+      versionsCount: 'versões',
+      openHint: 'abrir no editor',
     }
   : {
       editorTitle: 'Your agent',
@@ -209,110 +231,170 @@ const L = pt
       delete: 'Delete',
       confirmDelete: "Delete this version? This can't be undone.",
       tokensCap: 'max tokens per answer',
+      studio: 'Agent studio',
+      studioHint: 'Sign in to write, save and run your agents.',
+      viewAgent: 'Agent',
+      viewRun: 'Run',
+      viewVersions: 'Versions',
+      explorer: 'Explorer',
+      newBlank: 'New blank agent',
+      settings: 'Model',
+      tabInstr: 'Instructions',
+      tabTools: 'Tools',
+      filterTools: 'Filter tools',
+      noMatch: 'No tool with that name.',
+      outTitle: 'Output',
+      tabAnswer: 'Answer',
+      tabTrace: 'Trace · genai-lens',
+      emptyTitle: 'Nothing ran yet',
+      emptyText: 'Write a question in the playground and click Run. The answer, the steps and the genai-lens trace show up here.',
+      noAnswer: 'No answer.',
+      lensWait: 'Fetching the trace from genai-lens…',
+      versionsCount: 'versions',
+      openHint: 'open in the editor',
     };
 ---
 
-<DemoShell lang={lang} demo="demoStudio">
-  <div class="studio is-anon" id="studio" data-s={JSON.stringify(s)} data-l={JSON.stringify(L)} data-lang={lang}>
-    <div class="live">
-      <section class="panel editor" id="s-editor" hidden>
-        <div class="panel-head">
-          <div class="grow">
-            <h2>{L.editorTitle}</h2>
-            <p class="hint">{L.editorHint}</p>
-          </div>
-          <span class="tag mono" id="s-state"></span>
-        </div>
+<DemoShell lang={lang} demo="demoStudio" wide>
+  <div class="wb studio is-anon" id="studio" data-s={JSON.stringify(s)} data-l={JSON.stringify(L)} data-lang={lang} data-view="a">
+    <header class="wb-bar">
+      <span class="wb-ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"></path><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"></path></svg>
+      </span>
+      <div class="wb-title anon-only">
+        <strong>{L.studio}</strong>
+        <span>{L.studioHint}</span>
+      </div>
+      <div class="s-ident signed-only">
+        <label class="wb-sr" for="s-name">{L.name}</label>
+        <input id="s-name" class="s-name" type="text" maxlength="60" autocomplete="off" />
+        <span class="wb-pill muted" id="s-state"></span>
+      </div>
+      <span class="wb-spacer"></span>
+      <span class="wb-pill" id="s-remaining"></span>
+      <div class="s-save signed-only">
+        <input id="s-note" type="text" maxlength="200" placeholder={L.note} aria-label={L.note} autocomplete="off" />
+        <button type="button" class="btn sm primary" id="s-save">{L.save}</button>
+      </div>
+      <p class="wb-hint s-saved" id="s-saved" aria-live="polite"></p>
+    </header>
 
-        <div class="fields">
-          <label class="f">
-            <span class="lab">{L.start}</span>
-            <select id="s-start"></select>
-          </label>
-          <label class="f">
-            <span class="lab">{L.name}</span>
-            <input id="s-name" type="text" maxlength="60" autocomplete="off" />
-          </label>
-          <div class="row3">
-            <label class="f">
-              <span class="lab">{L.model}</span>
-              <select id="s-model"></select>
-            </label>
-            <label class="f">
-              <span class="lab">{L.temperature} <output id="s-temp-out" class="mono"></output></span>
-              <input id="s-temp" type="range" min="0" max="1.5" step="0.1" />
-            </label>
-            <label class="f">
-              <span class="lab">{L.steps}</span>
-              <input id="s-steps" type="number" min="1" step="1" inputmode="numeric" />
-            </label>
+    <nav class="wb-views signed-only" aria-label={L.studio}>
+      <button data-view-btn="a">{L.viewAgent}</button>
+      <button data-view-btn="b">{L.viewRun}</button>
+      <button data-view-btn="c">{L.viewVersions} <span class="n" id="s-vcount"></span></button>
+    </nav>
+
+    <div class="wb-grid s-grid">
+      <aside class="wb-pane s-side signed-only" id="s-side" data-view-of="c">
+        <div class="wb-head"><h2>{L.explorer}</h2></div>
+        <div class="wb-body s-explorer">
+          <button type="button" class="x-item x-new" id="s-new">
+            <span class="x-plus" aria-hidden="true">+</span>{L.newBlank}
+          </button>
+          <div class="x-group">
+            <p class="x-title">{L.templates}</p>
+            <div id="s-templates" class="x-list"></div>
           </div>
-          <fieldset class="tools">
-            <legend class="lab">{L.tools} <span class="count mono" id="s-tools-count"></span></legend>
-            <p class="hint small">{L.toolsHint}</p>
-            <div id="s-tools" class="tool-groups"></div>
-          </fieldset>
-          <label class="f">
-            <span class="lab">{L.instructions} <span class="count mono" id="s-count"></span></span>
-            <textarea id="s-instr" spellcheck="false"></textarea>
-          </label>
-          <ul class="problems" id="s-problems" hidden></ul>
-          <div class="save-row">
-            <input id="s-note" type="text" maxlength="200" placeholder={L.note} aria-label={L.note} autocomplete="off" />
-            <button type="button" class="btn" id="s-save">{L.save}</button>
+          <div class="x-group">
+            <p class="x-title">{L.mine} <span class="wb-count" id="s-vtotal"></span></p>
+            <div id="s-versions" class="x-list"></div>
           </div>
-          <p class="hint small" id="s-saved" aria-live="polite"></p>
+          <p class="wb-hint small">{L.versionsHint}</p>
+        </div>
+      </aside>
+
+      <section class="wb-pane s-edit signed-only" id="s-editor" data-view-of="a">
+        <div class="s-settings">
+          <label class="wb-field s-model">
+            <span class="wb-label">{L.model}</span>
+            <select id="s-model"></select>
+          </label>
+          <label class="wb-field">
+            <span class="wb-label">{L.temperature} <output id="s-temp-out" class="wb-count"></output></span>
+            <input id="s-temp" type="range" min="0" max="1.5" step="0.1" />
+          </label>
+          <label class="wb-field s-steps">
+            <span class="wb-label">{L.steps}</span>
+            <input id="s-steps" type="number" min="1" step="1" inputmode="numeric" />
+          </label>
+        </div>
+        <div class="wb-tabs" id="s-edit-tabs">
+          <button class="wb-tab" data-tab="instr" aria-controls="s-p-instr">{L.tabInstr} <span class="wb-count" id="s-count"></span></button>
+          <button class="wb-tab" data-tab="tools" aria-controls="s-p-tools">{L.tabTools} <span class="n" id="s-tools-count"></span></button>
+        </div>
+        <div class="wb-body s-instr-pane" id="s-p-instr" data-pane>
+          <label class="wb-sr" for="s-instr">{L.instructions}</label>
+          <textarea id="s-instr" spellcheck="false"></textarea>
+          <ul class="s-problems" id="s-problems" hidden></ul>
+        </div>
+        <div class="wb-body" id="s-p-tools" data-pane hidden>
+          <p class="wb-hint">{L.toolsHint}</p>
+          <input id="s-tool-filter" type="search" placeholder={L.filterTools} aria-label={L.filterTools} autocomplete="off" />
+          <div id="s-tools" class="tool-groups"></div>
+          <p class="wb-hint" id="s-tools-none" hidden>{L.noMatch}</p>
         </div>
       </section>
 
-      <section class="panel play" id="s-play" data-login={route('login', lang)}>
-        <div class="panel-head">
-          <div class="grow">
-            <h2>{L.playTitle}</h2>
-            <p class="hint">{L.playHint}</p>
-          </div>
-          <span class="quota mono" data-remaining></span>
+      <section class="wb-pane s-play" id="s-play" data-login={route('login', lang)} data-view-of="b">
+        <div class="wb-head"><h2>{L.playTitle}</h2></div>
+        <div class="wb-body">
+          <p class="notice" data-gate>…</p>
+          <span data-remaining hidden></span>
+          <form class="s-form" id="s-run" data-live hidden>
+            <label class="wb-sr" for="s-q">{L.question}</label>
+            <textarea id="s-q" maxlength="500" required placeholder={L.placeholder}></textarea>
+            <div class="wb-chips">
+              {L.examples.map((e) => <button type="button" class="wb-chip" data-example={e}>{e}</button>)}
+            </div>
+            <label class="wb-field">
+              <span class="wb-label">{L.compare}</span>
+              <select id="s-compare"></select>
+            </label>
+            <div class="s-go-row">
+              <button class="btn primary" type="submit" id="s-go">{L.run}</button>
+              <p class="wb-hint">{L.cost}</p>
+            </div>
+            <p class="wb-hint">{L.privacy}</p>
+          </form>
+          <p class="notice error" id="s-error" hidden></p>
         </div>
-        <p class="notice" data-gate>…</p>
-        <form class="play-form" id="s-run" data-live hidden>
-          <label class="sr-only" for="s-q">{L.question}</label>
-          <textarea id="s-q" maxlength="500" required placeholder={L.placeholder}></textarea>
-          <div class="chips">
-            {L.examples.map((e) => <button type="button" class="chip" data-example={e}>{e}</button>)}
-          </div>
-          <label class="f">
-            <span class="lab">{L.compare}</span>
-            <select id="s-compare"></select>
-          </label>
-          <div class="play-actions">
-            <button class="btn primary" type="submit" id="s-go">{L.run}</button>
-            <p class="hint small">{L.cost}</p>
-          </div>
-          <p class="hint small">{L.privacy}</p>
-        </form>
-        <p class="notice error" id="s-error" hidden></p>
       </section>
 
-      <section class="panel full" id="s-diff" hidden>
-        <div class="panel-head">
-          <div>
-            <h2>{L.diffTitle}</h2>
-            <p class="hint">{L.diffHint}</p>
-          </div>
+      <section class="wb-pane s-out signed-only" id="s-out" data-view-of="b">
+        <div class="wb-head"><h2>{L.outTitle}</h2></div>
+        <div class="wb-runs" id="s-runs"></div>
+        <div class="wb-tabs" id="s-out-tabs">
+          <button class="wb-tab" data-tab="answer" aria-controls="s-p-answer">{L.tabAnswer}</button>
+          <button class="wb-tab" data-tab="steps" aria-controls="s-p-steps">{L.steps2}</button>
+          <button class="wb-tab" data-tab="trace" aria-controls="s-p-trace">{L.tabTrace} <span class="dot" id="s-trace-dot" hidden></span></button>
+          <button class="wb-tab" data-tab="diff" aria-controls="s-p-diff" hidden>{L.diffTitle}</button>
         </div>
-        <div id="s-diff-body"></div>
-      </section>
-
-      <section class="results full" id="s-results" hidden></section>
-
-      <section class="panel full" id="s-versions-panel" hidden>
-        <div class="panel-head">
-          <div>
-            <h2>{L.versionsTitle}</h2>
-            <p class="hint">{L.versionsHint}</p>
+        <div class="wb-body" id="s-p-answer" data-pane>
+          <div class="wb-empty" id="s-empty">
+            <svg viewBox="0 0 120 70" aria-hidden="true">
+              <line x1="60" y1="18" x2="24" y2="52"></line>
+              <line x1="60" y1="18" x2="96" y2="52"></line>
+              <circle cx="60" cy="16" r="10"></circle>
+              <circle cx="24" cy="54" r="9"></circle>
+              <circle cx="96" cy="54" r="9"></circle>
+            </svg>
+            <strong>{L.emptyTitle}</strong>
+            <span>{L.emptyText}</span>
           </div>
+          <div class="wb-cols" id="s-c-answer"></div>
+          <div id="s-consult"></div>
         </div>
-        <div id="s-versions"></div>
+        <div class="wb-body" id="s-p-steps" data-pane hidden>
+          <div class="wb-cols" id="s-c-steps"></div>
+        </div>
+        <div class="wb-body" id="s-p-trace" data-pane hidden>
+          <div class="wb-cols stack" id="s-c-trace"></div>
+        </div>
+        <div class="wb-body" id="s-p-diff" data-pane hidden>
+          <p class="wb-hint">{L.diffHint}</p>
+          <div id="s-diff-body"></div>
+        </div>
       </section>
     </div>
   </div>
@@ -340,7 +422,8 @@ const L = pt
     type StudioAgent,
     type Version,
   } from '../../lib/studio';
-  import { fmtMs, renderWaterfall, type Span } from '../../lib/waterfall';
+  import { tabs, views } from '../../lib/tabs';
+  import { fmtMs, renderLensTrace, type Span } from '../../lib/waterfall';
 
   type Texts = Record<string, string> & { groups: Record<string, string>; problems: Record<string, string> };
 
@@ -352,7 +435,6 @@ const L = pt
     const nf = new Intl.NumberFormat(lang === 'pt' ? 'pt-BR' : 'en-US');
     const df = new Intl.DateTimeFormat(lang === 'pt' ? 'pt-BR' : 'en-US', { dateStyle: 'short', timeStyle: 'short' });
     const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-    const startSel = $<HTMLSelectElement>('s-start');
     const nameIn = $<HTMLInputElement>('s-name');
     const modelSel = $<HTMLSelectElement>('s-model');
     const tempIn = $<HTMLInputElement>('s-temp');
@@ -364,6 +446,12 @@ const L = pt
     const runForm = $<HTMLFormElement>('s-run');
     const goBtn = $<HTMLButtonElement>('s-go');
     const question = $<HTMLTextAreaElement>('s-q');
+    const filterIn = $<HTMLInputElement>('s-tool-filter');
+
+    const editTabs = tabs($('s-edit-tabs'));
+    const outTabs = tabs($('s-out-tabs'));
+    const setView = views(root);
+    const isPhone = () => window.matchMedia('(max-width: 1079px)').matches;
 
     const DRAFT_KEY = 'studio.draft';
     let catalog: Catalog | null = null;
@@ -373,6 +461,7 @@ const L = pt
 
     const versionById = (id: string | null) => versions.find((v) => v.id === id) ?? null;
     const templateLabel = (name: string) => AGENT_LABEL[name]?.[lang] ?? agentLabel(name, lang);
+    const modelLabel = (id: string) => catalog?.models.find((m) => m.id === id)?.label ?? id;
 
     // ------------------------------------------------------------ editor <-> rascunho
     const storeDraft = () => {
@@ -400,7 +489,7 @@ const L = pt
       if (!catalog) return;
       const a = draft.agent;
       $('s-temp-out').textContent = a.temperature.toFixed(1);
-      $('s-count').textContent = `${nf.format(a.instructions.length)} / ${nf.format(catalog.limits.instructions_max_chars)}`;
+      $('s-count').textContent = `${nf.format(a.instructions.length)}/${nf.format(catalog.limits.instructions_max_chars)}`;
       $('s-count').classList.toggle('over', a.instructions.length > catalog.limits.instructions_max_chars);
       $('s-tools-count').textContent = a.tools.length ? String(a.tools.length) : '';
       const base = versionById(draft.base);
@@ -411,6 +500,7 @@ const L = pt
       const found = problems(a, catalog);
       list.replaceChildren(...found.map((p) => el('li', '', L.problems[p])));
       list.hidden = found.length === 0;
+      paintExplorer();
       paintDiff();
     };
     const onEdit = () => {
@@ -451,10 +541,10 @@ const L = pt
       stepsIn.max = String(c.limits.max_steps);
       const box = $('s-tools');
       box.replaceChildren(
-        ...toolGroups(c.tools).map(([group, tools]) => {
+        ...toolGroups(c.tools).map(([group, list]) => {
           const g = el('div', 'tool-group');
           g.append(el('p', 'tool-group-title', L.groups[group] ?? group));
-          for (const t of tools) {
+          for (const t of list) {
             const label = el('label', 'tool');
             const input = el('input');
             input.type = 'checkbox';
@@ -462,41 +552,43 @@ const L = pt
             input.addEventListener('change', onEdit);
             const text = el('span', 'tool-text');
             text.append(el('code', '', toolLabel(t.name)), el('span', 'tool-desc', t.description.split('\n')[0].slice(0, 160)));
+            label.dataset.search = `${t.name} ${t.description}`.toLowerCase();
             label.append(input, text);
             g.append(label);
           }
           return g;
         }),
       );
+      const tpl = $('s-templates');
+      tpl.replaceChildren(
+        ...c.templates.map((t) => {
+          const b = el('button', 'x-item');
+          b.type = 'button';
+          b.dataset.load = `tpl:${t.name}`;
+          b.append(el('span', 'x-avatar', templateLabel(t.name)[0]), el('span', 'x-name', templateLabel(t.name)), el('span', 'x-meta mono', modelLabel(t.model).split(' · ')[0]));
+          b.addEventListener('click', () => load(`tpl:${t.name}`));
+          return b;
+        }),
+      );
     };
 
-    const buildStartOptions = () => {
-      if (!catalog) return;
-      const pick = el('option', '', L.startPick);
-      pick.value = '';
-      const blank = el('option', '', L.blank);
-      blank.value = 'blank';
-      const tpl = el('optgroup');
-      tpl.label = L.templates;
-      for (const t of catalog.templates) {
-        const o = el('option', '', templateLabel(t.name));
-        o.value = `tpl:${t.name}`;
-        tpl.append(o);
-      }
-      const opts: HTMLElement[] = [pick, blank, tpl];
-      if (versions.length) {
-        const mine = el('optgroup');
-        mine.label = L.mine;
-        for (const v of versions) {
-          const o = el('option', '', versionLabel(v));
-          o.value = `ver:${v.id}`;
-          mine.append(o);
-        }
-        opts.push(mine);
-      }
-      startSel.replaceChildren(...opts);
-      startSel.value = '';
+    filterIn.addEventListener('input', () => {
+      const q = filterIn.value.trim().toLowerCase();
+      let shown = 0;
+      root.querySelectorAll<HTMLElement>('.tool-group').forEach((g) => {
+        let any = false;
+        g.querySelectorAll<HTMLElement>('.tool').forEach((row) => {
+          const hit = !q || (row.dataset.search ?? '').includes(q);
+          row.hidden = !hit;
+          any ||= hit;
+          if (hit) shown++;
+        });
+        g.hidden = !any;
+      });
+      $('s-tools-none').hidden = shown > 0;
+    });
 
+    const buildCompareOptions = () => {
       const keep = compareSel.value;
       const none = el('option', '', L.noCompare);
       none.value = '';
@@ -525,15 +617,13 @@ const L = pt
         if (v) fillEditor({ name: v.name, agent: fromTemplate(v.agent, catalog), base: v.id });
       }
       $('s-saved').textContent = '';
+      if (isPhone()) setView('a');
     };
-    startSel.addEventListener('change', () => {
-      load(startSel.value);
-      startSel.value = '';
-    });
+    $('s-new').addEventListener('click', () => load('blank'));
 
     for (const input of [nameIn, modelSel, tempIn, stepsIn, instrIn]) input.addEventListener('input', onEdit);
 
-    // ------------------------------------------------------------ versões
+    // ------------------------------------------------------------ versões (explorador)
     const loadVersions = async () => {
       try {
         versions = await api<Version[]>('/api/studio/versions');
@@ -541,65 +631,80 @@ const L = pt
         versions = [];
       }
       if (draft.base && !versionById(draft.base)) draft.base = null;
-      buildStartOptions();
+      buildCompareOptions();
       paintVersions();
       paintState();
     };
 
-    const modelLabel = (id: string) => catalog?.models.find((m) => m.id === id)?.label ?? id;
+    const iconBtn = (cls: string, label: string, text: string, onClick: () => void) => {
+      const b = el('button', `x-act ${cls}`, text);
+      b.type = 'button';
+      b.title = label;
+      b.setAttribute('aria-label', label);
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onClick();
+      });
+      return b;
+    };
 
     const paintVersions = () => {
+      $('s-vcount').textContent = versions.length ? String(versions.length) : '';
+      $('s-vtotal').textContent = versions.length ? String(versions.length) : '';
       const box = $('s-versions');
       if (!versions.length) {
-        box.replaceChildren(el('p', 'hint', L.noVersions));
+        box.replaceChildren(el('p', 'wb-hint', L.noVersions));
         return;
       }
       box.replaceChildren(
         ...byAgent(versions).map(([name, list]) => {
-          const g = el('div', 'v-group');
-          g.append(el('h3', 'v-name', name));
-          const ul = el('ul', 'v-list');
+          const g = el('div', 'x-agent');
+          g.append(el('p', 'x-agent-name', name));
           for (const v of list) {
-            const li = el('li', 'v-row');
-            const info = el('div', 'v-info');
-            const line = el('div', 'v-line');
-            line.append(el('strong', 'mono', `v${v.version}`), el('span', 'v-meta', `${df.format(new Date(v.created_at))} · ${modelLabel(v.agent.model)} · ${v.agent.tools.length} ${L.kTools}`));
-            info.append(line);
-            if (v.note) info.append(el('p', 'v-note', v.note));
-            const actions = el('div', 'v-actions');
-            const open = el('button', 'btn small-btn', L.open);
+            const row = el('div', 'x-ver');
+            row.dataset.id = v.id;
+            const open = el('button', 'x-ver-open');
             open.type = 'button';
-            open.addEventListener('click', () => {
-              load(`ver:${v.id}`);
-              $('s-name').scrollIntoView({ behavior: 'smooth', block: 'center' });
-            });
-            const cmp = el('button', 'btn small-btn', L.compareBtn);
-            cmp.type = 'button';
-            cmp.addEventListener('click', () => {
-              compareSel.value = v.id;
-              paintRunButton();
-              paintDiff();
-              question.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            });
-            const del = el('button', 'btn small-btn danger', L.delete);
-            del.type = 'button';
-            del.addEventListener('click', async () => {
-              if (!window.confirm(L.confirmDelete)) return;
-              try {
-                await api(`/api/studio/versions/${encodeURIComponent(v.id)}`, { method: 'DELETE' });
-              } catch {
-                /* já não existe: a lista recarregada mostra o estado real */
-              }
-              await loadVersions();
-            });
-            actions.append(open, cmp, del);
-            li.append(info, actions);
-            ul.append(li);
+            open.title = L.openHint;
+            const line = el('span', 'x-ver-line');
+            line.append(el('strong', 'mono', `v${v.version}`), el('span', 'x-meta', df.format(new Date(v.created_at))));
+            open.append(line);
+            if (v.note) open.append(el('span', 'x-note', v.note));
+            open.addEventListener('click', () => load(`ver:${v.id}`));
+            const acts = el('span', 'x-acts');
+            acts.append(
+              iconBtn('cmp', `${L.compareBtn} ${versionLabel(v)}`, '⇄', () => {
+                compareSel.value = v.id;
+                paintRunButton();
+                paintDiff();
+                outTabs.select('diff');
+                if (isPhone()) setView('b');
+              }),
+              iconBtn('del', `${L.delete} ${versionLabel(v)}`, '×', async () => {
+                if (!window.confirm(L.confirmDelete)) return;
+                try {
+                  await api(`/api/studio/versions/${encodeURIComponent(v.id)}`, { method: 'DELETE' });
+                } catch {
+                  /* já não existe: a lista recarregada mostra o estado real */
+                }
+                await loadVersions();
+              }),
+            );
+            row.append(open, acts);
+            g.append(row);
           }
-          g.append(ul);
           return g;
         }),
       );
+      paintExplorer();
+    };
+
+    /** Marca no explorador o que está aberto no editor e o que está na comparação. */
+    const paintExplorer = () => {
+      root.querySelectorAll<HTMLElement>('.x-ver').forEach((r) => {
+        r.classList.toggle('on', r.dataset.id === draft.base);
+        r.classList.toggle('cmp', r.dataset.id === compareSel.value);
+      });
     };
 
     saveBtn.addEventListener('click', async () => {
@@ -608,6 +713,7 @@ const L = pt
       const found = problems(draft.agent, catalog);
       if (found.length) {
         paintState();
+        editTabs.select('instr');
         return;
       }
       if (!draft.name.trim()) nameIn.value = draft.name = L.newAgent;
@@ -639,16 +745,12 @@ const L = pt
     };
     const paintDiff = () => {
       const other = versionById(compareSel.value);
-      const panel = $('s-diff');
-      if (!other) {
-        panel.hidden = true;
-        return;
-      }
-      panel.hidden = false;
+      outTabs.toggle('diff', !!other);
+      if (!other) return;
       const d = diffAgents(other.agent, draft.agent);
       const body = $('s-diff-body');
       if (noDifference(d)) {
-        body.replaceChildren(el('p', 'hint', L.same));
+        body.replaceChildren(el('p', 'wb-hint', L.same));
         return;
       }
       const rows: HTMLElement[] = [];
@@ -672,8 +774,7 @@ const L = pt
       if (d.instructions) {
         const pre = el('pre', 'd-lines');
         for (const line of d.instructions) {
-          const span = el('span', `d-line d-${line.op}`, `${line.op === 'add' ? '+ ' : line.op === 'del' ? '− ' : '  '}${line.text}`);
-          pre.append(span);
+          pre.append(el('span', `d-line d-${line.op}`, `${line.op === 'add' ? '+ ' : line.op === 'del' ? '− ' : '  '}${line.text}`));
         }
         const wrap = el('div', 'd-row d-block');
         wrap.append(el('span', 'd-key', L.instructions), pre);
@@ -684,11 +785,12 @@ const L = pt
     compareSel.addEventListener('change', () => {
       paintRunButton();
       paintDiff();
+      paintExplorer();
+      if (compareSel.value) outTabs.select('diff');
     });
 
     // ------------------------------------------------------------ execução
     interface Column {
-      box: HTMLElement;
       label: string;
       agent: StudioAgent;
       state: RunState;
@@ -696,57 +798,71 @@ const L = pt
       t0: number;
       timer?: number;
       frame: number;
+      row: HTMLElement;
+      answer: HTMLElement;
+      steps: HTMLElement;
+      trace: HTMLElement;
     }
 
-    const column = (label: string, sub: string, agent: StudioAgent): Column => {
-      const box = el('article', 'panel result');
-      const head = el('div', 'r-head');
-      const title = el('div', 'r-title');
-      title.append(el('strong', '', label), el('span', 'r-sub mono', sub));
-      const status = el('span', 'status');
-      status.dataset.state = 'idle';
-      status.append(el('span', 'st-dot'), el('span', 'r-status', L.queued));
-      head.append(title, status);
-      const kpis = el('div', 'r-kpis');
-      kpis.hidden = true;
-      const err = el('p', 'notice error r-error');
-      err.hidden = true;
-      const answer = el('div', 'md r-answer');
-      answer.hidden = true;
-      const stepsBox = el('details', 'r-steps');
-      stepsBox.open = true;
-      stepsBox.append(el('summary', '', L.steps2), el('div', 'run-tree r-tree'));
-      const traceBtn = el('button', 'btn small-btn r-trace-btn', L.trace);
-      traceBtn.type = 'button';
-      traceBtn.hidden = true;
-      const traceMsg = el('p', 'hint r-trace-msg');
-      traceMsg.hidden = true;
-      const wf = el('div', 'waterfall r-wf');
-      box.append(head, kpis, err, answer, stepsBox, traceBtn, traceMsg, wf);
-      const tree = runTree(L, lang, (n) => (n === 'studio' ? label : agentLabel(n, lang)));
-      return { box, label, agent, state: newRun(), tree, t0: 0, frame: 0 };
+    const colBox = (label: string, sub: string) => {
+      const box = el('div', 'wb-col');
+      box.append(el('div', 'wb-col-head', `${label} · ${sub}`));
+      return box;
     };
 
-    const q = <T extends HTMLElement>(c: Column, sel: string) => c.box.querySelector(sel) as T;
+    const column = (label: string, sub: string, agent: StudioAgent): Column => {
+      const row = el('div', 'wb-run');
+      const name = el('div', 'wb-run-name');
+      name.append(el('strong', '', label), el('span', '', sub));
+      const status = el('span', 'wb-status');
+      status.dataset.state = 'idle';
+      status.append(el('span', 'st-dot'), el('span', 'r-status', L.queued));
+      const kpis = el('div', 'wb-kpis');
+      kpis.hidden = true;
+      row.append(name, status, kpis);
+      const answer = colBox(label, sub);
+      answer.append(el('p', 'notice error r-error'), el('div', 'md r-answer'));
+      (answer.querySelector('.r-error') as HTMLElement).hidden = true;
+      const steps = colBox(label, sub);
+      steps.append(el('div', 'run-tree r-tree'));
+      const trace = colBox(label, sub);
+      trace.append(el('div', 'r-lens'));
+      const tree = runTree(L, lang, (n) => (n === 'studio' ? label : agentLabel(n, lang)));
+      return { label, agent, state: newRun(), tree, t0: 0, frame: 0, row, answer, steps, trace };
+    };
+
     const setStatus = (c: Column, state: 'idle' | 'live' | 'ready' | 'failed', extra = '') => {
-      q<HTMLElement>(c, '.status').dataset.state = state;
-      q<HTMLElement>(c, '.r-status').textContent = `${L[state]}${extra ? ` · ${extra}` : ''}`;
+      (c.row.querySelector('.wb-status') as HTMLElement).dataset.state = state;
+      c.row.querySelector('.r-status')!.textContent = `${L[state]}${extra ? ` · ${extra}` : ''}`;
     };
     const renderTreeNow = (c: Column) => {
       c.frame = 0;
-      q<HTMLElement>(c, '.r-tree').replaceChildren(...(c.state.root ? [c.tree.card(c.state.root)] : []));
+      c.steps.querySelector('.r-tree')!.replaceChildren(...(c.state.root ? [c.tree.card(c.state.root)] : []));
     };
     const scheduleTree = (c: Column) => {
       if (!c.frame) c.frame = requestAnimationFrame(() => renderTreeNow(c));
     };
+
+    const loadTrace = async (c: Column, traceId: string) => {
+      const box = c.trace.querySelector<HTMLElement>('.r-lens')!;
+      box.replaceChildren(el('p', 'wb-hint', L.lensWait));
+      try {
+        const spans = await fetchTrace<Span[]>(traceId);
+        renderLensTrace(box, traceId, spans, lang);
+        $('s-trace-dot').hidden = outTabs.current() === 'trace';
+      } catch {
+        box.replaceChildren(el('p', 'wb-hint', L.traceMissing));
+      }
+    };
+
     const showDone = (c: Column) => {
       const d = c.state.done;
       if (!d) return;
       const counts = runCounts(c.state);
-      const kpis = q<HTMLElement>(c, '.r-kpis');
+      const kpis = c.row.querySelector<HTMLElement>('.wb-kpis')!;
       const kpi = (value: string, label: string) => {
-        const k = el('div', 'kpi');
-        k.append(el('strong', '', value), el('span', '', label));
+        const k = el('span', 'wb-kpi');
+        k.append(el('strong', '', value), document.createTextNode(label));
         return k;
       };
       kpis.replaceChildren(
@@ -756,32 +872,17 @@ const L = pt
         kpi(String(counts.tools), L.kTools),
       );
       kpis.hidden = false;
-      const answer = q<HTMLElement>(c, '.r-answer');
-      renderMarkdown(answer, d.output);
-      answer.hidden = !d.output;
+      const answer = c.answer.querySelector<HTMLElement>('.r-answer')!;
+      if (d.output) renderMarkdown(answer, d.output);
+      else answer.replaceChildren(el('p', 'wb-hint', L.noAnswer));
       const ok = d.status === 'completed' || d.status === 'ok';
       setStatus(c, ok ? 'ready' : 'failed', fmtMs(d.durationMs));
-      if (d.traceId) {
-        const btn = q<HTMLButtonElement>(c, '.r-trace-btn');
-        const msg = q<HTMLElement>(c, '.r-trace-msg');
-        btn.hidden = false;
-        btn.onclick = async () => {
-          btn.hidden = true;
-          msg.hidden = false;
-          msg.textContent = L.traceWait;
-          try {
-            const spans = await fetchTrace<Span[]>(d.traceId!);
-            msg.hidden = true;
-            renderWaterfall(q<HTMLElement>(c, '.r-wf'), spans, lang);
-          } catch {
-            msg.textContent = L.traceMissing;
-          }
-        };
-      }
+      if (d.traceId) void loadTrace(c, d.traceId);
+      else c.trace.querySelector('.r-lens')!.replaceChildren(el('p', 'wb-hint', L.traceMissing));
     };
     const fail = (c: Column, err: unknown) => {
       const e = err as ApiError;
-      const box = q<HTMLElement>(c, '.r-error');
+      const box = c.answer.querySelector<HTMLElement>('.r-error')!;
       box.hidden = false;
       box.textContent = e?.status === 422 && e.reason === 'invalid_agent' ? `${L.invalidAgent} ${e.message ?? ''}`.trim() : liveError(err, s);
       setStatus(c, 'failed');
@@ -827,6 +928,10 @@ const L = pt
       }),
     );
 
+    $('s-out-tabs')
+      .querySelector('[data-tab="trace"]')!
+      .addEventListener('click', () => ($('s-trace-dot').hidden = true));
+
     runForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!catalog || running) return;
@@ -836,6 +941,8 @@ const L = pt
       const found = problems(draft.agent, catalog);
       if (found.length) {
         paintState();
+        editTabs.select('instr');
+        if (isPhone()) setView('a');
         $('s-problems').scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
@@ -851,24 +958,37 @@ const L = pt
       saveBtn.disabled = true;
       paintRunButton();
       $('s-error').hidden = true;
-      const results = $('s-results');
-      results.classList.toggle('two', cols.length === 2);
-      results.replaceChildren(...cols.map((c) => c.box));
-      results.hidden = false;
-      results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      $('s-empty').hidden = true;
+      $('s-trace-dot').hidden = true;
+      $('s-consult').replaceChildren();
+      $('s-runs').replaceChildren(...cols.map((c) => c.row));
+      for (const [id, key] of [
+        ['s-c-answer', 'answer'],
+        ['s-c-steps', 'steps'],
+        ['s-c-trace', 'trace'],
+      ] as const) {
+        const box = $(id);
+        box.classList.toggle('two', cols.length === 2 && key !== 'trace');
+        box.classList.toggle('many', cols.length === 2);
+        box.replaceChildren(...cols.map((c) => c[key]));
+      }
+      outTabs.select('steps');
+      if (isPhone()) setView('b');
+      $('s-out').scrollIntoView({ behavior: 'smooth', block: 'start' });
       try {
-        for (const c of cols) if (!(await runColumn(c, text))) break;
+        for (const c of cols) {
+          const ok = await runColumn(c, text);
+          if (c === cols[0] && c.state.done) outTabs.select('answer');
+          if (!ok) break;
+        }
+        if (!cols[0].state.done) outTabs.select('answer');
       } finally {
         running = false;
         goBtn.disabled = false;
         saveBtn.disabled = false;
         paintRunButton();
         const g = await refreshGate();
-        if (g.ready) {
-          const cta = el('div', 'full');
-          cta.append(consultCta(s, lang));
-          results.append(cta);
-        }
+        if (g.ready) $('s-consult').replaceChildren(consultCta(s, lang));
       }
     });
 
@@ -877,8 +997,9 @@ const L = pt
     const play = $('s-play');
     const refreshGate = async () => {
       const g = await gate(play, 'studio', s);
+      // o portão escreve no playground; a pílula fica na barra do topo
       const r = play.querySelector<HTMLElement>('[data-remaining]');
-      if (r) r.textContent = (r.textContent ?? '').replace(/^·\s*/, '');
+      $('s-remaining').textContent = (r?.textContent ?? '').replace(/^·\s*/, '');
       return g;
     };
     const start = async () => {
@@ -894,8 +1015,6 @@ const L = pt
         return;
       }
       root.classList.remove('is-anon');
-      $('s-editor').hidden = false;
-      $('s-versions-panel').hidden = false;
       buildCatalogFields(catalog);
       await loadVersions();
       let saved: Draft | null = null;
@@ -919,134 +1038,120 @@ const L = pt
 </script>
 
 <style>
-  .studio {
-    display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-    gap: 16px;
-    padding-bottom: 48px;
+  .s-grid {
+    grid-template-columns: 236px minmax(0, 1.3fr) minmax(0, 1fr);
+    grid-template-rows: var(--wb-h) auto;
+    grid-template-areas:
+      'side edit play'
+      'out out out';
   }
-  .studio > *,
-  .live > * {
-    min-width: 0;
+  .s-side {
+    grid-area: side;
   }
-  .live {
-    display: contents;
+  .s-edit {
+    grid-area: edit;
   }
-  .full {
-    grid-column: 1 / -1;
+  .s-play {
+    grid-area: play;
   }
-  .studio.is-anon .play {
-    grid-column: 1 / -1;
+  .s-out {
+    grid-area: out;
+    min-height: 360px;
   }
-  .panel {
-    background: linear-gradient(180deg, var(--panel-2), var(--panel));
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 20px;
-    box-shadow: var(--shadow);
-    min-width: 0;
+  .studio.is-anon .signed-only {
+    display: none !important;
   }
-  h2 {
-    font-size: 17px;
-    margin: 0;
-    letter-spacing: -0.01em;
+  .studio:not(.is-anon) .anon-only {
+    display: none;
   }
-  .hint {
-    color: var(--muted);
-    font-size: 14px;
-    margin: 4px 0 0;
+  .studio.is-anon .s-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    grid-template-areas: 'play';
   }
-  .small {
-    font-size: 13px;
-  }
-  .panel-head {
+
+  /* Barra */
+  .s-ident {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px 16px;
-    flex-wrap: wrap;
-    margin-bottom: 14px;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 260px;
   }
-  .grow {
-    flex: 1 1 240px;
-    min-width: 0;
+  .s-name {
+    font-size: 16px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    border-color: transparent;
+    background: transparent;
+    padding: 6px 8px;
+    min-height: 38px;
+    flex: 1 1 auto;
+    width: auto;
+    max-width: 340px;
   }
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
+  .s-ident .wb-pill {
+    flex: none;
+  }
+  .s-save .btn {
     white-space: nowrap;
   }
-  .tag:not(:empty),
-  .quota:not(:empty) {
-    font-size: 12.5px;
-    color: var(--accent);
-    background: var(--accent-soft);
-    border-radius: 999px;
-    padding: 4px 10px;
-    white-space: nowrap;
+  .s-name:hover {
+    border-color: var(--line);
+  }
+  .s-save {
+    display: flex;
+    gap: 8px;
+    flex: 0 1 420px;
+  }
+  .s-save input {
+    flex: 1 1 200px;
+    min-height: 34px;
+    padding: 5px 10px;
+    font-size: 13.5px;
+  }
+  .s-saved:empty {
+    display: none;
+  }
+  .s-saved {
+    flex-basis: 100%;
+    text-align: right;
   }
 
   /* Editor */
-  .fields {
+  .s-settings {
     display: grid;
-    gap: 14px;
-  }
-  .f {
-    display: grid;
-    gap: 6px;
-    min-width: 0;
-  }
-  .lab {
-    font-size: 13px;
-    font-weight: 600;
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-  }
-  .count {
-    font-weight: 400;
-    color: var(--muted);
-    font-size: 12px;
-  }
-  .count.over {
-    color: var(--danger);
-  }
-  .row3 {
-    display: grid;
-    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 0.7fr);
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 92px;
     gap: 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
     align-items: end;
+  }
+  .s-settings select,
+  .s-settings input[type='number'] {
+    min-height: 38px;
+    padding: 6px 10px;
   }
   input[type='range'] {
     padding: 0;
-    min-height: 44px;
+    min-height: 38px;
     border: 0;
     background: transparent;
     accent-color: var(--accent);
   }
+  .s-instr-pane {
+    display: flex;
+    flex-direction: column;
+  }
   #s-instr {
-    min-height: 220px;
+    flex: 1 1 auto;
+    min-height: 260px;
+    resize: none;
     font-family: var(--mono);
     font-size: 13px;
-    line-height: 1.55;
+    line-height: 1.6;
+    background: var(--bg-soft);
   }
-  .tools {
-    border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
-    padding: 10px 12px 12px;
-    margin: 0;
-    min-width: 0;
-  }
-  .tools legend {
-    padding: 0 4px;
-  }
-  .tools .hint {
-    margin: 0 0 8px;
-  }
-  .problems {
+  .s-problems {
     margin: 0;
     padding: 10px 14px 10px 30px;
     border-radius: var(--radius-sm);
@@ -1055,115 +1160,247 @@ const L = pt
     color: var(--danger);
     font-size: 13.5px;
   }
-  .save-row {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
+  .s-problems[hidden] {
+    display: none;
   }
-  .save-row input {
-    flex: 1 1 220px;
-    min-width: 0;
-  }
-  .save-row .btn {
-    flex: none;
+  #s-tool-filter {
+    min-height: 36px;
+    padding: 6px 10px;
+    font-size: 13.5px;
   }
 
   /* Playground */
-  .play {
-    display: grid;
-    align-content: start;
-    align-self: start;
-  }
-  .play .notice {
-    margin: 0;
-  }
-  .play-form {
+  .s-form {
     display: grid;
     gap: 12px;
   }
-  .play-form textarea {
-    min-height: 96px;
+  .s-form textarea {
+    min-height: 110px;
   }
-  .play-form > .hint {
-    margin: 0;
-  }
-  .chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .chip {
-    font: inherit;
-    font-size: 13px;
-    padding: 6px 12px;
-    border-radius: 999px;
-    border: 1px solid var(--line-strong);
-    background: var(--panel);
-    color: var(--text);
-    cursor: pointer;
-    text-align: left;
-  }
-  .chip:hover {
-    border-color: var(--accent);
-  }
-  .play-actions {
+  .s-go-row {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 8px 14px;
+    gap: 8px 12px;
   }
-  .play-actions .hint {
+  .s-go-row .wb-hint {
+    flex: 1 1 180px;
+  }
+  .s-play .notice {
     margin: 0;
-    flex: 1 1 200px;
-  }
-  #s-error {
-    margin-top: 12px;
   }
 
-  @media (max-width: 900px) {
-    .studio {
+  @media (max-width: 1079px) {
+    .s-grid {
       grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto;
+      grid-template-areas: 'side' 'edit' 'play' 'out';
+    }
+    #s-instr {
+      min-height: 52vh;
+    }
+    .s-out {
+      min-height: 0;
+    }
+    .s-save {
+      flex: 1 1 100%;
+    }
+    .s-saved {
+      text-align: left;
     }
   }
   @media (max-width: 520px) {
-    .panel {
-      padding: 16px;
+    .s-settings {
+      grid-template-columns: minmax(0, 1fr) 84px;
     }
-    .row3 {
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    }
-    .row3 > :first-child {
+    .s-settings .s-model {
       grid-column: 1 / -1;
+    }
+    .s-ident {
+      flex-basis: calc(100% - 50px);
     }
   }
 </style>
 
 <style is:global>
-  /* Criado pelo script: ferramentas, resultados, diff e versões. */
+  /* Criado pelo script: explorador, ferramentas, diff. */
+  #studio .x-list {
+    display: grid;
+    gap: 2px;
+  }
+  #studio .x-group {
+    display: grid;
+    gap: 6px;
+  }
+  #studio .x-title {
+    margin: 4px 0 0;
+    font-size: 11.5px;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+  }
+  #studio .x-item {
+    font: inherit;
+    font-size: 13.5px;
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    align-items: center;
+    column-gap: 9px;
+    width: 100%;
+    text-align: left;
+    padding: 7px 8px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: none;
+    color: var(--text);
+    cursor: pointer;
+  }
+  #studio .x-item:hover,
+  #studio .x-ver-open:hover {
+    background: var(--bg-soft);
+  }
+  #studio .x-new {
+    border: 1px dashed var(--line-strong);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  #studio .x-plus {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    background: var(--accent-soft);
+    font-size: 16px;
+  }
+  #studio .x-avatar {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    background: var(--accent2-soft);
+    color: var(--accent2);
+    font-size: 12px;
+    font-weight: 700;
+    grid-row: span 2;
+  }
+  #studio .x-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #studio .x-meta {
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  #studio .x-agent + .x-agent {
+    margin-top: 6px;
+  }
+  #studio .x-agent-name {
+    margin: 0 0 2px;
+    font-size: 13px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  #studio .x-ver {
+    display: flex;
+    align-items: stretch;
+    border-radius: 8px;
+    border: 1px solid transparent;
+  }
+  #studio .x-ver.on {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+    background: color-mix(in srgb, var(--accent) 7%, transparent);
+  }
+  #studio .x-ver.cmp {
+    border-color: color-mix(in srgb, var(--accent2) 45%, var(--line));
+  }
+  #studio .x-ver-open {
+    flex: 1 1 auto;
+    font: inherit;
+    text-align: left;
+    background: none;
+    border: 0;
+    border-radius: 8px;
+    color: var(--text);
+    padding: 6px 8px;
+    cursor: pointer;
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+  }
+  #studio .x-ver-line {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    font-size: 13px;
+  }
+  #studio .x-note {
+    font-size: 12px;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #studio .x-acts {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding-right: 4px;
+  }
+  #studio .x-act {
+    font: inherit;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+  }
+  #studio .x-act:hover {
+    background: var(--bg-soft);
+    color: var(--text);
+  }
+  #studio .x-act.del:hover {
+    color: var(--danger);
+  }
+
   #studio .tool-groups {
     display: grid;
-    gap: 10px;
-    max-height: 320px;
-    overflow: auto;
-    padding-right: 4px;
+    gap: 12px;
+  }
+  #studio .tool-group[hidden],
+  #studio .tool[hidden] {
+    display: none;
   }
   #studio .tool-group-title {
     margin: 0 0 4px;
-    font-size: 12px;
+    font-size: 11.5px;
+    font-weight: 650;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.06em;
     color: var(--muted);
   }
   #studio .tool {
     display: flex;
     gap: 10px;
     align-items: flex-start;
-    padding: 6px 4px;
-    border-radius: 6px;
+    padding: 7px 6px;
+    border-radius: 8px;
     cursor: pointer;
   }
   #studio .tool:hover {
     background: var(--bg-soft);
+  }
+  #studio .tool:has(input:checked) {
+    background: color-mix(in srgb, var(--accent) 7%, transparent);
   }
   #studio .tool input {
     width: 18px;
@@ -1187,134 +1424,17 @@ const L = pt
     color: var(--muted);
     overflow-wrap: anywhere;
   }
-  #studio .problems li + li {
+  #studio .s-problems li + li {
     margin-top: 4px;
-  }
-
-  /* Resultados */
-  #studio .results {
-    display: grid;
-    gap: 16px;
-    grid-template-columns: minmax(0, 1fr);
-  }
-  #studio .results.two {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  #studio .results > .full {
-    grid-column: 1 / -1;
-  }
-  #studio .result {
-    background: linear-gradient(180deg, var(--panel-2), var(--panel));
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 18px;
-    box-shadow: var(--shadow);
-    min-width: 0;
-    display: grid;
-    gap: 14px;
-    align-content: start;
-  }
-  #studio .r-head {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-  #studio .r-title {
-    display: grid;
-    min-width: 0;
-  }
-  #studio .r-title strong {
-    overflow-wrap: anywhere;
-  }
-  #studio .r-sub {
-    font-size: 12px;
-    color: var(--muted);
-  }
-  #studio .status {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    font-size: 13px;
-    font-family: var(--mono);
-    padding: 5px 11px;
-    border-radius: 999px;
-    border: 1px solid var(--line);
-    background: var(--panel);
-    color: var(--muted);
-    white-space: nowrap;
-  }
-  #studio .st-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--line-strong);
-  }
-  #studio .status[data-state='live'] {
-    color: var(--accent);
-  }
-  #studio .status[data-state='live'] .st-dot {
-    background: var(--accent);
-  }
-  #studio .status[data-state='ready'] {
-    color: var(--ok);
-  }
-  #studio .status[data-state='ready'] .st-dot {
-    background: var(--ok);
-  }
-  #studio .status[data-state='failed'] {
-    color: var(--danger);
-  }
-  #studio .status[data-state='failed'] .st-dot {
-    background: var(--danger);
-  }
-  #studio .r-kpis {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
-  }
-  #studio .r-kpis[hidden] {
-    display: none;
-  }
-  #studio .kpi {
-    border: 1px solid var(--line);
-    background: var(--panel);
-    border-radius: var(--radius-sm);
-    padding: 8px 10px;
-    display: grid;
-    gap: 2px;
-    min-width: 0;
-  }
-  #studio .kpi strong {
-    font-family: var(--mono);
-    font-size: 17px;
-    font-weight: 600;
-  }
-  #studio .kpi span {
-    font-size: 11.5px;
-    color: var(--muted);
   }
   #studio .r-error {
     margin: 0;
   }
-  #studio .r-steps > summary {
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 14px;
-    margin-bottom: 10px;
+  #studio .r-error[hidden] {
+    display: none;
   }
-  #studio .small-btn {
-    min-height: 32px;
-    padding: 4px 12px;
-    font-size: 13px;
-    justify-self: start;
-  }
-  #studio .small-btn.danger {
-    color: var(--danger);
-  }
-  #studio .r-trace-msg {
-    margin: 0;
+  #studio #s-consult:empty {
+    display: none;
   }
 
   /* Diff */
@@ -1373,7 +1493,7 @@ const L = pt
     font-family: var(--mono);
     font-size: 12.5px;
     line-height: 1.55;
-    max-height: 360px;
+    max-height: 420px;
     overflow: auto;
     display: grid;
   }
@@ -1386,68 +1506,7 @@ const L = pt
   #studio .d-line.d-same {
     color: var(--muted);
   }
-
-  /* Versões */
-  #studio .v-group + .v-group {
-    margin-top: 16px;
-  }
-  #studio .v-name {
-    font-size: 15px;
-    margin: 0 0 6px;
-    overflow-wrap: anywhere;
-  }
-  #studio .v-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    gap: 6px;
-  }
-  #studio .v-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px 12px;
-    flex-wrap: wrap;
-    padding: 8px 12px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
-    background: var(--panel);
-  }
-  #studio .v-info {
-    min-width: 0;
-    flex: 1 1 260px;
-  }
-  #studio .v-line {
-    display: flex;
-    gap: 10px;
-    align-items: baseline;
-    flex-wrap: wrap;
-  }
-  #studio .v-meta {
-    font-size: 12.5px;
-    color: var(--muted);
-  }
-  #studio .v-note {
-    margin: 2px 0 0;
-    font-size: 13px;
-    overflow-wrap: anywhere;
-  }
-  #studio .v-actions {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-
-  @media (max-width: 900px) {
-    #studio .results.two {
-      grid-template-columns: minmax(0, 1fr);
-    }
-  }
   @media (max-width: 480px) {
-    #studio .r-kpis {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
     #studio .d-key {
       min-width: 0;
       width: 100%;

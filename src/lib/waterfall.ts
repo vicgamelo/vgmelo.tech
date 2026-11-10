@@ -114,6 +114,21 @@ export function traceSummary(spans: Span[]): { spans: number; llm: number; tools
   };
 }
 
+/** Chamadas e tokens por modelo, como o genai-lens agrupa: o que mais gastou primeiro. */
+export function byModel(spans: Span[]): { model: string; calls: number; tokens: number; ms: number }[] {
+  const acc = new Map<string, { model: string; calls: number; tokens: number; ms: number }>();
+  for (const s of spans) {
+    if (s.kind !== 'llm') continue;
+    const model = s.model || '?';
+    const row = acc.get(model) ?? { model, calls: 0, tokens: 0, ms: 0 };
+    row.calls += 1;
+    row.tokens += (s.input_tokens ?? 0) + (s.output_tokens ?? 0);
+    row.ms += s.duration_ms ?? 0;
+    acc.set(model, row);
+  }
+  return [...acc.values()].sort((a, b) => b.tokens - a.tokens || a.model.localeCompare(b.model));
+}
+
 /** Passo "redondo" (1, 2 ou 5 × 10^k) para ~5 marcas no eixo. */
 export function tickStep(totalMs: number): number {
   const raw = Math.max(totalMs, 1) / 5;
@@ -261,4 +276,28 @@ export function renderWaterfall(root: HTMLElement, spans: Span[], lang: Lang = '
   root.replaceChildren(head, scroller, box);
   const firstLlm = rows.findIndex((r) => r.span.kind === 'llm');
   select(firstLlm >= 0 ? firstLlm : 0);
+}
+
+const LENS = {
+  pt: { via: 'gravado via OpenTelemetry GenAI', calls: (n: number) => `${n} ${n === 1 ? 'chamada' : 'chamadas'}` },
+  en: { via: 'recorded via OpenTelemetry GenAI', calls: (n: number) => `${n} ${n === 1 ? 'call' : 'calls'}` },
+};
+
+/** O trace como o genai-lens guardou: de onde veio, gasto por modelo e a cascata. */
+export function renderLensTrace(root: HTMLElement, traceId: string, spans: Span[], lang: Lang = 'pt'): void {
+  const t = LENS[lang];
+  const nf = new Intl.NumberFormat(lang === 'pt' ? 'pt-BR' : 'en-US');
+  const line = el('div', 'wb-lens');
+  line.append(el('span', 'lens-tag', 'genai-lens'));
+  if (traceId) line.append(el('code', '', `trace ${traceId.slice(0, 12)}…`));
+  line.append(el('span', '', t.via));
+  const models = el('div', 'wb-lens');
+  for (const m of byModel(spans)) {
+    const chip = el('span', 'wf-stat');
+    chip.append(el('strong', '', m.model.replace(/^[^/]+\//, '')), document.createTextNode(` ${t.calls(m.calls)} · ${nf.format(m.tokens)} tokens · ${fmtMs(m.ms)}`));
+    models.append(chip);
+  }
+  const wf = el('div', 'waterfall');
+  root.replaceChildren(line, ...(models.childElementCount ? [models] : []), wf);
+  renderWaterfall(wf, spans, lang);
 }
