@@ -424,8 +424,8 @@ export const DEMOS: Demo[] = [
     project: 'ml-from-scratch',
     title: { pt: 'PCA visual', en: 'PCA, visually' },
     text: {
-      pt: 'Veja 4 medidas virarem 2 componentes: projeção das flores, variância explicada, pesos e a intuição de girar a reta.',
-      en: 'Watch 4 measurements become 2 components: the projected flowers, explained variance, loadings and the rotate-the-line intuition.',
+      pt: 'Reduza 4, 13, 30 ou 64 medidas a 2 ou 3 componentes e gire o resultado em 3D: Iris, vinhos, câncer de mama e dígitos escritos à mão.',
+      en: 'Reduce 4, 13, 30 or 64 features to 2 or 3 components and rotate the result in 3D: Iris, wine, breast cancer and handwritten digits.',
     },
   },
   {

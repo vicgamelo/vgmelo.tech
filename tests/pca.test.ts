@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { IRIS } from '../src/data/iris';
+import { PCA_DATASETS } from '../src/data/pcaDatasets';
 import { jacobiEigen, pca, projectedVariance } from '../src/lib/pca';
 
 const X = IRIS.map((r) => r.slice(0, 4));
@@ -40,5 +41,25 @@ describe('PCA', () => {
     const pts = pca(X, true).scores.map((s) => [s[0], s[1]] as [number, number]);
     const best = projectedVariance(pts, 0);
     for (let k = 1; k < 36; k++) expect(projectedVariance(pts, (k * Math.PI) / 36)).toBeLessThanOrEqual(best + 1e-9);
+  });
+});
+
+// Referência: StandardScaler + PCA do scikit-learn 1.9 em cada base (mesmas linhas dos arquivos).
+describe('PCA nas outras bases', () => {
+  it.each([
+    ['wine', [0.361988, 0.192075, 0.111236, 0.07069], 178, 13],
+    ['cancer', [0.44272, 0.189712, 0.093932, 0.066021], 569, 30],
+    ['digits', [0.129679, 0.096797, 0.084197, 0.072326], 600, 64],
+  ] as const)('%s padronizado bate com o scikit-learn', async (key, ref, n, p) => {
+    const ds = PCA_DATASETS.find((d) => d.key === key)!;
+    const { X: data, y } = await ds.load();
+    expect(data).toHaveLength(n);
+    expect(data[0]).toHaveLength(p);
+    expect(y).toHaveLength(n);
+    expect(ds.features.pt).toHaveLength(p);
+    expect(ds.features.en).toHaveLength(p);
+    expect(Math.max(...y) + 1).toBe(ds.classes.pt.length);
+    const r = pca(data, true);
+    ref.forEach((v, i) => expect(r.explained[i]).toBeCloseTo(v, 4));
   });
 });

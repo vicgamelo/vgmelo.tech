@@ -1,6 +1,7 @@
 ---
 import DemoShell from '../../components/DemoShell.astro';
 import type { Lang } from '../../i18n/routes';
+import { PCA_DATASETS } from '../../data/pcaDatasets';
 
 interface Props {
   lang: Lang;
@@ -10,24 +11,36 @@ const pt = lang === 'pt';
 const L = pt
   ? {
       data: 'Os dados',
-      dataText:
-        '150 flores do conjunto Iris, de 3 espécies, com 4 medidas cada. Não dá para ver 4 dimensões de uma vez: o PCA acha as 2 direções que guardam a maior parte da informação.',
-      features: ['Comp. sépala', 'Larg. sépala', 'Comp. pétala', 'Larg. pétala'],
-      species: ['setosa', 'versicolor', 'virginica'],
+      dataset: 'Base',
+      stats: '{n} amostras · {p} medidas · {k} classes',
+      loading: 'Carregando a base…',
       standardize: 'Padronizar as medidas (z-score)',
-      standardizeHint: 'Sem padronizar, a medida com mais variação (comprimento da pétala) domina o PC1.',
+      stdOn: 'Cada medida vale o mesmo: média 0 e desvio 1.',
+      stdOff: 'Sem padronizar, “{f}” responde por {pct} da variância total e puxa o PC1 para ela.',
       xAxis: 'Eixo X',
       yAxis: 'Eixo Y',
-      biplot: 'As flores no plano dos componentes',
-      biplotHint: 'As setas mostram quanto cada medida pesa em cada componente.',
+      axes3d: 'No 3D, os eixos são PC1, PC2 e PC3.',
+      biplot: 'As amostras no espaço dos componentes',
+      hint2d: 'Passe o mouse ou toque num ponto para ver os detalhes. As setas mostram o peso das medidas.',
+      hint3d: 'PC1, PC2 e PC3 juntos guardam {pct} da variância. Arraste para girar.',
+      view: 'Visualização',
+      spin: 'Girar',
+      zoomIn: 'Aproximar',
+      zoomOut: 'Afastar',
+      reset: 'Recentrar',
+      legendHint: 'Clique numa classe para esconder ou mostrar.',
+      outOfMean: 'mais fora da média',
       scree: 'Variância explicada',
       screeHint: 'Quanto da informação cada componente guarda.',
       cumulative: 'acumulado',
+      rest: 'PC{a} a PC{b}',
       loadings: 'Pesos (loadings)',
       loadingsHint: 'Cada componente é uma mistura das medidas originais.',
+      loadingsTop: 'As {n} medidas de maior peso no PC1 e no PC2.',
+      eigenHint: 'Nos dígitos, cada componente é uma imagem 8×8: verde-água soma, violeta subtrai.',
       intuition: 'A intuição em 2D',
       intuitionText:
-        'Gire a reta. Cada flor é projetada nela, e a barra mostra a variância dos pontos projetados. O PC1 é exatamente a direção em que essa variância é máxima.',
+        'Com as flores do Iris: gire a reta. Cada flor é projetada nela, e a barra mostra a variância dos pontos projetados. O PC1 é exatamente a direção em que essa variância é máxima.',
       angle: 'Ângulo da reta',
       projected: 'Variância projetada',
       ofMax: 'do máximo',
@@ -37,34 +50,47 @@ const L = pt
       howTitle: 'O PCA passo a passo',
       steps: [
         ['Centralizar', 'Subtrai a média de cada medida (e divide pelo desvio, se padronizar), para todas começarem do zero.'],
-        ['Covariância', 'Monta a matriz 4×4 que diz o quanto cada par de medidas varia junto. É a do quadro ao lado.'],
+        ['Covariância', 'Monta a matriz p×p que diz o quanto cada par de medidas varia junto: 4×4 no Iris, 64×64 nos dígitos.'],
         ['Autovetores', 'Os autovetores da covariância são as direções dos componentes; os autovalores, a variância em cada uma.'],
-        ['Projetar', 'Cada flor vira coordenadas nos componentes. Ficando com PC1 e PC2, saem 4 medidas e entram 2 números.'],
+        ['Projetar', 'Cada amostra vira coordenadas nos componentes. Ficando com 2 ou 3, saem p medidas e entram 2 ou 3 números.'],
       ],
       covTitle: 'Covariância',
       corrTitle: 'Correlação',
-      code: 'O mesmo PCA está implementado do zero em NumPy, via SVD, no ml-from-scratch, e validado contra o scikit-learn. Aqui ele roda no seu navegador, com os autovetores pelo método de Jacobi.',
+      covHint: 'Passe o mouse numa célula para ver o par de medidas.',
+      code: 'O mesmo PCA está implementado do zero em NumPy, via SVD, no ml-from-scratch, e validado contra o scikit-learn. Aqui ele roda no seu navegador, com os autovetores pelo método de Jacobi, e os testes conferem o resultado de cada base com o do scikit-learn.',
     }
   : {
       data: 'The data',
-      dataText:
-        "150 flowers from the Iris dataset, 3 species, 4 measurements each. You can't see 4 dimensions at once: PCA finds the 2 directions that keep most of the information.",
-      features: ['Sepal length', 'Sepal width', 'Petal length', 'Petal width'],
-      species: ['setosa', 'versicolor', 'virginica'],
-      standardize: 'Standardize the measurements (z-score)',
-      standardizeHint: 'Without it, the measurement with the most spread (petal length) dominates PC1.',
+      dataset: 'Dataset',
+      stats: '{n} samples · {p} features · {k} classes',
+      loading: 'Loading the dataset…',
+      standardize: 'Standardize the features (z-score)',
+      stdOn: 'Every feature counts the same: mean 0 and sd 1.',
+      stdOff: 'Without standardizing, “{f}” holds {pct} of the total variance and pulls PC1 toward it.',
       xAxis: 'X axis',
       yAxis: 'Y axis',
-      biplot: 'The flowers on the component plane',
-      biplotHint: 'Arrows show how much each measurement weighs in each component.',
+      axes3d: 'In 3D the axes are PC1, PC2 and PC3.',
+      biplot: 'The samples in component space',
+      hint2d: 'Hover or tap a point to see its details. Arrows show how much each feature weighs.',
+      hint3d: 'PC1, PC2 and PC3 together keep {pct} of the variance. Drag to rotate.',
+      view: 'View',
+      spin: 'Spin',
+      zoomIn: 'Zoom in',
+      zoomOut: 'Zoom out',
+      reset: 'Reset',
+      legendHint: 'Click a class to hide or show it.',
+      outOfMean: 'furthest from the mean',
       scree: 'Explained variance',
       screeHint: 'How much of the information each component keeps.',
       cumulative: 'cumulative',
+      rest: 'PC{a} to PC{b}',
       loadings: 'Loadings',
-      loadingsHint: 'Each component is a mix of the original measurements.',
+      loadingsHint: 'Each component is a mix of the original features.',
+      loadingsTop: 'The {n} features with the largest weight on PC1 and PC2.',
+      eigenHint: 'For digits, each component is an 8×8 image: teal adds, violet subtracts.',
       intuition: 'The intuition in 2D',
       intuitionText:
-        'Rotate the line. Every flower is projected onto it, and the bar shows the variance of the projected points. PC1 is exactly the direction where that variance peaks.',
+        'With the Iris flowers: rotate the line. Every flower is projected onto it, and the bar shows the variance of the projected points. PC1 is exactly the direction where that variance peaks.',
       angle: 'Line angle',
       projected: 'Projected variance',
       ofMax: 'of the maximum',
@@ -73,24 +99,35 @@ const L = pt
       yFeat: 'petal length (standardized)',
       howTitle: 'PCA step by step',
       steps: [
-        ['Center', 'Subtract each measurement’s mean (and divide by its sd when standardizing), so all start at zero.'],
-        ['Covariance', 'Build the 4×4 matrix of how each pair of measurements varies together. It’s the one on the side.'],
+        ['Center', 'Subtract each feature’s mean (and divide by its sd when standardizing), so all start at zero.'],
+        ['Covariance', 'Build the p×p matrix of how each pair of features varies together: 4×4 for Iris, 64×64 for digits.'],
         ['Eigenvectors', 'The covariance eigenvectors are the component directions; the eigenvalues, the variance along each.'],
-        ['Project', 'Each flower becomes coordinates on the components. Keeping PC1 and PC2, 4 measurements become 2 numbers.'],
+        ['Project', 'Each sample becomes coordinates on the components. Keeping 2 or 3, p features become 2 or 3 numbers.'],
       ],
       covTitle: 'Covariance',
       corrTitle: 'Correlation',
-      code: 'The same PCA is implemented from scratch in NumPy, via SVD, in ml-from-scratch, and validated against scikit-learn. Here it runs in your browser, with eigenvectors from the Jacobi method.',
+      covHint: 'Hover a cell to see the pair of features.',
+      code: 'The same PCA is implemented from scratch in NumPy, via SVD, in ml-from-scratch, and validated against scikit-learn. Here it runs in your browser, with eigenvectors from the Jacobi method, and the tests check each dataset against scikit-learn.',
     };
-const pcs = ['PC1', 'PC2', 'PC3', 'PC4'];
+const sets = PCA_DATASETS.map((d) => ({ key: d.key, name: d.name[lang] }));
 ---
 
 <DemoShell lang={lang} demo="demoPca">
   <div class="pca" id="pca" data-l={JSON.stringify(L)} data-lang={lang}>
     <section class="panel intro">
-      <div>
+      <div class="intro-data">
         <h2>{L.data}</h2>
-        <p class="hint">{L.dataText}</p>
+        <div class="sets" role="group" aria-label={L.dataset}>
+          {
+            sets.map((d, i) => (
+              <button type="button" class="set" data-set={d.key} aria-pressed={i === 0 ? 'true' : 'false'}>
+                {d.name}
+              </button>
+            ))
+          }
+        </div>
+        <p class="hint" id="ds-desc"></p>
+        <p class="stats mono" id="ds-stats"></p>
       </div>
       <div class="opts">
         <label class="switch">
@@ -98,17 +135,18 @@ const pcs = ['PC1', 'PC2', 'PC3', 'PC4'];
           <span class="track" aria-hidden="true"><span class="thumb"></span></span>
           <span>{L.standardize}</span>
         </label>
-        <p class="hint small">{L.standardizeHint}</p>
-        <div class="axes">
+        <p class="hint small" id="std-hint"></p>
+        <div class="axes" id="axes-2d">
           <label>
             {L.xAxis}
-            <select id="ax-x">{pcs.map((p, i) => <option value={i} selected={i === 0}>{p}</option>)}</select>
+            <select id="ax-x"></select>
           </label>
           <label>
             {L.yAxis}
-            <select id="ax-y">{pcs.map((p, i) => <option value={i} selected={i === 1}>{p}</option>)}</select>
+            <select id="ax-y"></select>
           </label>
         </div>
+        <p class="hint small" id="axes-3d" hidden>{L.axes3d}</p>
       </div>
     </section>
 
@@ -116,26 +154,42 @@ const pcs = ['PC1', 'PC2', 'PC3', 'PC4'];
       <div class="panel-head">
         <div>
           <h2>{L.biplot}</h2>
-          <p class="hint">{L.biplotHint}</p>
+          <p class="hint" id="plot-hint">{L.hint2d}</p>
         </div>
-        <div class="legend">
-          {
-            L.species.map((s, i) => (
-              <span>
-                <span class={`sw sp${i}`} />
-                {s}
-              </span>
-            ))
-          }
+        <div class="seg" role="group" aria-label={L.view}>
+          <button type="button" data-mode="2d" aria-pressed="true">2D</button>
+          <button type="button" data-mode="3d" aria-pressed="false">3D</button>
         </div>
       </div>
-      <svg id="biplot" class="biplot" viewBox="0 0 520 420" role="img" aria-label={L.biplot}>
-        <g id="grid"></g>
-        <g id="points"></g>
-        <g id="arrows"></g>
-        <text id="lx" class="axis-label" x="510" y="404" text-anchor="end">PC1</text>
-        <text id="ly" class="axis-label" x="14" y="18">PC2</text>
-      </svg>
+      <div class="toolbar">
+        <div class="legend" id="legend" title={L.legendHint}></div>
+        <div class="tools">
+          <button type="button" class="tool" id="spin" aria-pressed="true" hidden>
+            <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"></path></svg>
+            {L.spin}
+          </button>
+          <button type="button" class="tool" id="zout" aria-label={L.zoomOut} title={L.zoomOut}>−</button>
+          <button type="button" class="tool" id="zin" aria-label={L.zoomIn} title={L.zoomIn}>+</button>
+          <button type="button" class="tool" id="zreset">{L.reset}</button>
+        </div>
+      </div>
+      <div class="plot-wrap">
+        <svg id="biplot" class="biplot" viewBox="0 0 520 420" role="img" aria-label={L.biplot} tabindex="0">
+          <defs>
+            <marker id="head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" class="arrow-head"></path>
+            </marker>
+          </defs>
+          <g id="grid"></g>
+          <g id="points"></g>
+          <g id="arrows"></g>
+          <g id="hl"><circle id="ring" class="ring" r="8" cx="-20" cy="-20"></circle></g>
+          <text id="lx" class="axis-label" x="510" y="404" text-anchor="end">PC1</text>
+          <text id="ly" class="axis-label" x="14" y="18">PC2</text>
+        </svg>
+        <p class="loading" id="loading" hidden>{L.loading}</p>
+        <div class="tip" id="tip" hidden></div>
+      </div>
     </section>
 
     <div class="side">
@@ -146,13 +200,8 @@ const pcs = ['PC1', 'PC2', 'PC3', 'PC4'];
       </section>
       <section class="panel">
         <h2>{L.loadings}</h2>
-        <p class="hint">{L.loadingsHint}</p>
-        <div class="table-wrap">
-          <table class="heat">
-            <thead><tr><th></th>{pcs.map((p) => <th>{p}</th>)}</tr></thead>
-            <tbody id="loadings"></tbody>
-          </table>
-        </div>
+        <p class="hint" id="loadings-hint">{L.loadingsHint}</p>
+        <div id="loadings" class="loadings"></div>
       </section>
     </div>
 
@@ -204,12 +253,8 @@ const pcs = ['PC1', 'PC2', 'PC3', 'PC4'];
         </ol>
         <div class="panel cov-panel">
           <h3 id="cov-title">{L.corrTitle}</h3>
-          <div class="table-wrap">
-            <table class="heat">
-              <thead><tr><th></th>{L.features.map((f) => <th>{f}</th>)}</tr></thead>
-              <tbody id="cov"></tbody>
-            </table>
-          </div>
+          <p class="hint small" id="cov-hint" hidden>{L.covHint}</p>
+          <div id="cov" class="cov"></div>
           <p class="hint small">{L.code}</p>
         </div>
       </div>
@@ -219,210 +264,710 @@ const pcs = ['PC1', 'PC2', 'PC3', 'PC4'];
 
 <script>
   import { IRIS } from '../../data/iris';
-  import { pca, projectedVariance } from '../../lib/pca';
+  import { PCA_DATASETS, type PcaData, type PcaDataset } from '../../data/pcaDatasets';
+  import { columnStats, pca, projectedVariance, type PcaResult } from '../../lib/pca';
+  import { clamp, nearest, paintOrder, project, type Camera } from '../../lib/view3d';
 
   const root = document.getElementById('pca');
   if (root) {
-    const L = JSON.parse(root.dataset.l!) as { features: string[]; species: string[]; cumulative: string; ofMax: string; corrTitle: string; covTitle: string };
-    const pt = root.dataset.lang === 'pt';
-    const nf = (v: number, d = 2) => new Intl.NumberFormat(pt ? 'pt-BR' : 'en', { minimumFractionDigits: d, maximumFractionDigits: d }).format(v);
-    const pf = (v: number) => new Intl.NumberFormat(pt ? 'pt-BR' : 'en', { style: 'percent', maximumFractionDigits: 1 }).format(v);
-    const X = IRIS.map((r) => r.slice(0, 4));
-    const species = IRIS.map((r) => r[4]);
+    const L = JSON.parse(root.dataset.l!) as Record<string, string>;
+    const lang = root.dataset.lang === 'pt' ? 'pt' : 'en';
+    const nf = (v: number, d = 2) => new Intl.NumberFormat(lang === 'pt' ? 'pt-BR' : 'en', { minimumFractionDigits: d, maximumFractionDigits: d }).format(v);
+    const pf = (v: number) => new Intl.NumberFormat(lang === 'pt' ? 'pt-BR' : 'en', { style: 'percent', maximumFractionDigits: 1 }).format(v);
+    const fill = (s: string, vars: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ''));
+    const $ = <T extends Element = HTMLElement>(id: string) => document.getElementById(id) as unknown as T;
     const NS = 'http://www.w3.org/2000/svg';
-    const el = (tag: string, attrs: Record<string, string | number>) => {
+    const el = (tag: string, attrs: Record<string, string | number> = {}) => {
       const e = document.createElementNS(NS, tag);
       for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, String(v));
       return e;
     };
-    const std = document.getElementById('std') as HTMLInputElement;
-    const axX = document.getElementById('ax-x') as HTMLSelectElement;
-    const axY = document.getElementById('ax-y') as HTMLSelectElement;
+    const h = (tag: string, cls = '', text = '') => {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text) e.textContent = text;
+      return e;
+    };
+    const css = (name: string) => getComputedStyle(root).getPropertyValue(name).trim();
+
+    const std = $<HTMLInputElement>('std');
+    const axX = $<HTMLSelectElement>('ax-x');
+    const axY = $<HTMLSelectElement>('ax-y');
+    const svg = $<SVGSVGElement>('biplot');
+    const gPoints = $('points');
+    const ring = $<SVGCircleElement>('ring');
+    const tip = $('tip');
+    const W = 520;
+    const H = 420;
+    const P = 34;
+
+    // Estado
+    let ds: PcaDataset = PCA_DATASETS[0];
+    let data: PcaData = { X: [], y: [] };
+    let z: number[][] = []; // dados padronizados (para a dica dizer o que está fora da média)
+    let res: PcaResult;
+    let circles: SVGCircleElement[] = [];
+    let mode: '2d' | '3d' = '2d';
+    const hidden = new Set<number>();
+    let zoom = 1;
+    let panX = 0;
+    let panY = 0;
+    const cam: Camera = { yaw: -0.65, pitch: 0.4, distance: 4.5 };
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let spinning = !reduceMotion;
+    let screen: { x: number; y: number; on: boolean }[] = [];
+    let hover = -1;
+    let paintedNatural = true;
+
+    const color = (cls: number) => `c${ds.palette?.[cls] ?? cls}`;
+    const feats = () => ds.features[lang];
+    const classes = () => ds.classes[lang];
 
     // Cor de uma célula de heatmap: verde-água para positivo, violeta para negativo.
-    const heat = (td: HTMLElement, v: number, max: number) => {
-      const a = Math.round((Math.min(Math.abs(v) / max, 1)) * 70);
-      td.style.background = `color-mix(in srgb, var(${v >= 0 ? '--accent' : '--accent2'}) ${a}%, transparent)`;
+    const heat = (cell: HTMLElement, v: number, max: number) => {
+      const a = Math.round(Math.min(Math.abs(v) / (max || 1), 1) * 75);
+      cell.style.background = `color-mix(in srgb, var(${v >= 0 ? '--accent' : '--accent2'}) ${a}%, transparent)`;
     };
 
-    function drawPca() {
-      const r = pca(X, std.checked);
+    // ------------------------------------------------------------ base
+
+    async function loadDataset(key: string) {
+      const next = PCA_DATASETS.find((d) => d.key === key)!;
+      root!.querySelectorAll<HTMLButtonElement>('[data-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.set === key)));
+      $('loading').hidden = false;
+      const loaded = await next.load();
+      $('loading').hidden = true;
+      ds = next;
+      data = loaded;
+      const { means, sds } = columnStats(data.X);
+      z = data.X.map((r) => r.map((v, j) => (sds[j] ? (v - means[j]) / sds[j] : 0)));
+      hidden.clear();
+      hover = -1;
+      zoom = 1;
+      panX = panY = 0;
+
+      const p = data.X[0].length;
+      $('ds-desc').textContent = ds.desc[lang];
+      $('ds-stats').textContent = fill(L.stats, { n: data.X.length, p, k: classes().length });
+
+      // Eixos: até 6 componentes para escolher.
+      const k = Math.min(p, 6);
+      for (const [sel, def] of [[axX, 0], [axY, 1]] as const) {
+        sel.replaceChildren(...Array.from({ length: k }, (_, i) => new Option(`PC${i + 1}`, String(i), i === def, i === def)));
+      }
+
+      // Legenda clicável
+      $('legend').replaceChildren(
+        ...classes().map((name, c) => {
+          const b = h('button', 'leg');
+          b.setAttribute('type', 'button');
+          b.setAttribute('aria-pressed', 'true');
+          b.append(h('span', `sw ${color(c)}`), document.createTextNode(name));
+          b.addEventListener('click', () => {
+            if (hidden.has(c)) hidden.delete(c);
+            else hidden.add(c);
+            b.setAttribute('aria-pressed', String(!hidden.has(c)));
+            schedule();
+          });
+          return b;
+        }),
+      );
+
+      // Um círculo por amostra, reaproveitado a cada desenho.
+      const small = data.X.length > 300;
+      circles = data.y.map((c) => el('circle', { r: small ? 3.2 : 4.2, class: `pt ${color(c)}` }) as SVGCircleElement);
+      gPoints.replaceChildren(...circles);
+      paintedNatural = true;
+      compute();
+    }
+
+    function compute() {
+      res = pca(data.X, std.checked);
+      // Dica da padronização: qual medida domina quando não padroniza.
+      const { sds } = columnStats(data.X);
+      const vars = sds.map((s) => s * s);
+      const total = vars.reduce((a, b) => a + b, 0);
+      const top = vars.indexOf(Math.max(...vars));
+      $('std-hint').textContent = std.checked ? L.stdOn : fill(L.stdOff, { f: feats()[top], pct: pf(vars[top] / total) });
+      renderScree();
+      renderLoadings();
+      renderCov();
+      updateModeText();
+      draw();
+    }
+
+    // ------------------------------------------------------------ gráfico principal
+
+    let frame = 0;
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(draw);
+    };
+
+    function draw() {
+      if (!res) return;
+      if (mode === '2d') draw2d();
+      else draw3d();
+      svg.classList.toggle('lock', mode === '2d' && zoom > 1);
+      svg.classList.toggle('rot', mode === '3d');
+      updateTip();
+    }
+
+    /** Medidas com maior peso no plano/espaço escolhido, para as setas. */
+    function topFeatures(comps: number[], n: number): number[] {
+      const p = data.X[0].length;
+      const norm = (k: number) => Math.hypot(...comps.map((c) => res.components[c][k]));
+      return Array.from({ length: p }, (_, k) => k)
+        .sort((a, b) => norm(b) - norm(a))
+        .slice(0, n);
+    }
+    const arrowCount = () => (ds.image ? 0 : Math.min(data.X[0].length, 6));
+
+    /** Setas sem repetição: medidas quase paralelas (como raio, área e perímetro) viram uma seta "+N". */
+    function arrowsFor(comps: number[]): { k: number; text: string }[] {
+      const n = arrowCount();
+      if (!n) return [];
+      const vec = (k: number) => comps.map((c) => res.components[c][k]);
+      const len = (v: number[]) => Math.hypot(...v);
+      const order = topFeatures(comps, data.X[0].length);
+      const picked: { k: number; v: number[]; extra: number }[] = [];
+      for (const k of order) {
+        const v = vec(k);
+        const twin = picked.find((p) => (p.v.reduce((a, x, i) => a + x * v[i], 0) / (len(p.v) * len(v) || 1)) > 0.985 && len(v) > 0.6 * len(p.v));
+        if (twin) twin.extra++;
+        else if (picked.length < n) picked.push({ k, v, extra: 0 });
+      }
+      return picked.map((p) => ({ k: p.k, text: p.extra ? `${feats()[p.k]} +${p.extra}` : feats()[p.k] }));
+    }
+
+    function placeLabels(items: { x: number; y: number; text: string }[]): Element[] {
+      const placed: [number, number][] = [];
+      return items.map(({ x: x0, y, text }) => {
+        let x = x0;
+        x = Math.min(Math.max(x, 60), W - 60);
+        let ty = Math.min(Math.max(y, 14), H - 14);
+        while (placed.some(([px, py]) => Math.abs(px - x) < 90 && Math.abs(py - ty) < 15)) ty += 15;
+        placed.push([x, ty]);
+        const t = el('text', { x: x.toFixed(1), y: ty.toFixed(1), class: 'arrow-label', 'text-anchor': 'middle', 'dominant-baseline': 'middle' });
+        t.textContent = text;
+        return t;
+      });
+    }
+
+    function draw2d() {
       const i = Number(axX.value);
       const j = Number(axY.value);
+      const xs = res.scores.map((s) => s[i]);
+      const ys = res.scores.map((s) => s[j]);
+      const m = Math.max(...xs.map(Math.abs), ...ys.map(Math.abs)) * 1.1 || 1;
+      const tx = (v: number) => W / 2 + (v / m) * (W / 2 - P) * zoom + panX;
+      const ty = (v: number) => H / 2 - (v / m) * (H / 2 - P) * zoom + panY;
 
-      // Biplot
-      const W = 520;
-      const H = 420;
-      const P = 34;
-      const xs = r.scores.map((s) => s[i]);
-      const ys = r.scores.map((s) => s[j]);
-      const m = Math.max(...xs.map(Math.abs), ...ys.map(Math.abs)) * 1.1;
-      const sx = (v: number) => W / 2 + (v / m) * (W / 2 - P);
-      const sy = (v: number) => H / 2 - (v / m) * (H / 2 - P);
-      const grid = document.getElementById('grid')!;
-      grid.replaceChildren(
-        el('line', { x1: P / 2, y1: H / 2, x2: W - P / 2, y2: H / 2, class: 'axis' }),
-        el('line', { x1: W / 2, y1: P / 2, x2: W / 2, y2: H - P / 2, class: 'axis' }),
+      $('grid').replaceChildren(
+        el('line', { x1: 0, y1: ty(0).toFixed(1), x2: W, y2: ty(0).toFixed(1), class: 'axis' }),
+        el('line', { x1: tx(0).toFixed(1), y1: 0, x2: tx(0).toFixed(1), y2: H, class: 'axis' }),
       );
-      const points = document.getElementById('points')!;
-      points.replaceChildren(
-        ...xs.map((x, k) => el('circle', { cx: sx(x).toFixed(1), cy: sy(ys[k]).toFixed(1), r: 4.2, class: `pt sp${species[k]}` })),
-      );
-      const arrows = document.getElementById('arrows')!;
-      const reach = m * 0.8;
-      // Rótulos que ficariam um em cima do outro descem até ter espaço.
-      const placed: [number, number][] = [];
-      arrows.replaceChildren(
-        ...L.features.flatMap((f, k) => {
-          const ex = sx(r.components[i][k] * reach);
-          const ey = sy(r.components[j][k] * reach);
-          const tx = sx(r.components[i][k] * reach * 1.13);
-          let ty = sy(r.components[j][k] * reach * 1.13);
-          while (placed.some(([px2, py2]) => Math.abs(px2 - tx) < 80 && Math.abs(py2 - ty) < 15)) ty += 15;
-          placed.push([tx, ty]);
-          const label = el('text', { x: tx.toFixed(1), y: ty.toFixed(1), class: 'arrow-label', 'text-anchor': 'middle', 'dominant-baseline': 'middle' });
-          label.textContent = f;
-          return [el('line', { x1: W / 2, y1: H / 2, x2: ex.toFixed(1), y2: ey.toFixed(1), class: 'arrow', 'marker-end': 'url(#head)' }), label];
-        }),
-      );
-      document.getElementById('lx')!.textContent = `PC${i + 1} · ${pf(r.explained[i])}`;
-      document.getElementById('ly')!.textContent = `PC${j + 1} · ${pf(r.explained[j])}`;
+      screen = xs.map((x, k) => ({ x: tx(x), y: ty(ys[k]), on: !hidden.has(data.y[k]) }));
+      const r = data.X.length > 300 ? 3.2 : 4.2;
+      circles.forEach((c, k) => {
+        c.setAttribute('cx', screen[k].x.toFixed(1));
+        c.setAttribute('cy', screen[k].y.toFixed(1));
+        c.setAttribute('r', String(r));
+        c.style.opacity = '';
+        c.classList.toggle('off', !screen[k].on);
+      });
+      if (!paintedNatural) {
+        gPoints.append(...circles);
+        paintedNatural = true;
+      }
 
-      // Variância explicada
-      const scree = document.getElementById('scree')!;
+      const top = arrowsFor([i, j]);
+      const longest = Math.max(...top.map(({ k }) => Math.hypot(res.components[i][k], res.components[j][k])), 1e-9);
+      const s = (0.8 * m) / longest; // setas em escala relativa: a maior chega a 80% do gráfico
+      const lines = top.map(({ k }) => el('line', { x1: tx(0), y1: ty(0), x2: tx(res.components[i][k] * s).toFixed(1), y2: ty(res.components[j][k] * s).toFixed(1), class: 'arrow', 'marker-end': 'url(#head)' }));
+      const labels = placeLabels(top.map(({ k, text }) => ({ x: tx(res.components[i][k] * s * 1.14), y: ty(res.components[j][k] * s * 1.14), text })));
+      $('arrows').replaceChildren(...lines, ...labels);
+
+      $('lx').textContent = `PC${i + 1} · ${pf(res.explained[i])}`;
+      $('ly').textContent = `PC${j + 1} · ${pf(res.explained[j])}`;
+      $('lx').removeAttribute('visibility');
+      $('ly').removeAttribute('visibility');
+    }
+
+    function draw3d() {
+      const m = Math.max(...res.scores.flatMap((s) => [s[0], s[1], s[2]].map(Math.abs))) * 1.05 || 1;
+      const R = 165 * zoom;
+      const cx = W / 2;
+      const cy = H / 2 + 6;
+      const P3 = (p: [number, number, number]) => {
+        const q = project(p, cam);
+        return { x: cx + q.x * R, y: cy - q.y * R, depth: q.depth, scale: q.scale };
+      };
+      const seg = (a: [number, number, number], b: [number, number, number], cls: string) => {
+        const pa = P3(a);
+        const pb = P3(b);
+        return el('line', { x1: pa.x.toFixed(1), y1: pa.y.toFixed(1), x2: pb.x.toFixed(1), y2: pb.y.toFixed(1), class: cls });
+      };
+
+      // Chão (plano do PC1 × PC3, embaixo) e os três eixos
+      const grid: Element[] = [];
+      for (const t of [-1, -0.5, 0, 0.5, 1]) {
+        grid.push(seg([t, -1, -1], [t, -1, 1], 'floor'), seg([-1, -1, t], [1, -1, t], 'floor'));
+      }
+      const axes: [number, number, number][] = [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ];
+      axes.forEach((a, k) => {
+        grid.push(seg([-a[0], -a[1], -a[2]], a, 'axis3'));
+        const end = P3([a[0] * 1.16, a[1] * 1.16, a[2] * 1.16]);
+        const t = el('text', { x: end.x.toFixed(1), y: end.y.toFixed(1), class: 'axis-label strong', 'text-anchor': 'middle', 'dominant-baseline': 'middle' });
+        t.textContent = `PC${k + 1} · ${pf(res.explained[k])}`;
+        grid.push(t);
+      });
+      $('grid').replaceChildren(...grid);
+
+      const proj = res.scores.map((s) => P3([s[0] / m, s[1] / m, s[2] / m]));
+      screen = proj.map((q, k) => ({ x: q.x, y: q.y, on: !hidden.has(data.y[k]) }));
+      const base = data.X.length > 300 ? 3 : 3.8;
+      circles.forEach((c, k) => {
+        const q = proj[k];
+        c.setAttribute('cx', q.x.toFixed(1));
+        c.setAttribute('cy', q.y.toFixed(1));
+        c.setAttribute('r', (base * q.scale).toFixed(2));
+        c.style.opacity = clamp(0.3 + 0.6 * ((q.depth + 1) / 2), 0.25, 0.95).toFixed(2);
+        c.classList.toggle('off', !screen[k].on);
+      });
+      gPoints.append(...paintOrder(proj.map((q) => q.depth)).map((k) => circles[k]));
+      paintedNatural = false;
+
+      const top = arrowsFor([0, 1, 2]);
+      const longest = Math.max(...top.map(({ k }) => Math.hypot(res.components[0][k], res.components[1][k], res.components[2][k])), 1e-9);
+      const s = 0.85 / longest;
+      const o = P3([0, 0, 0]);
+      const lines: Element[] = [];
+      const items: { x: number; y: number; text: string }[] = [];
+      for (const { k, text } of top) {
+        const v: [number, number, number] = [res.components[0][k] * s, res.components[1][k] * s, res.components[2][k] * s];
+        const e = P3(v);
+        lines.push(el('line', { x1: o.x.toFixed(1), y1: o.y.toFixed(1), x2: e.x.toFixed(1), y2: e.y.toFixed(1), class: 'arrow', 'marker-end': 'url(#head)' }));
+        const lp = P3([v[0] * 1.14, v[1] * 1.14, v[2] * 1.14]);
+        items.push({ x: lp.x, y: lp.y, text });
+      }
+      $('arrows').replaceChildren(...lines, ...placeLabels(items));
+      $('lx').setAttribute('visibility', 'hidden');
+      $('ly').setAttribute('visibility', 'hidden');
+    }
+
+    // ------------------------------------------------------------ dica
+
+    function digitCanvas(values: number[], [w, hgt]: [number, number], diverging: boolean, size: number): HTMLCanvasElement {
+      const cv = document.createElement('canvas');
+      cv.width = w;
+      cv.height = hgt;
+      cv.className = 'pix';
+      cv.style.width = `${size}px`;
+      cv.style.height = `${size}px`;
+      const ctx = cv.getContext('2d')!;
+      const max = Math.max(...values.map(Math.abs)) || 1;
+      const pos = css('--accent') || '#0d9488';
+      const neg = css('--accent2') || '#7c3aed';
+      const ink = css('--text') || '#000';
+      values.forEach((v, i) => {
+        ctx.globalAlpha = diverging ? Math.abs(v) / max : v / 16;
+        ctx.fillStyle = diverging ? (v >= 0 ? pos : neg) : ink;
+        ctx.fillRect(i % w, Math.floor(i / w), 1, 1);
+      });
+      return cv;
+    }
+
+    function updateTip() {
+      if (hover < 0 || !screen[hover]?.on) {
+        tip.hidden = true;
+        ring.setAttribute('cx', '-20');
+        return;
+      }
+      const s = screen[hover];
+      ring.setAttribute('cx', s.x.toFixed(1));
+      ring.setAttribute('cy', s.y.toFixed(1));
+      const c = data.y[hover];
+      const title = h('div', 'tip-title');
+      title.append(h('span', `sw ${color(c)}`), document.createTextNode(classes()[c]));
+      const body: Node[] = [title];
+      if (ds.image) {
+        body.push(digitCanvas(data.X[hover], ds.image, false, 64));
+      } else {
+        const row = z[hover];
+        const p = row.length;
+        const ks = p <= 4 ? row.map((_, k) => k) : row.map((_, k) => k).sort((a, b) => Math.abs(row[b]) - Math.abs(row[a])).slice(0, 4);
+        const dl = h('dl');
+        for (const k of ks) {
+          const v = data.X[hover][k];
+          dl.append(h('dt', '', feats()[k]), h('dd', 'mono', `${nf(v, Math.abs(v) >= 100 ? 0 : Math.abs(v) < 1 ? 3 : 1)}${ds.unit ? ` ${ds.unit}` : ''}`));
+        }
+        if (p > 4) body.push(h('p', 'tip-note', L.outOfMean));
+        body.push(dl);
+      }
+      const n = mode === '3d' ? [0, 1, 2] : [Number(axX.value), Number(axY.value)];
+      body.push(h('p', 'tip-pcs mono', n.map((k) => `PC${k + 1} ${nf(res.scores[hover][k])}`).join(' · ')));
+      tip.replaceChildren(...body);
+      tip.hidden = false;
+      const rect = svg.getBoundingClientRect();
+      const left = (s.x / W) * rect.width;
+      const top = (s.y / H) * rect.height;
+      tip.style.left = `${left}px`;
+      tip.style.top = `${top}px`;
+      tip.classList.toggle('flip-x', left > rect.width * 0.55);
+      tip.classList.toggle('below', top < rect.height * 0.4);
+    }
+
+    // ------------------------------------------------------------ painéis
+
+    function renderScree() {
+      const scree = $('scree');
+      const sel = mode === '3d' ? [0, 1, 2] : [Number(axX.value), Number(axY.value)];
+      const shown = Math.min(res.explained.length, 8);
       let acc = 0;
-      scree.replaceChildren(
-        ...r.explained.map((e, k) => {
-          acc += e;
-          const row = document.createElement('div');
-          row.className = `scree-row${k === i || k === j ? ' on' : ''}`;
-          const name = document.createElement('span');
-          name.className = 'mono';
-          name.textContent = `PC${k + 1}`;
-          const track = document.createElement('span');
-          track.className = 'scree-track';
-          const bar = document.createElement('span');
-          bar.className = 'scree-bar';
-          bar.style.width = `${e * 100}%`;
-          track.append(bar);
-          const val = document.createElement('span');
-          val.className = 'mono val';
-          val.textContent = pf(e);
-          const cum = document.createElement('span');
-          cum.className = 'mono cum';
-          cum.textContent = `${pf(acc)} ${L.cumulative}`;
-          row.append(name, track, val, cum);
-          return row;
-        }),
-      );
+      const rows = res.explained.slice(0, shown).map((e, k) => {
+        acc += e;
+        const row = h('div', `scree-row${sel.includes(k) ? ' on' : ''}`);
+        const track = h('span', 'scree-track');
+        const bar = h('span', 'scree-bar');
+        bar.style.width = `${(e / res.explained[0]) * 100}%`;
+        track.append(bar);
+        row.append(h('span', 'mono', `PC${k + 1}`), track, h('span', 'mono val', pf(e)), h('span', 'mono cum', `${pf(acc)} ${L.cumulative}`));
+        return row;
+      });
+      if (res.explained.length > shown) {
+        const rest = 1 - acc;
+        const row = h('div', 'scree-row rest');
+        row.append(h('span', 'mono', '…'), h('span', 'mono rest-label', fill(L.rest, { a: shown + 1, b: res.explained.length })), h('span', 'mono val', pf(rest)));
+        rows.push(row);
+      }
+      scree.replaceChildren(...rows);
+    }
 
-      // Loadings
-      const loadings = document.getElementById('loadings')!;
-      loadings.replaceChildren(
-        ...L.features.map((f, k) => {
-          const tr = document.createElement('tr');
-          const th = document.createElement('th');
-          th.textContent = f;
-          tr.append(th);
-          r.components.forEach((c) => {
-            const td = document.createElement('td');
-            td.className = 'mono';
-            td.textContent = nf(c[k]);
-            heat(td, c[k], 1);
-            tr.append(td);
-          });
-          return tr;
-        }),
-      );
+    function renderLoadings() {
+      const box = $('loadings');
+      const p = data.X[0].length;
+      const pcs = Math.min(p, 4);
+      if (ds.image) {
+        $('loadings-hint').textContent = L.eigenHint;
+        box.replaceChildren(
+          ...Array.from({ length: pcs }, (_, k) => {
+            const fig = h('figure', 'eigen');
+            fig.append(digitCanvas(res.components[k], ds.image!, true, 72), h('figcaption', 'mono', `PC${k + 1} · ${pf(res.explained[k])}`));
+            return fig;
+          }),
+        );
+        return;
+      }
+      const limit = 12;
+      const rowsIdx = p <= 13 ? Array.from({ length: p }, (_, k) => k) : topFeatures([0, 1], limit);
+      $('loadings-hint').textContent = p <= 13 ? L.loadingsHint : fill(L.loadingsTop, { n: limit });
+      const wrap = h('div', 'table-wrap');
+      const table = h('table', 'heat');
+      const head = h('tr');
+      head.append(h('th'), ...Array.from({ length: pcs }, (_, k) => h('th', '', `PC${k + 1}`)));
+      const thead = h('thead');
+      thead.append(head);
+      const tbody = h('tbody');
+      for (const k of rowsIdx) {
+        const tr = h('tr');
+        tr.append(h('th', '', feats()[k]));
+        for (let c = 0; c < pcs; c++) {
+          const td = h('td', 'mono', nf(res.components[c][k]));
+          heat(td, res.components[c][k], 1);
+          tr.append(td);
+        }
+        tbody.append(tr);
+      }
+      table.append(thead, tbody);
+      wrap.append(table);
+      box.replaceChildren(wrap);
+    }
 
-      // Covariância (ou correlação, quando padroniza)
-      document.getElementById('cov-title')!.textContent = std.checked ? L.corrTitle : L.covTitle;
-      const max = Math.max(...r.cov.flat().map(Math.abs));
-      const cov = document.getElementById('cov')!;
-      cov.replaceChildren(
-        ...r.cov.map((row, a) => {
-          const tr = document.createElement('tr');
-          const th = document.createElement('th');
-          th.textContent = L.features[a];
-          tr.append(th);
+    function renderCov() {
+      $('cov-title').textContent = std.checked ? L.corrTitle : L.covTitle;
+      const p = res.cov.length;
+      const max = Math.max(...res.cov.flat().map(Math.abs));
+      const box = $('cov');
+      $('cov-hint').hidden = p <= 6;
+      if (p <= 6) {
+        const wrap = h('div', 'table-wrap');
+        const table = h('table', 'heat');
+        const head = h('tr');
+        head.append(h('th'), ...feats().map((f) => h('th', '', f)));
+        const thead = h('thead');
+        thead.append(head);
+        const tbody = h('tbody');
+        res.cov.forEach((row, a) => {
+          const tr = h('tr');
+          tr.append(h('th', '', feats()[a]));
           row.forEach((v) => {
-            const td = document.createElement('td');
-            td.className = 'mono';
-            td.textContent = nf(v);
+            const td = h('td', 'mono', nf(v));
             heat(td, v, max);
             tr.append(td);
           });
-          return tr;
+          tbody.append(tr);
+        });
+        table.append(thead, tbody);
+        wrap.append(table);
+        box.replaceChildren(wrap);
+        return;
+      }
+      // Muitas medidas: mapa de calor sem números, com o par na dica do navegador.
+      const grid = h('div', 'cgrid');
+      grid.style.gridTemplateColumns = `repeat(${p}, minmax(0, 1fr))`;
+      res.cov.forEach((row, a) =>
+        row.forEach((v, b) => {
+          const cell = h('span', 'cell');
+          cell.title = `${feats()[a]} × ${feats()[b]}: ${nf(v)}`;
+          heat(cell, v, max);
+          grid.append(cell);
         }),
       );
+      box.replaceChildren(grid);
     }
 
-    // Intuição em 2D: comprimento da sépala × comprimento da pétala, padronizados
-    const two = pca(X.map((r) => [r[0], r[2]]), true);
-    const z = X.map((r) => [(r[0] - two.means[0]) / two.scales[0], (r[2] - two.means[1]) / two.scales[1]] as [number, number]);
+    function updateModeText() {
+      root!.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+      const pct = res ? pf(res.explained[0] + res.explained[1] + res.explained[2]) : '';
+      $('plot-hint').textContent = mode === '3d' ? fill(L.hint3d, { pct }) : L.hint2d;
+      $('axes-2d').hidden = mode === '3d';
+      $('axes-3d').hidden = mode === '2d';
+      $('spin').hidden = mode === '2d';
+      $('spin').setAttribute('aria-pressed', String(spinning));
+    }
+
+    // ------------------------------------------------------------ interação
+
+    function zoomBy(f: number, at?: { x: number; y: number }) {
+      const min = mode === '2d' ? 1 : 0.6;
+      const next = clamp(zoom * f, min, 8);
+      if (mode === '2d') {
+        const a = at ?? { x: W / 2, y: H / 2 };
+        // Mantém parado o ponto debaixo do cursor.
+        const bx = (a.x - W / 2 - panX) / zoom;
+        const by = (a.y - H / 2 - panY) / zoom;
+        panX = a.x - W / 2 - bx * next;
+        panY = a.y - H / 2 - by * next;
+        if (next === 1) panX = panY = 0;
+      }
+      zoom = next;
+      clampPan();
+      schedule();
+    }
+    function clampPan() {
+      const mx = ((zoom - 1) * W) / 2;
+      const my = ((zoom - 1) * H) / 2;
+      panX = clamp(panX, -mx, mx);
+      panY = clamp(panY, -my, my);
+    }
+    const toView = (e: { clientX: number; clientY: number }) => {
+      const r = svg.getBoundingClientRect();
+      return { x: ((e.clientX - r.left) * W) / r.width, y: ((e.clientY - r.top) * H) / r.height };
+    };
+    function hoverAt(e: PointerEvent | MouseEvent, touch = false) {
+      const v = toView(e);
+      hover = nearest(screen, v.x, v.y, touch ? 22 : 13);
+      updateTip();
+    }
+
+    function setSpin(on: boolean) {
+      spinning = on;
+      $('spin').setAttribute('aria-pressed', String(on));
+      if (on) startSpin();
+    }
+    let raf = 0;
+    let last = 0;
+    let visible = true;
+    function loop(t: number) {
+      raf = 0;
+      if (mode !== '3d' || !spinning || !visible) return;
+      const dt = last ? Math.min(t - last, 50) : 16;
+      last = t;
+      cam.yaw += dt * 0.00035;
+      draw();
+      raf = requestAnimationFrame(loop);
+    }
+    function startSpin() {
+      if (!raf && mode === '3d' && spinning) {
+        last = 0;
+        raf = requestAnimationFrame(loop);
+      }
+    }
+    new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      if (visible) startSpin();
+    }).observe(svg);
+
+    let drag: { x: number; y: number; moved: boolean; touch: boolean } | null = null;
+    svg.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      drag = { x: e.clientX, y: e.clientY, moved: false, touch: e.pointerType !== 'mouse' };
+      svg.setPointerCapture(e.pointerId);
+    });
+    svg.addEventListener('pointermove', (e) => {
+      if (!drag) {
+        if (e.pointerType === 'mouse') hoverAt(e);
+        return;
+      }
+      const dx = e.clientX - drag.x;
+      const dy = e.clientY - drag.y;
+      if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+      drag.moved = true;
+      drag.x = e.clientX;
+      drag.y = e.clientY;
+      if (mode === '3d') {
+        cam.yaw += dx * 0.01;
+        cam.pitch = clamp(cam.pitch + dy * 0.01, -1.35, 1.35);
+        if (spinning) setSpin(false);
+      } else if (zoom > 1) {
+        const k = W / svg.getBoundingClientRect().width;
+        panX += dx * k;
+        panY += dy * k;
+        clampPan();
+      }
+      hover = -1;
+      schedule();
+    });
+    svg.addEventListener('pointerup', (e) => {
+      const d = drag;
+      drag = null;
+      if (d && !d.moved) hoverAt(e, d.touch);
+    });
+    svg.addEventListener('pointercancel', () => (drag = null));
+    svg.addEventListener('pointerleave', (e) => {
+      if (!drag && e.pointerType === 'mouse') {
+        hover = -1;
+        updateTip();
+      }
+    });
+    // Ctrl + roda (e a pinça do trackpad, que chega assim) dá zoom; a roda sozinha rola a página.
+    svg.addEventListener(
+      'wheel',
+      (e) => {
+        if (!e.ctrlKey && !e.metaKey) return;
+        e.preventDefault();
+        zoomBy(Math.exp(-e.deltaY * 0.01), toView(e));
+      },
+      { passive: false },
+    );
+    svg.addEventListener('dblclick', (e) => zoomBy(1.6, toView(e)));
+    svg.addEventListener('keydown', (e) => {
+      const step = 0.12;
+      const keys: Record<string, () => void> = {
+        ArrowLeft: () => (mode === '3d' ? (cam.yaw -= step) : (panX += 20)),
+        ArrowRight: () => (mode === '3d' ? (cam.yaw += step) : (panX -= 20)),
+        ArrowUp: () => (mode === '3d' ? (cam.pitch = clamp(cam.pitch - step, -1.35, 1.35)) : (panY += 20)),
+        ArrowDown: () => (mode === '3d' ? (cam.pitch = clamp(cam.pitch + step, -1.35, 1.35)) : (panY -= 20)),
+        '+': () => zoomBy(1.25),
+        '=': () => zoomBy(1.25),
+        '-': () => zoomBy(0.8),
+      };
+      const fn = keys[e.key];
+      if (!fn) return;
+      e.preventDefault();
+      if (mode === '3d' && spinning && e.key.startsWith('Arrow')) setSpin(false);
+      fn();
+      clampPan();
+      schedule();
+    });
+    $('zin').addEventListener('click', () => zoomBy(1.4));
+    $('zout').addEventListener('click', () => zoomBy(1 / 1.4));
+    $('zreset').addEventListener('click', () => {
+      zoom = 1;
+      panX = panY = 0;
+      cam.yaw = -0.65;
+      cam.pitch = 0.4;
+      schedule();
+    });
+    $('spin').addEventListener('click', () => setSpin(!spinning));
+    root.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const next = b.dataset.mode as '2d' | '3d';
+        if (next === mode) return;
+        mode = next;
+        zoom = 1;
+        panX = panY = 0;
+        hover = -1;
+        updateModeText();
+        renderScree();
+        draw();
+        startSpin();
+      }),
+    );
+    root.querySelectorAll<HTMLButtonElement>('[data-set]').forEach((b) => b.addEventListener('click', () => void loadDataset(b.dataset.set!)));
+    std.addEventListener('change', compute);
+    [axX, axY].forEach((c) =>
+      c.addEventListener('change', () => {
+        renderScree();
+        schedule();
+      }),
+    );
+    window.addEventListener('resize', () => updateTip());
+
+    // ------------------------------------------------------------ intuição em 2D (sempre o Iris)
+
+    const X2 = IRIS.map((r) => [r[0], r[2]]);
+    const two = pca(X2, true);
+    const zz = X2.map((r) => [(r[0] - two.means[0]) / two.scales[0], (r[1] - two.means[1]) / two.scales[1]] as [number, number]);
+    const species = IRIS.map((r) => r[4]);
     const best = Math.atan2(two.components[0][1], two.components[0][0]);
     const bestDeg = ((best * 180) / Math.PI + 180) % 180;
-    const maxVar = projectedVariance(z, best);
+    const maxVar = projectedVariance(zz, best);
     const S = 400;
-    const k = S / 2 / 3.2;
-    const px = (v: number) => S / 2 + v * k;
-    const py = (v: number) => S / 2 - v * k;
-    document.getElementById('raw')!.replaceChildren(
-      ...z.map(([a, b], n) => el('circle', { cx: px(a).toFixed(1), cy: py(b).toFixed(1), r: 3.6, class: `pt sp${species[n]}` })),
-    );
-    const angle = document.getElementById('angle') as HTMLInputElement;
+    const k2 = S / 2 / 3.2;
+    const px = (v: number) => S / 2 + v * k2;
+    const py = (v: number) => S / 2 - v * k2;
+    $('raw').replaceChildren(...zz.map(([a, b], n) => el('circle', { cx: px(a).toFixed(1), cy: py(b).toFixed(1), r: 3.6, class: `pt c${species[n]}` })));
+    const angle = $<HTMLInputElement>('angle');
 
     function drawProj() {
       const deg = Number(angle.value);
       const th = (deg * Math.PI) / 180;
       const u = [Math.cos(th), Math.sin(th)];
-      document.getElementById('angle-out')!.textContent = `${deg}°`;
-      const line = document.getElementById('pline')!;
+      $('angle-out').textContent = `${deg}°`;
+      const line = $('pline');
       line.setAttribute('x1', px(-u[0] * 4).toFixed(1));
       line.setAttribute('y1', py(-u[1] * 4).toFixed(1));
       line.setAttribute('x2', px(u[0] * 4).toFixed(1));
       line.setAttribute('y2', py(u[1] * 4).toFixed(1));
       const drops: Element[] = [];
       const on: Element[] = [];
-      z.forEach(([a, b], n) => {
+      zz.forEach(([a, b], n) => {
         const t = a * u[0] + b * u[1];
         drops.push(el('line', { x1: px(a).toFixed(1), y1: py(b).toFixed(1), x2: px(t * u[0]).toFixed(1), y2: py(t * u[1]).toFixed(1), class: 'drop' }));
-        on.push(el('circle', { cx: px(t * u[0]).toFixed(1), cy: py(t * u[1]).toFixed(1), r: 2.6, class: `on sp${species[n]}` }));
+        on.push(el('circle', { cx: px(t * u[0]).toFixed(1), cy: py(t * u[1]).toFixed(1), r: 2.6, class: `on c${species[n]}` }));
       });
-      document.getElementById('drops')!.replaceChildren(...drops);
-      document.getElementById('onl')!.replaceChildren(...on);
-      const v = projectedVariance(z, th);
-      document.getElementById('pv')!.textContent = nf(v);
-      const bar = document.getElementById('pv-bar')!;
+      $('drops').replaceChildren(...drops);
+      $('onl').replaceChildren(...on);
+      const v = projectedVariance(zz, th);
+      $('pv').textContent = nf(v);
+      const bar = $('pv-bar');
       bar.style.width = `${(v / maxVar) * 100}%`;
       bar.classList.toggle('best', v / maxVar > 0.995);
-      document.getElementById('pv-pct')!.textContent = `${pf(v / maxVar)} ${L.ofMax}`;
+      $('pv-pct').textContent = `${pf(v / maxVar)} ${L.ofMax}`;
     }
-
-    let frame = 0;
-    const later = (fn: () => void) => () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(fn);
-    };
-    [std, axX, axY].forEach((c) => c.addEventListener('change', drawPca));
-    angle.addEventListener('input', later(drawProj));
-    document.getElementById('find')!.addEventListener('click', () => {
+    let pframe = 0;
+    angle.addEventListener('input', () => {
+      cancelAnimationFrame(pframe);
+      pframe = requestAnimationFrame(drawProj);
+    });
+    $('find').addEventListener('click', () => {
       angle.value = String(Math.round(bestDeg));
       drawProj();
     });
-    // Ponta das setas do biplot
-    const defs = el('defs', {});
-    const marker = el('marker', { id: 'head', viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' });
-    marker.append(el('path', { d: 'M0 0 L10 5 L0 10 z', class: 'arrow-head' }));
-    defs.append(marker);
-    document.getElementById('biplot')!.prepend(defs);
-    drawPca();
+
     drawProj();
+    void loadDataset('iris');
   }
 </script>
 
 <style>
-  /* Item de grid encolhe abaixo do conteúdo (a fórmula e as tabelas rolam dentro do painel). */
+  /* Item de grid encolhe abaixo do conteúdo (as tabelas rolam dentro do painel). */
   .pca > * {
     min-width: 0;
   }
@@ -459,14 +1004,56 @@ const pcs = ['PC1', 'PC2', 'PC3', 'PC4'];
     align-items: flex-start;
     gap: 12px;
     flex-wrap: wrap;
-    margin-bottom: 8px;
+    margin-bottom: 12px;
   }
   .intro {
     grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
     gap: 24px;
     align-items: start;
+  }
+  .intro-data {
+    display: grid;
+    gap: 10px;
+  }
+  .sets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .set,
+  .legend :global(.leg),
+  .tool,
+  .seg button {
+    font: inherit;
+    font-size: 13.5px;
+    border: 1px solid var(--line-strong);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+    min-height: 34px;
+  }
+  .set {
+    padding: 6px 14px;
+    border-radius: 999px;
+  }
+  .set:hover,
+  .legend :global(.leg:hover),
+  .tool:hover,
+  .seg button:hover {
+    border-color: var(--accent);
+  }
+  .set[aria-pressed='true'] {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .stats {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--muted);
   }
   .opts {
     display: grid;
@@ -521,6 +1108,9 @@ const pcs = ['PC1', 'PC2', 'PC3', 'PC4'];
     gap: 12px;
     flex-wrap: wrap;
   }
+  .axes[hidden] {
+    display: none;
+  }
   .axes label {
     display: grid;
     gap: 4px;
@@ -532,45 +1122,210 @@ const pcs = ['PC1', 'PC2', 'PC3', 'PC4'];
     min-height: 38px;
     padding: 6px 10px;
   }
-  .legend {
-    display: flex;
-    gap: 12px;
-    font-size: 13px;
-    color: var(--muted);
+
+  /* Gráfico principal */
+  .seg {
+    display: inline-flex;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--line-strong);
+    flex: none;
   }
-  .legend > span {
+  .seg button {
+    border: 0;
+    border-radius: 0;
+    padding: 0 16px;
+    font-weight: 600;
+    font-family: var(--mono);
+  }
+  .seg button + button {
+    border-left: 1px solid var(--line-strong);
+  }
+  .seg button[aria-pressed='true'] {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .legend,
+  .tools {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .legend :global(.leg) {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    min-height: 30px;
+    font-size: 12.5px;
   }
-  .sw {
+  .legend :global(.leg[aria-pressed='false']) {
+    opacity: 0.45;
+    text-decoration: line-through;
+  }
+  .tool {
+    border-radius: 8px;
+    min-width: 34px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .tool[hidden] {
+    display: none;
+  }
+  .tool svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+  .tool[aria-pressed='true'] {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .plot-wrap {
+    position: relative;
+    border-radius: var(--radius-sm);
+    background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 70%);
+  }
+  .biplot {
+    touch-action: pan-y;
+    cursor: crosshair;
+    outline: none;
+    border-radius: var(--radius-sm);
+  }
+  .biplot:focus-visible {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  .biplot.lock {
+    touch-action: none;
+    cursor: grab;
+  }
+  .biplot.rot {
+    cursor: grab;
+  }
+  .biplot.rot:active,
+  .biplot.lock:active {
+    cursor: grabbing;
+  }
+  .loading {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--panel) 70%, transparent);
+  }
+  .loading[hidden] {
+    display: none;
+  }
+  .tip {
+    position: absolute;
+    z-index: 2;
+    transform: translate(12px, calc(-100% - 10px));
+    min-width: 170px;
+    max-width: 240px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--panel);
+    border: 1px solid var(--line-strong);
+    box-shadow: var(--shadow);
+    font-size: 12.5px;
+    pointer-events: none;
+  }
+  .tip.flip-x {
+    transform: translate(calc(-100% - 12px), calc(-100% - 10px));
+  }
+  .tip.below {
+    transform: translate(12px, 12px);
+  }
+  .tip.below.flip-x {
+    transform: translate(calc(-100% - 12px), 12px);
+  }
+  .tip :global(.tip-title) {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+    font-size: 13.5px;
+    margin-bottom: 6px;
+  }
+  .tip :global(.tip-note) {
+    margin: 0 0 4px;
+    color: var(--muted);
+    font-size: 11.5px;
+  }
+  .tip :global(dl) {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2px 10px;
+    margin: 0;
+  }
+  .tip :global(dt) {
+    color: var(--muted);
+  }
+  .tip :global(dd) {
+    margin: 0;
+    text-align: right;
+  }
+  .tip :global(.tip-pcs) {
+    margin: 8px 0 0;
+    padding-top: 6px;
+    border-top: 1px solid var(--line);
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .pca :global(.pix) {
+    image-rendering: pixelated;
+    display: block;
+    border-radius: 4px;
+    background: var(--bg-soft);
+  }
+
+  .pca :global(.sw) {
     width: 10px;
     height: 10px;
     border-radius: 50%;
     display: inline-block;
+    flex: none;
   }
-  .sw.sp0,
-  .pca :global(.pt.sp0),
-  .pca :global(.on.sp0) {
-    background: #2dd4bf;
-    fill: #2dd4bf;
+  /* Paleta das classes (até 10). */
+  .pca :global(.c0) { --c: #2dd4bf; }
+  .pca :global(.c1) { --c: #a78bfa; }
+  .pca :global(.c2) { --c: #fbbf24; }
+  .pca :global(.c3) { --c: #f87171; }
+  .pca :global(.c4) { --c: #60a5fa; }
+  .pca :global(.c5) { --c: #f472b6; }
+  .pca :global(.c6) { --c: #84cc16; }
+  .pca :global(.c7) { --c: #fb923c; }
+  .pca :global(.c8) { --c: #94a3b8; }
+  .pca :global(.c9) { --c: #22d3ee; }
+  .pca :global(.sw) {
+    background: var(--c);
   }
-  .sw.sp1,
-  .pca :global(.pt.sp1),
-  .pca :global(.on.sp1) {
-    background: #a78bfa;
-    fill: #a78bfa;
-  }
-  .sw.sp2,
-  .pca :global(.pt.sp2),
-  .pca :global(.on.sp2) {
-    background: #fbbf24;
-    fill: #fbbf24;
+  .pca :global(.pt),
+  .pca :global(.on) {
+    fill: var(--c);
   }
   .pca :global(.pt) {
-    fill-opacity: 0.8;
+    fill-opacity: 0.82;
     stroke: var(--panel);
-    stroke-width: 1;
+    stroke-width: 0.8;
+  }
+  .pca :global(.pt.off) {
+    display: none;
   }
   .biplot,
   .proj {
@@ -582,26 +1337,50 @@ const pcs = ['PC1', 'PC2', 'PC3', 'PC4'];
     stroke: var(--line-strong);
     stroke-dasharray: 4 5;
   }
-  .axis-label {
+  .pca :global(.axis3) {
+    stroke: var(--muted);
+    stroke-opacity: 0.6;
+    stroke-width: 1.2;
+  }
+  .pca :global(.floor) {
+    stroke: var(--line-strong);
+    stroke-opacity: 0.55;
+  }
+  .pca :global(.axis-label) {
     font-family: var(--mono);
     font-size: 12px;
     fill: var(--muted);
   }
+  .pca :global(.axis-label.strong) {
+    fill: var(--text);
+    font-weight: 600;
+    paint-order: stroke;
+    stroke: var(--panel);
+    stroke-width: 3px;
+  }
   .pca :global(.arrow) {
     stroke: var(--text);
-    stroke-width: 1.8;
+    stroke-width: 1.6;
+    stroke-opacity: 0.85;
   }
-  .pca :global(.arrow-head) {
+  .arrow-head {
     fill: var(--text);
   }
   .pca :global(.arrow-label) {
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 600;
     fill: var(--text);
     paint-order: stroke;
     stroke: var(--panel);
     stroke-width: 4px;
   }
+  .ring {
+    fill: none;
+    stroke: var(--text);
+    stroke-width: 2;
+    pointer-events: none;
+  }
+
   .side {
     display: grid;
     gap: 16px;
@@ -619,10 +1398,16 @@ const pcs = ['PC1', 'PC2', 'PC3', 'PC4'];
     align-items: center;
     gap: 2px 10px;
     font-size: 13px;
-    opacity: 0.7;
+    opacity: 0.65;
   }
   .scree :global(.scree-row.on) {
     opacity: 1;
+  }
+  .scree :global(.scree-row.rest) {
+    grid-template-areas: 'n t v';
+  }
+  .scree :global(.rest-label) {
+    color: var(--muted);
   }
   .scree :global(.scree-track) {
     grid-area: t;
@@ -648,23 +1433,51 @@ const pcs = ['PC1', 'PC2', 'PC3', 'PC4'];
     font-size: 11.5px;
     color: var(--muted);
   }
-  .heat {
-    font-size: 13px;
+  .loadings {
     margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
   }
-  .heat th {
+  .loadings :global(.table-wrap) {
+    width: 100%;
+  }
+  .loadings :global(.eigen) {
+    margin: 0;
+    display: grid;
+    gap: 4px;
+    justify-items: center;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .pca :global(.heat) {
+    font-size: 13px;
+  }
+  .pca :global(.heat th) {
     font-size: 12px;
     color: var(--muted);
     font-weight: 600;
     white-space: nowrap;
   }
-  .heat :global(td) {
+  .pca :global(.heat td) {
     text-align: center;
     border-radius: 4px;
     border-bottom: 2px solid var(--panel);
   }
-  .heat :global(tbody th) {
+  .pca :global(.heat tbody th) {
     text-align: left;
+  }
+  .cov {
+    margin: 10px 0;
+  }
+  .cov :global(.cgrid) {
+    display: grid;
+    gap: 1px;
+    max-width: 420px;
+  }
+  .cov :global(.cell) {
+    aspect-ratio: 1;
+    border-radius: 1px;
   }
 
   /* Intuição */
