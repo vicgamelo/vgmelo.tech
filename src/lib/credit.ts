@@ -6,31 +6,22 @@
 export type Lang = 'pt' | 'en';
 type T = Record<Lang, string>;
 
-// ---------------------------------------------------------------- reais e marcos
+// ---------------------------------------------------------------- reais
 
-/**
- * Reais por marco alemão (DM) de 1973–75, quando o credit-g foi coletado. O modelo foi treinado em DM,
- * então a demo pergunta e mostra em reais e converte só na hora de mandar para o pipeline.
- * Conta (poder de compra): 1 DM = 1/1,95583 € (paridade fixa) ≈ 0,511 €; os preços na Alemanha
- * subiram ~3,25× desde 1975, então ≈ 1,66 € de hoje; com o euro a ~R$ 5,85, dá ~R$ 9,7. Arredondado.
- */
-export const BRL_PER_DM = 10;
-/** Valor do credit-g é inteiro em DM. */
-export const toDm = (brl: number): number => Math.round(brl / BRL_PER_DM);
-export const toBrl = (dm: number): number => dm * BRL_PER_DM;
+// Tudo em reais, de ponta a ponta: o mlops-platform converte o credit-g (marcos alemães, anos 70) a
+// R$ 9,70 por DM antes de treinar, então o modelo, o contrato e as faixas de saldo e poupança já são em R$.
 export function brl(value: number, lang: Lang): string {
   return `R$ ${Math.round(value).toLocaleString(lang === 'pt' ? 'pt-BR' : 'en-US')}`;
 }
-/** Faixa em DM do credit-g escrita em reais: R(200, 'pt') → "R$ 2.000". */
-const R = (dm: number, lang: Lang) => brl(toBrl(dm), lang);
+const R = brl;
 
 export interface Option {
   value: string;
   label: T;
   /** Palavras que o agente aceita como resposta (sem acento, minúsculas). */
   keywords?: string[];
-  /** Faixa de dinheiro do credit-g, em DM: [de, até) — "uns 1500 reais" cai aqui pela conta. */
-  dm?: [number, number];
+  /** Faixa de dinheiro, em reais: [de, até) — "uns 1500 reais" cai aqui pela conta. */
+  money?: [number, number];
 }
 
 export interface Field {
@@ -47,17 +38,17 @@ export interface Field {
   unit?: T;
   /** Grupo do formulário guiado. */
   group: 'loan' | 'money' | 'person';
-  /** Perguntado e mostrado em reais; o modelo recebe DM (min, max e train continuam em DM). */
+  /** Valor em reais: perguntado e mostrado como R$. */
   currency?: boolean;
   /** Pergunta de volta entre poucas opções: aí uma palavra só ("novo") já decide. */
   narrowed?: boolean;
 }
 
-const o = (value: string, pt: string, en: string, keywords: string[] = [], dm?: [number, number]): Option => ({
+const o = (value: string, pt: string, en: string, keywords: string[] = [], money?: [number, number]): Option => ({
   value,
   label: { pt, en },
   keywords,
-  ...(dm ? { dm } : {}),
+  ...(money ? { money } : {}),
 });
 
 // Ordem da conversa: o pedido, a situação financeira, a pessoa.
@@ -90,8 +81,8 @@ export const FIELDS: Field[] = [
     currency: true,
     min: 0,
     minExclusive: true,
-    max: 1_000_000,
-    train: [250, 18424],
+    max: 10_000_000,
+    train: [2425, 178712.8],
   },
   {
     name: 'duration',
@@ -125,8 +116,8 @@ export const FIELDS: Field[] = [
     ask: { pt: 'Como está a conta corrente?', en: 'How is the checking account?' },
     options: [
       o('<0', 'negativa', 'overdrawn', ['negativo', 'negativa', 'devendo', 'no vermelho', 'overdrawn'], [-Infinity, 0]),
-      o('0<=X<200', `de R$ 0 a ${R(200, 'pt')}`, `R$ 0 to ${R(200, 'en')}`, [], [0, 200]),
-      o('>=200', `${R(200, 'pt')} ou mais`, `${R(200, 'en')} or more`, [], [200, Infinity]),
+      o('0<=X<1940', `de R$ 0 a ${R(1940, 'pt')}`, `R$ 0 to ${R(1940, 'en')}`, [], [0, 1940]),
+      o('>=1940', `${R(1940, 'pt')} ou mais`, `${R(1940, 'en')} or more`, [], [1940, Infinity]),
       o('no checking', 'não tenho conta corrente', 'no checking account', ['nao tenho', 'sem conta', 'none']),
     ],
   },
@@ -137,10 +128,10 @@ export const FIELDS: Field[] = [
     label: { pt: 'Poupança', en: 'Savings' },
     ask: { pt: 'E a poupança?', en: 'And savings?' },
     options: [
-      o('<100', `menos de ${R(100, 'pt')}`, `under ${R(100, 'en')}`, [], [0, 100]),
-      o('100<=X<500', `de ${R(100, 'pt')} a ${R(500, 'pt')}`, `${R(100, 'en')} to ${R(500, 'en')}`, [], [100, 500]),
-      o('500<=X<1000', `de ${R(500, 'pt')} a ${R(1000, 'pt')}`, `${R(500, 'en')} to ${R(1000, 'en')}`, [], [500, 1000]),
-      o('>=1000', `${R(1000, 'pt')} ou mais`, `${R(1000, 'en')} or more`, [], [1000, Infinity]),
+      o('<970', `menos de ${R(970, 'pt')}`, `under ${R(970, 'en')}`, [], [0, 970]),
+      o('970<=X<4850', `de ${R(970, 'pt')} a ${R(4850, 'pt')}`, `${R(970, 'en')} to ${R(4850, 'en')}`, [], [970, 4850]),
+      o('4850<=X<9700', `de ${R(4850, 'pt')} a ${R(9700, 'pt')}`, `${R(4850, 'en')} to ${R(9700, 'en')}`, [], [4850, 9700]),
+      o('>=9700', `${R(9700, 'pt')} ou mais`, `${R(9700, 'en')} or more`, [], [9700, Infinity]),
       o('no known savings', 'não tenho / não sei', 'none / unknown', ['nenhuma', 'sem poupanca']),
     ],
   },
@@ -299,19 +290,14 @@ export function label(name: string, lang: Lang): string {
   return FIELD[name]?.label[lang] ?? name;
 }
 
-/** Rótulo dentro do pipeline, onde o valor já está como o modelo recebe: o valor pedido vai em DM. */
-export function modelLabel(name: string, lang: Lang): string {
-  return FIELD[name]?.currency ? `${label(name, lang)} (DM)` : label(name, lang);
-}
-
-/** Valor para mostrar: a categoria em palavras, o número com unidade; o valor pedido em reais (e DM). */
+/** Valor para mostrar: a categoria em palavras, o número com unidade, o valor pedido em reais. */
 export function show(name: string, value: Value | undefined, lang: Lang): string {
   if (value === null || value === undefined || value === '') return lang === 'pt' ? 'não sei' : "don't know";
   const f = FIELD[name];
   if (f?.kind === 'cat') return f.options!.find((x) => x.value === value)?.label[lang] ?? String(value);
   const n = typeof value === 'number' ? value : Number(value);
   const locale = lang === 'pt' ? 'pt-BR' : 'en-US';
-  if (f?.currency && Number.isFinite(n)) return `${brl(toBrl(n), lang)} (${n.toLocaleString(locale)} DM)`;
+  if (f?.currency && Number.isFinite(n)) return brl(n, lang);
   const text = Number.isFinite(n) ? n.toLocaleString(locale) : String(value);
   return f?.unit ? `${text} ${f.unit[lang]}` : text;
 }
@@ -363,7 +349,7 @@ export type Parsed =
   | { ok: false; hint: string; options?: string[] };
 
 function range(f: Field, lang: Lang): string {
-  const fmt = (n: number) => (f.currency ? brl(toBrl(n), lang) : String(n));
+  const fmt = (n: number) => (f.currency ? brl(n, lang) : String(n));
   const lo = f.minExclusive ? `> ${fmt(f.min!)}` : fmt(f.min!);
   return lang === 'pt' ? `entre ${lo} e ${fmt(f.max!)}` : `between ${lo} and ${fmt(f.max!)}`;
 }
@@ -398,11 +384,10 @@ export function parseAnswer(f: Field, text: string, lang: Lang): Parsed {
       }
     }
     if (best) return { ok: true, value: best.value, how: 'keyword' };
-    // Valor em reais numa pergunta de faixa ("uns 1500 reais"): a conta em DM é exata aqui; o LLM erra comparação.
-    const money = opts.some((x) => x.dm) ? parseNumber(t) : null;
+    // Valor numa pergunta de faixa ("uns 1500 reais"): a conta é exata aqui; o LLM erra comparação de número.
+    const money = opts.some((x) => x.money) ? parseNumber(t) : null;
     if (money !== null) {
-      const dm = money / BRL_PER_DM;
-      const hit = opts.find((x) => x.dm && dm >= x.dm[0] && dm < x.dm[1]);
+      const hit = opts.find((x) => x.money && money >= x.money[0] && money < x.money[1]);
       if (hit) return { ok: true, value: hit.value, how: 'number' };
     }
     // Palavra que aparece em mais de uma opção ("um carro": novo ou usado?): pergunta de volta só entre elas.
@@ -423,7 +408,6 @@ export function parseAnswer(f: Field, text: string, lang: Lang): Parsed {
     return { ok: false, hint: (lang === 'pt' ? 'Preciso de um número ' : 'I need a number ') + range(f, lang) + '.' };
   }
   if (f.name === 'duration' && /\b(ano|anos|year|years)\b/.test(t)) n *= 12;
-  if (f.currency) n = toDm(n);
   if (f.kind === 'int' && !Number.isInteger(n)) {
     return { ok: false, hint: lang === 'pt' ? 'Preciso de um número inteiro.' : 'I need a whole number.' };
   }
@@ -448,7 +432,7 @@ export function readAgent(f: Field, reply: AgentReply): AgentRead {
   if (reply.status !== 'ok') return { kind: 'none' };
   if (f.kind === 'cat') return typeof reply.value === 'string' && f.options!.some((x) => x.value === reply.value) ? { kind: 'value', value: reply.value } : { kind: 'none' };
   if (typeof reply.value !== 'number' || !Number.isFinite(reply.value)) return { kind: 'none' };
-  const n = f.currency ? toDm(reply.value) : reply.value;
+  const n = reply.value;
   if (f.kind === 'int' && !Number.isInteger(n)) return { kind: 'none' };
   const low = f.minExclusive ? n <= f.min! : n < f.min!;
   return low || n > f.max! ? { kind: 'none' } : { kind: 'value', value: n };
@@ -477,14 +461,14 @@ export function pipelineBody(draft: Draft, lang: Lang): { applicant: Record<stri
 /** Perfis prontos para quem quer ver o pipeline sem responder 18 perguntas. */
 export const PRESETS: Record<'low' | 'high', Draft> = {
   low: {
-    purpose: 'radio/tv', credit_amount: 1500, duration: 12, installment_commitment: 2, checking_status: 'no checking',
-    savings_status: '>=1000', credit_history: 'critical/other existing credit', existing_credits: 2,
+    purpose: 'radio/tv', credit_amount: 14550, duration: 12, installment_commitment: 2, checking_status: 'no checking',
+    savings_status: '>=9700', credit_history: 'critical/other existing credit', existing_credits: 2,
     other_payment_plans: 'none', other_parties: 'none', employment: '>=7', job: 'skilled', age: 45, housing: 'own',
     residence_since: 4, property_magnitude: 'real estate', num_dependents: 1, own_telephone: 'yes',
   },
   high: {
-    purpose: 'new car', credit_amount: 9000, duration: 48, installment_commitment: 4, checking_status: '<0',
-    savings_status: '<100', credit_history: 'existing paid', existing_credits: 1, other_payment_plans: 'none',
+    purpose: 'new car', credit_amount: 87300, duration: 48, installment_commitment: 4, checking_status: '<0',
+    savings_status: '<970', credit_history: 'existing paid', existing_credits: 1, other_payment_plans: 'none',
     other_parties: 'none', employment: '<1', job: 'skilled', age: 22, housing: 'rent', residence_since: 1,
     property_magnitude: 'no known property', num_dependents: 1, own_telephone: 'none',
   },
@@ -520,7 +504,7 @@ function randomRow(r: () => number): Record<string, Value> {
       row[f.name] = f.options![Math.floor(r() * f.options!.length)].value;
     } else {
       const [lo, hi] = f.train!;
-      const v = f.name === 'credit_amount' ? Math.round(lo + (Math.min(hi, 12000) - lo) * r() ** 2) : lo + Math.floor(r() * (hi - lo + 1));
+      const v = f.name === 'credit_amount' ? Math.round(lo + (Math.min(hi, 116400) - lo) * r() ** 2) : lo + Math.floor(r() * (hi - lo + 1));
       row[f.name] = v;
     }
   }
@@ -534,7 +518,7 @@ export const PLANTED: { column: string; value: string; code: string }[] = [
   { column: 'duration', value: '0', code: 'out_of_range' },
   { column: 'credit_amount', value: '', code: 'missing' },
   { column: 'housing', value: 'Own', code: 'out_of_domain' },
-  { column: 'credit_amount', value: '2500,50', code: 'decimal_comma' },
+  { column: 'credit_amount', value: '24254,85', code: 'decimal_comma' },
   { column: 'job', value: '=HYPERLINK("http://example.com","clique")', code: 'out_of_domain' },
   { column: 'installment_commitment', value: '2.5', code: 'not_integer' },
   { column: 'duration', value: '96', code: 'outside_training' },

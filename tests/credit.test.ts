@@ -6,15 +6,11 @@ import {
   FIELDS,
   PLANTED,
   PRESETS,
-  BRL_PER_DM,
   afterGate,
   askBetween,
-  modelLabel,
   narrow,
   nextField,
   readAgent,
-  toBrl,
-  toDm,
   type AgentReply,
   parseAnswer,
   parseNumber,
@@ -26,12 +22,12 @@ import {
   type Draft,
 } from '../src/lib/credit';
 
-// Domínio do credit-g (OpenML v1), copiado de schema.py.
+// Domínio do credit-g (OpenML v1) com as faixas de dinheiro em reais, copiado de schema.py.
 const DOMAIN: Record<string, string[]> = {
-  checking_status: ['<0', '0<=X<200', '>=200', 'no checking'],
+  checking_status: ['<0', '0<=X<1940', '>=1940', 'no checking'],
   credit_history: ['no credits/all paid', 'all paid', 'existing paid', 'delayed previously', 'critical/other existing credit'],
   purpose: ['new car', 'used car', 'furniture/equipment', 'radio/tv', 'domestic appliance', 'repairs', 'education', 'retraining', 'business', 'other'],
-  savings_status: ['<100', '100<=X<500', '500<=X<1000', '>=1000', 'no known savings'],
+  savings_status: ['<970', '970<=X<4850', '4850<=X<9700', '>=9700', 'no known savings'],
   employment: ['unemployed', '<1', '1<=X<4', '4<=X<7', '>=7'],
   other_parties: ['none', 'co applicant', 'guarantor'],
   property_magnitude: ['real estate', 'life insurance', 'car', 'no known property'],
@@ -41,7 +37,7 @@ const DOMAIN: Record<string, string[]> = {
   own_telephone: ['none', 'yes'],
 };
 const BOUNDS: Record<string, [number, number]> = {
-  duration: [1, 120], credit_amount: [0, 1_000_000], installment_commitment: [1, 4], residence_since: [1, 4],
+  duration: [1, 120], credit_amount: [0, 10_000_000], installment_commitment: [1, 4], residence_since: [1, 4],
   age: [18, 100], existing_credits: [0, 10], num_dependents: [0, 10],
 };
 
@@ -125,24 +121,22 @@ describe('agente de coleta', () => {
     expect(!r.ok && r.hint).not.toContain('1.'); // sem despejar a lista: as opções já estão nos botões
   });
 
-  it('valor em reais vira DM para o modelo', () => {
-    expect(BRL_PER_DM).toBe(10);
-    expect(ask('credit_amount', 'R$ 90 mil')).toEqual({ ok: true, value: 9000, how: 'number' });
-    expect(ask('credit_amount', '15.000')).toEqual({ ok: true, value: 1500, how: 'number' });
-    expect(ask('credit_amount', 'uns 15 mil reais')).toEqual({ ok: true, value: 1500, how: 'keyword' });
+  it('valor pedido vai em reais, sem conversão: o modelo foi treinado em reais', () => {
+    expect(ask('credit_amount', 'R$ 90 mil')).toEqual({ ok: true, value: 90_000, how: 'number' });
+    expect(ask('credit_amount', '15.000')).toEqual({ ok: true, value: 15_000, how: 'number' });
+    expect(ask('credit_amount', 'R$ 12.345,67')).toEqual({ ok: true, value: 12_345.67, how: 'number' });
+    expect(ask('credit_amount', 'uns 15 mil reais')).toEqual({ ok: true, value: 15_000, how: 'keyword' });
     const zero = ask('credit_amount', '0');
     expect(!zero.ok && zero.hint).toContain('> R$ 0');
-    expect(ask('credit_amount', 'R$ 1,5 milhão')).toEqual({ ok: true, value: 150_000, how: 'number' });
-    const big = ask('credit_amount', 'R$ 20 milhões', 'en'); // 2.000.000 DM: acima do teto do scoring
+    expect(ask('credit_amount', 'R$ 1,5 milhão')).toEqual({ ok: true, value: 1_500_000, how: 'number' });
+    const big = ask('credit_amount', 'R$ 20 milhões', 'en'); // acima do teto do scoring
     expect(!big.ok && big.hint).toContain('R$ 10,000,000');
-    expect(toDm(12_345)).toBe(1235);
-    expect(toBrl(9000)).toBe(90_000);
   });
 
-  it('faixas do credit-g em DM aparecem em reais', () => {
+  it('faixas de saldo e poupança são as do contrato, em reais', () => {
     const checking = FIELD.checking_status.options!.map((x) => x.label.pt);
-    expect(checking).toEqual(['negativa', 'de R$ 0 a R$ 2.000', 'R$ 2.000 ou mais', 'não tenho conta corrente']);
-    expect(FIELD.savings_status.options![3].label.en).toBe('R$ 10,000 or more');
+    expect(checking).toEqual(['negativa', 'de R$ 0 a R$ 1.940', 'R$ 1.940 ou mais', 'não tenho conta corrente']);
+    expect(FIELD.savings_status.options![3].label.en).toBe('R$ 9,700 or more');
     expect(FIELDS.map((f) => [...Object.values(f.label), ...(f.options ?? []).flatMap((x) => Object.values(x.label))]).flat().join(' ')).not.toMatch(/\bDM\b/);
   });
 
@@ -168,10 +162,8 @@ describe('agente de coleta', () => {
   it('mostra valores em palavras', () => {
     expect(show('housing', 'rent', 'pt')).toBe('alugada');
     expect(show('duration', 24, 'en')).toBe('24 months');
-    expect(show('credit_amount', 9000, 'pt')).toBe('R$ 90.000 (9.000 DM)');
-    expect(show('credit_amount', 9000, 'en')).toBe('R$ 90,000 (9,000 DM)');
-    expect(modelLabel('credit_amount', 'pt')).toBe('Valor pedido (DM)');
-    expect(modelLabel('age', 'pt')).toBe('Idade');
+    expect(show('credit_amount', 87_300, 'pt')).toBe('R$ 87.300');
+    expect(show('credit_amount', 87_300, 'en')).toBe('R$ 87,300');
     expect(show('age', null, 'pt')).toBe('não sei');
     expect(pct(0.9292, 'pt')).toBe('92,9%');
     expect(pp(0.1963, 'en')).toBe('+19.6 p.p.');
@@ -182,7 +174,7 @@ describe('agente de coleta', () => {
 describe('microagente', () => {
   const read = (name: string, reply: AgentReply) => readAgent(FIELD[name], reply);
 
-  it('aceita só o que o modelo de crédito aceita e converte reais', () => {
+  it('aceita só o que o modelo de crédito aceita', () => {
     expect(read('purpose', { status: 'ok', value: 'new car' })).toEqual({ kind: 'value', value: 'new car' });
     expect(read('purpose', { status: 'ok', value: 'carro' })).toEqual({ kind: 'none' });
     expect(read('purpose', { status: 'ask', options: ['used car', 'x', 'new car'] })).toEqual({ kind: 'ask', options: ['new car', 'used car'] });
@@ -191,8 +183,9 @@ describe('microagente', () => {
     expect(read('age', { status: 'ok', value: 30 })).toEqual({ kind: 'value', value: 30 });
     expect(read('age', { status: 'ok', value: 30.5 })).toEqual({ kind: 'none' });
     expect(read('age', { status: 'ok', value: '30' })).toEqual({ kind: 'none' });
-    expect(read('credit_amount', { status: 'ok', value: 15_000 })).toEqual({ kind: 'value', value: 1500 });
-    expect(read('credit_amount', { status: 'ok', value: 2 })).toEqual({ kind: 'none' }); // R$ 2 → 0 DM
+    expect(read('credit_amount', { status: 'ok', value: 15_000 })).toEqual({ kind: 'value', value: 15_000 });
+    expect(read('credit_amount', { status: 'ok', value: 0 })).toEqual({ kind: 'none' });
+    expect(read('credit_amount', { status: 'ok', value: 10_000_001 })).toEqual({ kind: 'none' });
     expect(read('housing', { status: 'unknown' })).toEqual({ kind: 'none' });
   });
 
@@ -206,19 +199,20 @@ describe('microagente', () => {
     expect(parseAnswer(FIELD.checking_status, 'tenho conta', 'pt').ok).toBe(false);
   });
 
-  it('faixa de dinheiro sai da conta em DM, sem LLM', () => {
+  it('faixa de dinheiro sai da conta, sem LLM', () => {
     const ask = (name: string, text: string, lang: 'pt' | 'en' = 'pt') => parseAnswer(FIELD[name], text, lang);
-    // O gpt-oss-20b respondeu ">=200" para "uns 1500 reais" (150 DM): a comparação fica com as regras.
-    expect(ask('checking_status', 'uns 1500 reais')).toEqual({ ok: true, value: '0<=X<200', how: 'number' });
-    expect(ask('checking_status', 'tenho uns 5 mil na conta')).toEqual({ ok: true, value: '>=200', how: 'number' });
+    // O gpt-oss-20b errou a faixa de "uns 1500 reais": a comparação fica com as regras.
+    expect(ask('checking_status', 'uns 1500 reais')).toEqual({ ok: true, value: '0<=X<1940', how: 'number' });
+    expect(ask('checking_status', 'tenho uns 5 mil na conta')).toEqual({ ok: true, value: '>=1940', how: 'number' });
     expect(ask('checking_status', '-300')).toEqual({ ok: true, value: '<0', how: 'number' });
-    expect(ask('checking_status', '0')).toEqual({ ok: true, value: '0<=X<200', how: 'number' });
-    expect(ask('checking_status', 'R$ 2.000')).toEqual({ ok: true, value: '>=200', how: 'number' });
-    expect(ask('savings_status', 'uns 3 mil')).toEqual({ ok: true, value: '100<=X<500', how: 'number' });
-    expect(ask('savings_status', '20 mil guardado', 'en')).toEqual({ ok: true, value: '>=1000', how: 'number' });
-    expect(ask('savings_status', 'R$ 999')).toEqual({ ok: true, value: '<100', how: 'number' });
+    expect(ask('checking_status', '0')).toEqual({ ok: true, value: '0<=X<1940', how: 'number' });
+    expect(ask('checking_status', 'R$ 1.940')).toEqual({ ok: true, value: '>=1940', how: 'number' });
+    expect(ask('checking_status', 'R$ 1.939,99')).toEqual({ ok: true, value: '0<=X<1940', how: 'number' });
+    expect(ask('savings_status', 'uns 3 mil')).toEqual({ ok: true, value: '970<=X<4850', how: 'number' });
+    expect(ask('savings_status', '20 mil guardado', 'en')).toEqual({ ok: true, value: '>=9700', how: 'number' });
+    expect(ask('savings_status', 'R$ 969')).toEqual({ ok: true, value: '<970', how: 'number' });
     // Número de opção continua valendo, e palavra-chave ainda passa pelo microagente.
-    expect(ask('savings_status', '2')).toMatchObject({ ok: true, value: '100<=X<500', how: 'exact' });
+    expect(ask('savings_status', '2')).toMatchObject({ ok: true, value: '970<=X<4850', how: 'exact' });
     expect(ask('checking_status', 'devendo uns 500')).toMatchObject({ ok: true, value: '<0', how: 'keyword' });
   });
 });

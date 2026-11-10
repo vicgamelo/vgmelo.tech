@@ -3,7 +3,7 @@ import DemoShell from '../../components/DemoShell.astro';
 import { route, type Lang } from '../../i18n/routes';
 import { uiStrings } from '../../i18n/ui';
 import { LIVE_KEYS } from '../../lib/live';
-import { BRL_PER_DM, FIELDS, MAX_FILE_BYTES, MAX_FILE_ROWS, STAGES } from '../../lib/credit';
+import { FIELDS, MAX_FILE_BYTES, MAX_FILE_ROWS, STAGES } from '../../lib/credit';
 
 interface Props {
   lang: Lang;
@@ -59,9 +59,10 @@ const L = pt
       srcLlm: 'gpt-oss-20b',
       allOptions: 'ver todas as opções',
       question: 'pergunta',
-      fxTitle: 'Reais → marcos alemães',
+      fxTitle: 'Por que reais, se a base é alemã?',
+      fxBadge: 'R$ 9,70 por DM',
       fxText:
-        'O credit-g é de um banco alemão dos anos 70, com valores em marcos (DM). Você responde em reais e a página converte antes do modelo: R$ 10 = 1 DM. A conta é por poder de compra: 1 € = 1,95583 DM (paridade fixa), os preços na Alemanha subiram cerca de 3,25× desde 1975 e o euro está perto de R$ 5,85, então 1 DM da época vale uns R$ 9,70 hoje. As faixas do dataset (saldo, poupança) aparecem em reais pela mesma taxa.',
+        'O credit-g é de um banco alemão dos anos 70, com valores em marcos (DM). Antes do treino, a mlops-platform converte a base para reais a R$ 9,70 por DM: o valor pedido é multiplicado pela taxa e as faixas de saldo e poupança viram faixas em R$ (200 DM viram R$ 1.940). O modelo foi re-treinado assim e só conhece reais. A taxa é por poder de compra: 1 € = 1,95583 DM (paridade fixa), os preços na Alemanha subiram cerca de 3,25× desde 1975 e o euro está perto de R$ 5,85. Mudar a escala não muda o que o modelo aprende: o AUC é o mesmo da versão em marcos.',
       formCurrency: 'R$',
       pipeTitle: 'O pipeline, etapa por etapa',
       pipeHint: 'As etapas levam cerca de 100 ms no servidor; a página mostra uma por vez, com o tempo medido lá.',
@@ -171,14 +172,14 @@ const L = pt
       rateLimited: 'Muitas validações seguidas. Espere um pouco e tente de novo.',
       howTitle: 'O que acontece em cada etapa',
       how: [
-        ['Dados crus', 'O agente (ou o formulário) entrega um JSON com 18 campos, sem correção no navegador: número pode chegar como texto e campo pode vir vazio. O valor pedido já chega em marcos, convertido dos reais. Sexo e estrangeiro nem são pedidos, porque ficam fora do modelo.'],
+        ['Dados crus', 'O agente (ou o formulário) entrega um JSON com 18 campos, sem correção no navegador: número pode chegar como texto e campo pode vir vazio. Sexo e estrangeiro nem são pedidos, porque ficam fora do modelo.'],
         ['Data transform', 'O serviço converte os tipos, preenche os faltantes com a mediana ou a moda do credit-g e passa as 11 categóricas pelo OneHotEncoder do próprio champion. Categoria rara no treino cai no balde "infrequent".'],
-        ['Normalização', 'As 7 numéricas passam pelo StandardScaler do champion: z = (x − média) / desvio, com a média e o desvio do treino. Assim prazo em meses e valor em marcos ficam na mesma escala.'],
+        ['Normalização', 'As 7 numéricas passam pelo StandardScaler do champion: z = (x − média) / desvio, com a média e o desvio do treino. Assim prazo em meses e valor em reais ficam na mesma escala.'],
         ['Fit ao vivo', 'Para mostrar que o treino é real, uma regressão logística é treinada na hora em 750 linhas e medida em 250 que ela não viu (AUC). Ela não decide nada: é a linha de base.'],
         ['Inferência', 'O champion, o modelo que passou pelos gates do MLflow, calcula o log-odds; a sigmoide vira probabilidade de inadimplência e o corte decide entre aprovar e mandar para análise.'],
         ['O que pesou', 'Cada variável é trocada pelo valor típico do credit-g e o modelo roda de novo. A diferença, em pontos percentuais, mostra o que empurrou o risco para cima ou para baixo.'],
       ],
-      note: 'O German Credit (OpenML credit-g, UCI) é de um banco alemão dos anos 70, com valores em marcos. Sexo e estrangeiro ficam fora do modelo, e a diferença de desempenho entre faixas de idade é um dos gates para promover. Quem responde é o @champion do MLflow.',
+      note: 'O German Credit (OpenML credit-g, UCI) é de um banco alemão dos anos 70, com valores em marcos, convertidos para reais (R$ 9,70 por DM) antes do treino. Sexo e estrangeiro ficam fora do modelo, e a diferença de desempenho entre faixas de idade é um dos gates para promover. Quem responde é o @champion do MLflow.',
     }
   : {
       introTitle: 'A real credit model, step by step',
@@ -226,9 +227,10 @@ const L = pt
       srcLlm: 'gpt-oss-20b',
       allOptions: 'see all options',
       question: 'question',
-      fxTitle: 'Reais → Deutsche Marks',
+      fxTitle: 'Why reais, if the data is German?',
+      fxBadge: 'R$ 9.70 per DM',
       fxText:
-        'credit-g comes from a 1970s German bank, with amounts in Deutsche Marks (DM). You answer in Brazilian reais and the page converts before the model: R$ 10 = 1 DM. The math is by purchasing power: €1 = DM 1.95583 (fixed parity), German prices rose about 3.25× since 1975 and the euro is near R$ 5.85, so a DM from back then is worth about R$ 9.70 today. The dataset brackets (balance, savings) show in reais at the same rate.',
+        "credit-g comes from a 1970s German bank, with amounts in Deutsche Marks (DM). Before training, mlops-platform converts the dataset to Brazilian reais at R$ 9.70 per DM: the amount is multiplied by the rate and the balance and savings brackets become R$ brackets (DM 200 becomes R$ 1,940). The model was retrained that way and only knows reais. The rate is by purchasing power: €1 = DM 1.95583 (fixed parity), German prices rose about 3.25× since 1975 and the euro is near R$ 5.85. Changing the scale doesn't change what the model learns: the AUC is the same as the Deutsche Mark version.",
       formCurrency: 'R$',
       pipeTitle: 'The pipeline, step by step',
       pipeHint: 'The steps take about 100 ms on the server; the page shows one at a time, with the time measured there.',
@@ -337,14 +339,14 @@ const L = pt
       rateLimited: 'Too many validations in a row. Wait a bit and try again.',
       howTitle: 'What happens in each step',
       how: [
-        ['Raw data', "The agent (or the form) sends a JSON with 18 fields, uncorrected in the browser: a number may arrive as text and a field may be empty. The amount already arrives in Deutsche Marks, converted from reais. Sex and foreign-worker status aren't even asked, because they're left out of the model."],
+        ['Raw data', "The agent (or the form) sends a JSON with 18 fields, uncorrected in the browser: a number may arrive as text and a field may be empty. Sex and foreign-worker status aren't even asked, because they're left out of the model."],
         ['Data transform', "The service casts the types, fills missing values with the credit-g median or mode and runs the 11 categoricals through the champion's own OneHotEncoder. A category rare in training falls into the \"infrequent\" bucket."],
-        ['Normalization', "The 7 numeric variables go through the champion's StandardScaler: z = (x − mean) / sd, with the training mean and sd. That puts months and Deutsche Marks on the same scale."],
+        ['Normalization', "The 7 numeric variables go through the champion's StandardScaler: z = (x − mean) / sd, with the training mean and sd. That puts months and reais on the same scale."],
         ['Live fit', "To show the training is real, a logistic regression is trained on the spot on 750 rows and measured on 250 it didn't see (AUC). It decides nothing: it's the baseline."],
         ['Inference', 'The champion, the model that passed the MLflow gates, computes the log-odds; the sigmoid turns it into a probability of default and the cutoff decides between approving and sending to review.'],
         ['What weighed', 'Each variable is swapped for its typical credit-g value and the model runs again. The difference, in percentage points, shows what pushed the risk up or down.'],
       ],
-      note: 'German Credit (OpenML credit-g, UCI) comes from a 1970s German bank, with amounts in Deutsche Marks. Sex and foreign-worker status are left out of the model, and the performance gap between age groups is one of the promotion gates. The answer comes from the @champion in MLflow.',
+      note: 'German Credit (OpenML credit-g, UCI) comes from a 1970s German bank, with amounts in Deutsche Marks, converted to reais (R$ 9.70 per DM) before training. Sex and foreign-worker status are left out of the model, and the performance gap between age groups is one of the promotion gates. The answer comes from the @champion in MLflow.',
     };
 const groups = [
   { key: 'loan', title: pt ? 'O pedido' : 'The request' },
@@ -429,7 +431,7 @@ const client = { ...plain, groups };
               </form>
             </div>
             <details class="fx-note">
-              <summary><span class="fx-badge mono">R$ 10 = 1 DM</span> {L.fxTitle}</summary>
+              <summary><span class="fx-badge mono">{L.fxBadge}</span> {L.fxTitle}</summary>
               <p>{L.fxText}</p>
             </details>
 
@@ -457,7 +459,7 @@ const client = { ...plain, groups };
                               inputmode={f.kind === 'int' ? 'numeric' : 'decimal'}
                               step={f.kind === 'int' ? '1' : 'any'}
                               min={f.minExclusive ? undefined : f.min}
-                              max={f.currency ? f.max! * BRL_PER_DM : f.max}
+                              max={f.max}
                               placeholder={L.dontKnow}
                             />
                           )}
@@ -626,7 +628,6 @@ const client = { ...plain, groups };
 <script>
   import { errorFrom, liveError, readSse, type ApiError } from '../../lib/api';
   import {
-    BRL_PER_DM,
     FIELD,
     FIELDS,
     MAX_FILE_BYTES,
@@ -636,7 +637,6 @@ const client = { ...plain, groups };
     askBetween,
     brl,
     label,
-    modelLabel,
     narrow,
     nextField,
     num,
@@ -647,8 +647,6 @@ const client = { ...plain, groups };
     readAgent,
     sampleCsv,
     show,
-    toBrl,
-    toDm,
     type AgentRead,
     type AgentReply,
     type Draft,
@@ -827,7 +825,7 @@ const client = { ...plain, groups };
     function trainWarning(f: Field, v: Value): string {
       if (f.kind === 'cat' || v === null || !f.train) return '';
       const n = Number(v);
-      const fmt = (x: number) => (f.currency ? brl(toBrl(x), lang) : String(x));
+      const fmt = (x: number) => (f.currency ? brl(x, lang) : String(x));
       return n < f.train[0] || n > f.train[1] ? ` (${L.outside}: ${fmt(f.train[0])}–${fmt(f.train[1])})` : '';
     }
 
@@ -934,7 +932,7 @@ const client = { ...plain, groups };
           method: 'POST',
           credentials: 'same-origin',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ field: f.name, answer: answer.slice(0, 120), brl_per_dm: BRL_PER_DM }),
+          body: JSON.stringify({ field: f.name, answer: answer.slice(0, 120) }),
           signal: ctrl.signal,
         });
         // 503: portal sem chave do Groq; 429: limite por hora ou teto do dia. Segue só com regras.
@@ -991,19 +989,14 @@ const client = { ...plain, groups };
         const input = guided.elements.namedItem(f.name) as HTMLInputElement | HTMLSelectElement | null;
         if (!input) continue;
         const v = draft[f.name];
-        const n = Number(v);
-        if (v === null || v === undefined) input.value = '';
-        else if (f.currency) input.value = Number.isFinite(n) ? String(toBrl(n)) : '';
-        else input.value = String(v);
+        input.value = v === null || v === undefined ? '' : String(v);
       }
     }
 
     guided.addEventListener('input', (e) => {
       const input = e.target as HTMLInputElement | HTMLSelectElement;
       // O formulário devolve texto, inclusive nos números: o pipeline mostra a conversão de tipo.
-      // O valor pedido é digitado em reais e guardado em DM (ainda texto), que é o que o modelo conhece.
-      if (input.value === '') draft[input.name] = null;
-      else draft[input.name] = FIELD[input.name]?.currency ? String(toDm(Number(input.value))) : input.value;
+      draft[input.name] = input.value === '' ? null : input.value;
       renderSummary();
     });
 
@@ -1126,7 +1119,7 @@ const client = { ...plain, groups };
           const head = el('span', 'tile-l');
           const dot = el('span', `type-dot t-${f.type}`);
           dot.title = L.types[f.type] ?? f.type;
-          head.append(dot, el('span', 'tile-name', modelLabel(f.name, lang)));
+          head.append(dot, el('span', 'tile-name', label(f.name, lang)));
           t.title = `${f.name} · ${L.types[f.type] ?? f.type}`;
           t.append(head, rawValue(f));
           tiles.append(t);
@@ -1162,7 +1155,7 @@ const client = { ...plain, groups };
           const list = el('div', 'pills');
           for (const c of casts) {
             const p = el('span', 'pill');
-            p.append(el('strong', '', modelLabel(c.name, lang)), ' ', code(JSON.stringify(c.raw)), el('span', 'arrow', '→'), code(String(c.value)), el('span', 'hint small', ` ${c.to}`));
+            p.append(el('strong', '', label(c.name, lang)), ' ', code(JSON.stringify(c.raw)), el('span', 'arrow', '→'), code(String(c.value)), el('span', 'hint small', ` ${c.to}`));
             list.append(p);
           }
           out.push(list);
@@ -1183,7 +1176,7 @@ const client = { ...plain, groups };
           for (const e of enc) {
             const row = el('div', 'oh-row');
             const name = el('div', 'oh-name');
-            name.append(el('strong', '', modelLabel(e.name, lang)), ' ', el('code', '', e.value));
+            name.append(el('strong', '', label(e.name, lang)), ' ', el('code', '', e.value));
             if (!e.seen_in_training) name.append(el('span', 'tag warn', L.unseen));
             else if (e.infrequent) name.append(el('span', 'tag warn', L.infrequent));
             const cells = el('div', 'oh-cells');
@@ -1223,7 +1216,7 @@ const client = { ...plain, groups };
         for (const r of rows) {
           const row = el('div', 'zrow');
           const name = el('div', 'zname');
-          name.append(el('strong', '', modelLabel(r.name, lang)), el('span', 'hint small', ` ${num(r.before, lang)} · ${L.mean} ${num(r.mean, lang, 1)} ± ${num(r.std, lang, 1)}`));
+          name.append(el('strong', '', label(r.name, lang)), el('span', 'hint small', ` ${num(r.before, lang)} · ${L.mean} ${num(r.mean, lang, 1)} ± ${num(r.std, lang, 1)}`));
           const track = el('div', 'ztrack');
           const seg = el('span', r.after >= 0 ? 'zseg pos' : 'zseg neg');
           const a = zPos(Math.min(0, r.after));
