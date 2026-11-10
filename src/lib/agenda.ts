@@ -200,3 +200,87 @@ export function errorText(err: unknown, messages: Record<string, string>, fallba
   if (e?.status === 429 && messages.rate_limited) return messages.rate_limited;
   return fallback;
 }
+
+// ---- calendário ----
+
+/** 'AAAA-MM' do dia 'AAAA-MM-DD'. */
+export const monthOf = (date: string) => date.slice(0, 7);
+
+/** Mês somado de `delta` ('2026-12' + 1 = '2027-01'). */
+export function addMonths(month: string, delta: number): string {
+  const [y, m] = month.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+/** Semanas do mês, começando no domingo; `null` nas casas fora do mês. */
+export function monthGrid(month: string): (string | null)[][] {
+  const [y, m] = month.split('-').map(Number);
+  const first = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
+  const total = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const cells: (string | null)[] = Array(first).fill(null);
+  for (let d = 1; d <= total; d++) cells.push(`${month}-${String(d).padStart(2, '0')}`);
+  while (cells.length % 7) cells.push(null);
+  const weeks: (string | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  return weeks;
+}
+
+export function monthLabel(month: string, lang: Lang): string {
+  const s = new Intl.DateTimeFormat(locale(lang), {
+    timeZone: 'UTC',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(`${month}-15T12:00:00Z`));
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Iniciais dos dias da semana, de domingo a sábado. */
+export function weekdayLabels(lang: Lang): string[] {
+  const f = new Intl.DateTimeFormat(locale(lang), {
+    timeZone: 'UTC',
+    weekday: 'short',
+  });
+  // 2026-11-01 foi domingo.
+  return Array.from({ length: 7 }, (_, i) => f.format(new Date(Date.UTC(2026, 10, 1 + i, 12))).replace('.', ''));
+}
+
+/** Título do dia escolhido: "quarta-feira, 11 de novembro". */
+export function longDayLabel(date: string, lang: Lang): string {
+  return new Intl.DateTimeFormat(locale(lang), {
+    timeZone: 'UTC',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(new Date(`${date}T12:00:00Z`));
+}
+
+export type Period = 'morning' | 'afternoon' | 'evening';
+
+/** Período do horário no fuso de quem vê: antes das 12h, antes das 18h, depois. */
+export function periodOf(iso: string, tz: string): Period {
+  const h = Number(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: tz,
+      hour: '2-digit',
+      hourCycle: 'h23',
+    }).format(new Date(iso)),
+  );
+  return h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
+}
+
+/** Horários do dia agrupados por período, na ordem manhã, tarde, noite, sem grupos vazios. */
+export function byPeriod(day: Day, tz: string): { period: Period; times: Day['times'] }[] {
+  const order: Period[] = ['morning', 'afternoon', 'evening'];
+  return order
+    .map((period) => ({
+      period,
+      times: day.times.filter((t) => periodOf(t.iso, tz) === period),
+    }))
+    .filter((g) => g.times.length > 0);
+}
+
+/** Meses que têm algum dia livre, em ordem. */
+export function monthsWithSlots(days: Day[]): string[] {
+  return [...new Set(days.map((d) => monthOf(d.date)))].sort();
+}

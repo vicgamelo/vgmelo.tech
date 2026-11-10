@@ -109,3 +109,56 @@ describe('link do e-mail e erros', () => {
     expect(errorText(new TypeError('fetch'), M, 'erro')).toBe('erro');
   });
 });
+
+describe('calendário', () => {
+  it('monta o mês começando no domingo, com casas vazias nas bordas', async () => {
+    const { monthGrid } = await import('../src/lib/agenda');
+    const nov = monthGrid('2026-11'); // 1/11/2026 é domingo, 30 dias
+    expect(nov[0][0]).toBe('2026-11-01');
+    expect(nov.flat().filter(Boolean)).toHaveLength(30);
+    expect(nov.every((w) => w.length === 7)).toBe(true);
+    const dez = monthGrid('2026-12'); // 1/12/2026 é terça
+    expect(dez[0].slice(0, 3)).toEqual([null, null, '2026-12-01']);
+    expect(dez.at(-1)!.filter(Boolean).at(-1)).toBe('2026-12-31');
+    expect(monthGrid('2028-02').flat().filter(Boolean)).toHaveLength(29); // bissexto
+  });
+
+  it('avança e volta mês atravessando o ano', async () => {
+    const { addMonths } = await import('../src/lib/agenda');
+    expect(addMonths('2026-12', 1)).toBe('2027-01');
+    expect(addMonths('2027-01', -1)).toBe('2026-12');
+  });
+
+  it('rótulos em português e inglês', async () => {
+    const { monthLabel, weekdayLabels, longDayLabel } = await import('../src/lib/agenda');
+    expect(monthLabel('2026-11', 'pt')).toBe('Novembro de 2026');
+    expect(monthLabel('2026-11', 'en')).toBe('November 2026');
+    expect(weekdayLabels('pt')[0]).toBe('dom');
+    expect(weekdayLabels('en')[6]).toBe('Sat');
+    expect(longDayLabel('2026-11-11', 'pt')).toBe('quarta-feira, 11 de novembro');
+  });
+
+  it('separa os horários em manhã, tarde e noite no fuso de quem vê', async () => {
+    const { byPeriod, periodOf } = await import('../src/lib/agenda');
+    const sp = 'America/Sao_Paulo';
+    expect(periodOf('2026-11-11T11:00:00Z', sp)).toBe('morning'); // 8h
+    expect(periodOf('2026-11-11T15:00:00Z', sp)).toBe('afternoon'); // 12h
+    expect(periodOf('2026-11-11T21:00:00Z', sp)).toBe('evening'); // 18h
+    expect(periodOf('2026-11-11T11:00:00Z', 'Europe/Lisbon')).toBe('morning'); // 11h
+    expect(periodOf('2026-11-11T15:00:00Z', 'Europe/Lisbon')).toBe('afternoon'); // 15h
+    const day = {
+      date: '2026-11-11',
+      times: ['2026-11-11T11:00:00Z', '2026-11-11T21:00:00Z'].map((iso) => ({
+        iso,
+        label: '',
+      })),
+    };
+    expect(byPeriod(day, sp).map((g) => g.period)).toEqual(['morning', 'evening']);
+  });
+
+  it('lista só os meses com dia livre', async () => {
+    const { monthsWithSlots } = await import('../src/lib/agenda');
+    const d = (date: string) => ({ date, times: [] });
+    expect(monthsWithSlots([d('2026-12-30'), d('2027-01-02'), d('2026-12-31')])).toEqual(['2026-12', '2027-01']);
+  });
+});

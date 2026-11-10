@@ -48,6 +48,23 @@ const L = pt
       mcpTitle: 'Para agentes (MCP)',
       mcpLead: 'Seu agente pode ler os horários livres e pedir uma conversa pelo servidor MCP público. A reserva também só vale depois do clique no e-mail.',
       contactLink: 'contato',
+      morning: 'Manhã',
+      afternoon: 'Tarde',
+      evening: 'Noite',
+      prevMonth: 'Mês anterior',
+      nextMonth: 'Próximo mês',
+      pickDay: 'Escolha um dia no calendário.',
+      free: '{n} horários livres',
+      free1: '1 horário livre',
+      change: 'Trocar',
+      step1: 'Escolha dia e horário',
+      step2: 'Seus dados',
+      online: 'IA · só agendamento',
+      chatEmpty: 'Diga o que precisa, em uma frase. Exemplos:',
+      sug1: '30 min sobre uma vaga amanhã de manhã',
+      sug2: 'Consultoria de 1 hora na semana que vem, à noite',
+      sug3: 'Quais horários livres na sexta?',
+      thinking: 'Pensando…',
     }
   : {
       title: 'Book a call',
@@ -87,6 +104,23 @@ const L = pt
       mcpTitle: 'For agents (MCP)',
       mcpLead: 'Your agent can read free times and request a call through the public MCP server. The booking still needs the click in the email.',
       contactLink: 'contact form',
+      morning: 'Morning',
+      afternoon: 'Afternoon',
+      evening: 'Evening',
+      prevMonth: 'Previous month',
+      nextMonth: 'Next month',
+      pickDay: 'Pick a day on the calendar.',
+      free: '{n} free times',
+      free1: '1 free time',
+      change: 'Change',
+      step1: 'Pick a day and time',
+      step2: 'Your details',
+      online: 'AI · scheduling only',
+      chatEmpty: 'Say what you need in one sentence. For example:',
+      sug1: '30 min about a job opening tomorrow morning',
+      sug2: 'A 1-hour consulting call next week, in the evening',
+      sug3: 'What times are free on Friday?',
+      thinking: 'Thinking…',
     };
 
 const errors = pt
@@ -120,65 +154,81 @@ const mcpUrl = 'https://vgmelo.tech/api/agenda/mcp';
 <Base lang={lang} title={L.title} description={L.lead} alt={ROUTES.agenda}>
   <div class="container">
     <header class="page-head">
+      <p class="eyebrow">{pt ? 'agenda · confirmação por e-mail' : 'calendar · email confirmation'}</p>
       <h1>{L.title}</h1>
       <p>{L.lead}</p>
-      <p class="muted small">{L.rules} {L.tzNote} <strong data-tz>…</strong></p>
+      <p class="muted small">{L.rules}</p>
     </header>
 
-    <div class="layout" id="agenda" data-lang={lang} data-l={JSON.stringify(L)} data-errors={JSON.stringify(errors)}>
-      <section class="picker">
+    <div id="agenda" data-lang={lang} data-l={JSON.stringify(L)} data-errors={JSON.stringify(errors)}>
+      <section class="booker">
         <p class="notice" data-loading>{L.loading}</p>
         <p class="notice error" data-down hidden>
           {L.down} <a href={route('contact', lang)}>{L.contactLink}</a>
         </p>
-        <form class="form wide" data-form hidden novalidate>
-          <div class="row">
-            <div class="field">
-              <label for="a-kind">{L.kind}</label>
-              <select id="a-kind" name="kind">
-                <option value="job">{L.job}</option>
-                <option value="consulting">{L.consulting}</option>
-              </select>
+        <form data-form hidden novalidate>
+          <div class="bar">
+            <fieldset class="seg" aria-label={L.kind}>
+              <label><input type="radio" name="kind" value="job" checked /><span>{L.job}</span></label>
+              <label><input type="radio" name="kind" value="consulting" /><span>{L.consulting}</span></label>
+            </fieldset>
+            <fieldset class="seg dur" aria-label={L.duration} data-durations></fieldset>
+          </div>
+
+          <div class="body">
+            <div class="cal">
+              <div class="cal-head">
+                <button type="button" class="nav" data-prev aria-label={L.prevMonth}>‹</button>
+                <strong data-month aria-live="polite"></strong>
+                <button type="button" class="nav" data-next aria-label={L.nextMonth}>›</button>
+              </div>
+              <div class="grid" role="grid" data-grid></div>
+              <p class="tz muted">{L.tzNote} <strong data-tz>…</strong></p>
             </div>
-            <div class="field">
-              <label for="a-duration">{L.duration}</label>
-              <select id="a-duration" name="duration"></select>
+
+            <div class="slots">
+              <div class="slots-head">
+                <strong data-dayname>{L.pickDay}</strong>
+                <span class="muted" data-count></span>
+              </div>
+              <div data-periods></div>
+              <p class="notice" data-noslots hidden>{L.noSlots}</p>
             </div>
           </div>
-          <fieldset class="field">
-            <legend>{L.day}</legend>
-            <div class="days" data-days role="group"></div>
-          </fieldset>
-          <fieldset class="field">
-            <legend>{L.time}</legend>
-            <div class="times" data-times role="group"></div>
-          </fieldset>
-          <p class="notice" data-noslots hidden>{L.noSlots}</p>
 
           <div class="details" data-details hidden>
-            <p class="picked"><span class="muted">{L.picked}</span> <strong data-picked></strong></p>
-            <div class="field">
-              <label for="a-name">{L.name}</label>
-              <input id="a-name" name="name" autocomplete="name" required maxlength="100" />
+            <div class="summary">
+              <span class="ico" aria-hidden="true">◷</span>
+              <div>
+                <strong data-picked></strong>
+                <span class="muted" data-pickedsub></span>
+              </div>
+              <button type="button" class="link" data-change>{L.change}</button>
             </div>
-            <div class="field">
-              <label for="a-email">{L.email}</label>
-              <input id="a-email" name="email" type="email" autocomplete="email" required maxlength="254" />
-            </div>
-            <div class="field">
-              <label for="a-company">{L.company}</label>
-              <input id="a-company" name="company" autocomplete="organization" maxlength="100" />
-            </div>
-            <div class="field">
-              <label for="a-topic">{L.topic}</label>
-              <textarea id="a-topic" name="topic" required minlength="3" maxlength="1000" placeholder={L.topicHint}></textarea>
+            <div class="fields">
+              <div class="field">
+                <label for="a-name">{L.name}</label>
+                <input id="a-name" name="name" autocomplete="name" required maxlength="100" />
+              </div>
+              <div class="field">
+                <label for="a-email">{L.email}</label>
+                <input id="a-email" name="email" type="email" autocomplete="email" required maxlength="254" />
+              </div>
+              <div class="field">
+                <label for="a-company">{L.company}</label>
+                <input id="a-company" name="company" autocomplete="organization" maxlength="100" />
+              </div>
+              <div class="field full">
+                <label for="a-topic">{L.topic}</label>
+                <textarea id="a-topic" name="topic" required minlength="3" maxlength="1000" placeholder={L.topicHint}></textarea>
+              </div>
             </div>
             <div class="hp" aria-hidden="true">
               <label for="a-website">Website</label>
               <input id="a-website" name="website" tabindex="-1" autocomplete="off" />
             </div>
-            <p class="muted small">{L.privacy} <a href={route('privacy', lang)}>{L.privacyLink}</a>.</p>
-            <div class="actions">
+            <div class="send">
+              <p class="muted small">{L.privacy} <a href={route('privacy', lang)}>{L.privacyLink}</a>.</p>
               <button class="btn primary" type="submit">{L.submit}</button>
             </div>
           </div>
@@ -186,36 +236,61 @@ const mcpUrl = 'https://vgmelo.tech/api/agenda/mcp';
         </form>
       </section>
 
-      <aside class="chat" data-chat hidden>
-        <h2>{L.agentTitle}</h2>
-        <p class="muted small">{L.agentLead}</p>
-        <ol class="messages" data-messages aria-live="polite"></ol>
-        <form class="ask" data-ask>
-          <label class="sr" for="a-ask">{L.agentPlaceholder}</label>
-          <input id="a-ask" name="message" maxlength="500" placeholder={L.agentPlaceholder} autocomplete="off" required />
-          <button class="btn primary" type="submit">{L.agentSend}</button>
-        </form>
-      </aside>
-    </div>
+      <div class="below">
+        <aside class="chat" data-chat hidden>
+          <header class="chat-head">
+            <span class="avatar" aria-hidden="true">✦</span>
+            <div>
+              <h2>{L.agentTitle}</h2>
+              <span class="muted small"><span class="dot" aria-hidden="true"></span>{L.online}</span>
+            </div>
+          </header>
+          <p class="muted small">{L.agentLead}</p>
+          <div class="empty" data-empty>
+            <p class="muted small">{L.chatEmpty}</p>
+            <div class="sugs">
+              <button type="button" class="sug" data-sug>{L.sug1}</button>
+              <button type="button" class="sug" data-sug>{L.sug2}</button>
+              <button type="button" class="sug" data-sug>{L.sug3}</button>
+            </div>
+          </div>
+          <ol class="messages" data-messages aria-live="polite"></ol>
+          <form class="ask" data-ask>
+            <label class="sr" for="a-ask">{L.agentPlaceholder}</label>
+            <input id="a-ask" name="message" maxlength="500" placeholder={L.agentPlaceholder} autocomplete="off" required />
+            <button class="send-btn" type="submit" aria-label={L.agentSend}>↑</button>
+          </form>
+        </aside>
 
-    <section class="section mcp">
-      <h2>{L.mcpTitle}</h2>
-      <p class="muted">{L.mcpLead}</p>
-      <pre>claude mcp add --transport http agenda-victor {mcpUrl}</pre>
-      <p class="muted small mono">horarios_livres · marcar</p>
-    </section>
+        <section class="mcp">
+          <h2>{L.mcpTitle}</h2>
+          <p class="muted small">{L.mcpLead}</p>
+          <pre>claude mcp add --transport http agenda-victor {mcpUrl}</pre>
+          <p class="muted small mono">horarios_livres · marcar</p>
+        </section>
+      </div>
+    </div>
   </div>
 </Base>
 
 <script>
   import {
+    addMonths,
     agendaApi,
     bookingBody,
     browserTz,
+    byPeriod,
     chatBody,
-    dayLabel,
     errorText,
     groupByLocalDay,
+    localDate,
+    longDayLabel,
+    monthGrid,
+    monthLabel,
+    monthOf,
+    monthsWithSlots,
+    timeLabel,
+    weekdayLabels,
     whenLabel,
     type AgendaConfig,
     type BookingForm,
@@ -233,21 +308,29 @@ const mcpUrl = 'https://vgmelo.tech/api/agenda/mcp';
     const E = JSON.parse(root.dataset.errors!) as Record<string, string>;
     const tz = browserTz();
     const q = <T extends HTMLElement>(sel: string) => root.querySelector<T>(sel)!;
-    document.querySelector('[data-tz]')!.textContent = tz;
+    q('[data-tz]').textContent = tz.replace(/_/g, ' ');
 
     const form = q<HTMLFormElement>('[data-form]');
-    const kindSel = q<HTMLSelectElement>('#a-kind');
-    const durSel = q<HTMLSelectElement>('#a-duration');
-    const daysEl = q<HTMLElement>('[data-days]');
-    const timesEl = q<HTMLElement>('[data-times]');
+    const durSet = q<HTMLElement>('[data-durations]');
+    const gridEl = q<HTMLElement>('[data-grid]');
+    const monthEl = q<HTMLElement>('[data-month]');
+    const prevBtn = q<HTMLButtonElement>('[data-prev]');
+    const nextBtn = q<HTMLButtonElement>('[data-next]');
+    const periodsEl = q<HTMLElement>('[data-periods]');
     const details = q<HTMLElement>('[data-details]');
     const status = q<HTMLElement>('[data-status]');
     const submit = form.querySelector<HTMLButtonElement>('button[type=submit]')!;
     const startedAt = Date.now();
+    const today = localDate(new Date().toISOString(), tz);
+    const weekdays = weekdayLabels(lang);
     let config: AgendaConfig;
     let days: Day[] = [];
     let day: string | null = null;
     let start: string | null = null;
+    let month = monthOf(today);
+
+    const kind = () => (form.querySelector<HTMLInputElement>('input[name=kind]:checked')?.value ?? 'job') as Kind;
+    const duration = () => Number(form.querySelector<HTMLInputElement>('input[name=duration]:checked')?.value ?? 30);
 
     const show = (el: HTMLElement, text: string, cls: '' | 'ok' | 'error') => {
       el.hidden = false;
@@ -255,84 +338,139 @@ const mcpUrl = 'https://vgmelo.tech/api/agenda/mcp';
       el.textContent = text;
     };
 
-    const button = (label: string, pressed: boolean, onClick: () => void) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'chip';
-      b.textContent = label;
-      b.setAttribute('aria-pressed', String(pressed));
-      b.addEventListener('click', onClick);
-      return b;
+    const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text?: string) => {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text !== undefined) e.textContent = text;
+      return e;
+    };
+
+    const pickedText = () => {
+      if (!start) return;
+      const end = new Date(new Date(start).getTime() + duration() * 60_000).toISOString();
+      q('[data-picked]').textContent = `${whenLabel(start, tz, lang)} – ${timeLabel(end, tz, lang)}`;
+      q('[data-pickedsub]').textContent = `${duration()} ${L.minutes} · ${kind() === 'job' ? L.job : L.consulting}`;
     };
 
     const renderTimes = () => {
-      timesEl.replaceChildren(
-        ...(days.find((d) => d.date === day)?.times ?? []).map((t) =>
-          button(t.label, t.iso === start, () => {
-            start = t.iso;
-            q<HTMLElement>('[data-picked]').textContent = `${whenLabel(t.iso, tz, lang)} · ${durSel.value} ${L.minutes}`;
-            details.hidden = false;
-            renderTimes();
-          }),
-        ),
+      const d = days.find((x) => x.date === day);
+      q('[data-dayname]').textContent = d ? longDayLabel(d.date, lang) : L.pickDay;
+      q('[data-count]').textContent = d ? (d.times.length === 1 ? L.free1 : L.free.replace('{n}', String(d.times.length))) : '';
+      periodsEl.replaceChildren(
+        ...(d ? byPeriod(d, tz) : []).map((g) => {
+          const box = el('div', 'period');
+          box.append(el('span', 'plabel', L[g.period]));
+          const times = el('div', 'times');
+          for (const t of g.times) {
+            const b = el('button', 'time', t.label);
+            b.type = 'button';
+            b.setAttribute('aria-pressed', String(t.iso === start));
+            b.addEventListener('click', () => {
+              start = t.iso;
+              pickedText();
+              details.hidden = false;
+              status.hidden = true;
+              renderTimes();
+              details.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+            times.append(b);
+          }
+          box.append(times);
+          return box;
+        }),
       );
     };
 
-    const renderDays = () => {
-      daysEl.replaceChildren(
-        ...days.map((d) =>
-          button(dayLabel(d.date, lang), d.date === day, () => {
-            day = d.date;
-            start = null;
-            details.hidden = true;
-            renderDays();
-            renderTimes();
-          }),
-        ),
-      );
-      q<HTMLElement>('[data-noslots]').hidden = days.length > 0;
+    const renderCalendar = () => {
+      const months = monthsWithSlots(days);
+      const free = new Map(days.map((d) => [d.date, d.times.length]));
+      monthEl.textContent = monthLabel(month, lang);
+      prevBtn.disabled = !months.length || month <= months[0];
+      nextBtn.disabled = !months.length || month >= months[months.length - 1];
+      const cells: HTMLElement[] = weekdays.map((w) => el('span', 'wd', w));
+      for (const date of monthGrid(month).flat()) {
+        if (!date) {
+          cells.push(el('span', 'blank'));
+          continue;
+        }
+        const n = free.get(date) ?? 0;
+        const b = el('button', 'day', String(Number(date.slice(8))));
+        b.type = 'button';
+        b.disabled = n === 0;
+        if (date === today) b.classList.add('today');
+        if (n) b.classList.add('open');
+        b.setAttribute('aria-pressed', String(date === day));
+        b.setAttribute('aria-label', `${longDayLabel(date, lang)}${n ? ` · ${n === 1 ? L.free1 : L.free.replace('{n}', String(n))}` : ''}`);
+        b.addEventListener('click', () => {
+          day = date;
+          start = null;
+          details.hidden = true;
+          renderCalendar();
+          renderTimes();
+        });
+        cells.push(b);
+      }
+      gridEl.replaceChildren(...cells);
+      q('[data-noslots]').hidden = days.length > 0;
     };
 
     const loadSlots = async () => {
-      const kind = kindSel.value as Kind;
-      const slots = await agendaApi<SlotsResponse>(`/slots?kind=${kind}&duration=${Number(durSel.value)}`);
+      const slots = await agendaApi<SlotsResponse>(`/slots?kind=${kind()}&duration=${duration()}`);
       if (!slots.calendar_ok) throw { status: 503, code: 'calendar_unavailable' };
       days = groupByLocalDay(slots, tz, lang);
       if (!days.some((d) => d.date === day)) day = days[0]?.date ?? null;
       if (!days.some((d) => d.times.some((t) => t.iso === start))) {
         start = null;
         details.hidden = true;
-      }
-      renderDays();
+      } else pickedText();
+      if (day) month = monthOf(day);
+      renderCalendar();
       renderTimes();
     };
 
     const fillDurations = () => {
-      const kind = kindSel.value as Kind;
-      const current = Number(durSel.value) || 30;
-      durSel.replaceChildren(
-        ...config.kinds[kind].durations.map((m) => {
-          const o = document.createElement('option');
-          o.value = String(m);
-          o.textContent = `${m} ${L.minutes}`;
-          return o;
+      const current = duration();
+      const ds = config.kinds[kind()].durations;
+      const pick = ds.includes(current) ? current : ds.includes(30) ? 30 : ds[0];
+      durSet.replaceChildren(
+        ...ds.map((m) => {
+          const label = el('label', '');
+          const input = el('input', '');
+          input.type = 'radio';
+          input.name = 'duration';
+          input.value = String(m);
+          input.checked = m === pick;
+          label.append(input, el('span', '', `${m} ${L.minutes}`));
+          return label;
         }),
       );
-      const ds = config.kinds[kind].durations;
-      durSel.value = String(ds.includes(current) ? current : ds.includes(30) ? 30 : ds[0]);
     };
 
     const down = () => {
-      q<HTMLElement>('[data-loading]').hidden = true;
-      q<HTMLElement>('[data-down]').hidden = false;
+      q('[data-loading]').hidden = true;
+      q('[data-down]').hidden = false;
       form.hidden = true;
     };
 
-    kindSel.addEventListener('change', () => {
-      fillDurations();
-      void loadSlots().catch(down);
+    prevBtn.addEventListener('click', () => {
+      month = addMonths(month, -1);
+      renderCalendar();
     });
-    durSel.addEventListener('change', () => void loadSlots().catch(down));
+    nextBtn.addEventListener('click', () => {
+      month = addMonths(month, 1);
+      renderCalendar();
+    });
+    q('[data-change]').addEventListener('click', () => {
+      start = null;
+      details.hidden = true;
+      renderTimes();
+      q('.slots').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+    form.addEventListener('change', (e) => {
+      const t = e.target as HTMLInputElement;
+      if (t.name === 'kind') fillDurations();
+      if (t.name === 'kind' || t.name === 'duration') void loadSlots().catch(down);
+    });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -359,36 +497,34 @@ const mcpUrl = 'https://vgmelo.tech/api/agenda/mcp';
     const list = q<HTMLOListElement>('[data-messages]');
     const ask = q<HTMLFormElement>('[data-ask]');
     const input = ask.querySelector<HTMLInputElement>('input')!;
+    const empty = q<HTMLElement>('[data-empty]');
     let conversation: string | null = null;
     let chatOver = false; // fim de conversa, orçamento ou assistente fora do ar
 
     const say = (who: string, text: string, cls: string) => {
-      const li = document.createElement('li');
-      li.className = cls;
-      const b = document.createElement('strong');
-      b.textContent = who;
-      const p = document.createElement('p');
-      p.textContent = text; // texto puro: nada do modelo vira HTML
-      li.append(b, p);
+      const li = el('li', cls);
+      li.append(el('span', 'who', who), el('p', '', text)); // texto puro: nada do modelo vira HTML
       list.append(li);
-      li.scrollIntoView({ block: 'nearest' });
+      list.scrollTop = list.scrollHeight;
+      return li;
     };
 
-    ask.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const message = input.value.trim();
-      if (!message) return;
-      input.value = '';
+    const send = async (message: string) => {
+      empty.hidden = true;
+      list.hidden = false;
       say(L.agentYou, message, 'me');
+      const typing = say(L.agentBot, L.thinking, 'bot typing');
       const btn = ask.querySelector<HTMLButtonElement>('button')!;
       btn.disabled = input.disabled = true;
       try {
         const r = await agendaApi<ChatReply>('/chat', chatBody(message, conversation, lang, tz));
         conversation = r.conversation;
+        typing.remove();
         say(L.agentBot, r.reply, 'bot');
         if (r.remaining <= 0) chatOver = true;
         await loadSlots().catch(() => undefined); // o assistente pode ter segurado um horário
       } catch (err) {
+        typing.remove();
         const st = (err as { status?: number }).status;
         say(L.agentBot, st === 429 ? L.agentLimit : L.agentOff, 'bot error');
         if (st === 503) chatOver = true;
@@ -396,7 +532,18 @@ const mcpUrl = 'https://vgmelo.tech/api/agenda/mcp';
         btn.disabled = input.disabled = chatOver;
         if (!chatOver) input.focus();
       }
+    };
+
+    ask.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const message = input.value.trim();
+      if (!message) return;
+      input.value = '';
+      void send(message);
     });
+    root.querySelectorAll<HTMLButtonElement>('[data-sug]').forEach((b) =>
+      b.addEventListener('click', () => !chatOver && void send(b.textContent ?? '')),
+    );
 
     (async () => {
       try {
@@ -404,9 +551,10 @@ const mcpUrl = 'https://vgmelo.tech/api/agenda/mcp';
         if (!config.calendar_ok) return down();
         input.maxLength = config.agent_max_chars;
         chat.hidden = !config.agent;
+        list.hidden = true;
         fillDurations();
         await loadSlots();
-        q<HTMLElement>('[data-loading]').hidden = true;
+        q('[data-loading]').hidden = true;
         form.hidden = false;
       } catch {
         down();
@@ -419,24 +567,15 @@ const mcpUrl = 'https://vgmelo.tech/api/agenda/mcp';
   .small {
     font-size: 14px;
   }
-  .layout {
-    display: grid;
-    gap: 28px;
-    grid-template-columns: minmax(0, 1fr);
-    align-items: start;
+  .booker {
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
   }
-  @media (min-width: 960px) {
-    .layout {
-      grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-    }
-  }
-  .wide {
-    max-width: none;
-  }
-  .row {
-    display: grid;
-    gap: 14px;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  .booker > .notice {
+    margin: 20px;
   }
   fieldset {
     border: 0;
@@ -444,98 +583,467 @@ const mcpUrl = 'https://vgmelo.tech/api/agenda/mcp';
     margin: 0;
     min-width: 0;
   }
-  legend {
-    font-weight: 600;
-    font-size: 14px;
-    margin-bottom: 6px;
-  }
-  .days,
-  .times {
+
+  /* barra: tipo e duração */
+  .bar {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 12px;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line);
   }
-  .days :global(.chip),
-  .times :global(.chip) {
+  .seg {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--bg-soft);
+  }
+  .seg :global(label) {
+    position: relative;
+    cursor: pointer;
+  }
+  .seg :global(input) {
+    position: absolute;
+    opacity: 0;
+    inset: 0;
+    margin: 0;
+    cursor: pointer;
+  }
+  .seg :global(span) {
+    display: block;
+    padding: 7px 14px;
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: 550;
+    color: var(--muted);
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+  }
+  .seg :global(label:hover span) {
+    color: var(--text);
+  }
+  .seg :global(input:checked + span) {
+    background: var(--panel);
+    color: var(--text);
+    box-shadow: 0 0 0 1px var(--line-strong), 0 1px 3px rgb(0 0 0 / 0.12);
+  }
+  .seg :global(input:focus-visible + span) {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .dur :global(span) {
+    font-variant-numeric: tabular-nums;
+    padding: 7px 11px;
+  }
+
+  /* calendário e horários */
+  .body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  @media (min-width: 820px) {
+    .body {
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    }
+    .slots {
+      border-left: 1px solid var(--line);
+    }
+  }
+  .cal,
+  .slots {
+    padding: 20px;
+    min-width: 0;
+  }
+  .cal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .cal-head strong {
+    font-size: 17px;
+  }
+  .nav {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--text);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .nav:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .grid :global(.wd) {
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding-bottom: 6px;
+  }
+  .grid :global(.day) {
+    position: relative;
+    aspect-ratio: 1;
+    max-height: 52px;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.45;
+  }
+  .grid :global(.day.open) {
+    opacity: 1;
+    color: var(--text);
+    font-weight: 600;
+    background: var(--accent-soft);
+    cursor: pointer;
+  }
+  .grid :global(.day.open::after) {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 6px;
+    width: 4px;
+    height: 4px;
+    margin-left: -2px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .grid :global(.day.open:hover) {
+    border-color: var(--accent);
+  }
+  .grid :global(.day.today) {
+    border-color: var(--line-strong);
+  }
+  .grid :global(.day[aria-pressed='true']) {
+    background: var(--accent);
+    color: var(--accent-ink);
+    box-shadow: var(--glow);
+  }
+  .grid :global(.day[aria-pressed='true']::after) {
+    background: var(--accent-ink);
+  }
+  .tz {
+    margin: 14px 0 0;
+    font-size: 13px;
+  }
+  .slots-head {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 14px;
+  }
+  .slots-head strong {
+    font-size: 17px;
+  }
+  .slots-head strong::first-letter {
+    text-transform: uppercase;
+  }
+  .slots-head span {
+    font-size: 13px;
+  }
+  .slots :global(.period + .period) {
+    margin-top: 14px;
+  }
+  .slots :global(.plabel) {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+  }
+  .slots :global(.times) {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+    gap: 6px;
+  }
+  .slots :global(.time) {
     font: inherit;
     font-size: 14px;
-    min-height: 40px;
-    padding: 8px 12px;
+    font-variant-numeric: tabular-nums;
+    padding: 9px 0;
     border-radius: 10px;
     border: 1px solid var(--line);
     background: var(--panel);
     color: var(--text);
     cursor: pointer;
+    transition: border-color 0.12s, background 0.12s;
   }
-  .days :global(.chip:hover),
-  .times :global(.chip:hover) {
+  .slots :global(.time:hover) {
     border-color: var(--accent);
+    color: var(--accent);
   }
-  .days :global(.chip[aria-pressed='true']),
-  .times :global(.chip[aria-pressed='true']) {
+  .slots :global(.time[aria-pressed='true']) {
     background: var(--accent);
     border-color: var(--accent);
     color: var(--accent-ink);
   }
-  .times :global(.chip) {
-    font-variant-numeric: tabular-nums;
-  }
+
+  /* dados */
   .details {
+    border-top: 1px solid var(--line);
+    padding: 20px;
+    display: grid;
+    gap: 16px;
+    background: var(--panel);
+  }
+  .summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--accent-soft);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .summary > div {
+    flex: 1;
+    min-width: 0;
+  }
+  .summary strong,
+  .summary span {
+    display: block;
+  }
+  .summary strong::first-letter {
+    text-transform: uppercase;
+  }
+  .summary span {
+    font-size: 14px;
+  }
+  .ico {
+    font-size: 22px;
+    color: var(--accent);
+  }
+  .link {
+    background: none;
+    border: 0;
+    color: var(--accent);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px;
+  }
+  .fields {
     display: grid;
     gap: 14px;
-    border-top: 1px solid var(--line);
-    padding-top: 14px;
+    grid-template-columns: minmax(0, 1fr);
   }
-  .picked {
+  @media (min-width: 640px) {
+    .fields {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  .fields .full {
+    grid-column: 1 / -1;
+  }
+  .send {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .send p {
     margin: 0;
   }
-  .chat {
-    background: var(--panel);
+  form > [data-status] {
+    margin: 0 20px 20px;
+  }
+
+  /* assistente e MCP */
+  .below {
+    display: grid;
+    gap: 20px;
+    margin: 28px 0 48px;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+  @media (min-width: 900px) {
+    .below {
+      grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    }
+  }
+  .chat,
+  .mcp {
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
     border: 1px solid var(--line);
     border-radius: var(--radius);
-    padding: 18px;
+    box-shadow: var(--shadow);
+    padding: 20px;
     display: grid;
-    gap: 10px;
+    gap: 12px;
+    min-width: 0;
   }
-  .chat h2 {
-    font-size: 20px;
+  .chat[hidden] {
+    display: none;
+  }
+  .chat h2,
+  .mcp h2 {
+    font-size: 18px;
     margin: 0;
   }
-  .chat p {
+  .chat p,
+  .mcp p {
     margin: 0;
+  }
+  .chat-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .avatar {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: var(--accent-ink);
+    font-size: 18px;
+  }
+  .dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-right: 6px;
+    vertical-align: 1px;
+  }
+  .empty[hidden],
+  .messages[hidden] {
+    display: none;
+  }
+  .empty {
+    display: grid;
+    gap: 8px;
+  }
+  .sugs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .sug {
+    font: inherit;
+    font-size: 13.5px;
+    text-align: left;
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: 1px dashed var(--line-strong);
+    background: none;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .sug:hover {
+    border-style: solid;
+    border-color: var(--accent);
+    color: var(--accent);
   }
   .messages {
     list-style: none;
-    padding: 0;
+    padding: 4px 2px;
     margin: 0;
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 10px;
-    max-height: 420px;
+    max-height: 380px;
     overflow-y: auto;
   }
   .messages :global(li) {
-    border-radius: 10px;
-    padding: 10px 12px;
+    max-width: 85%;
+    border-radius: 14px 14px 14px 4px;
+    padding: 9px 13px;
     background: var(--bg-soft);
+    border: 1px solid var(--line);
+    align-self: flex-start;
   }
   .messages :global(li.me) {
-    background: var(--accent-soft);
+    align-self: flex-end;
+    border-radius: 14px 14px 4px 14px;
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+  .messages :global(li.me .who) {
+    display: none;
+  }
+  .messages :global(li.typing p) {
+    color: var(--muted);
+    font-style: italic;
   }
   .messages :global(li.error) {
     color: var(--danger);
   }
-  .messages :global(strong) {
-    font-size: 12px;
+  .messages :global(.who) {
+    font-size: 11.5px;
     color: var(--muted);
+    font-weight: 600;
   }
   .messages :global(p) {
     margin: 2px 0 0;
+    font-size: 15px;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
   .ask {
     display: flex;
-    gap: 8px;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 5px 5px 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 14px;
+    background: var(--panel);
+  }
+  .ask:focus-within {
+    border-color: var(--accent);
+  }
+  .ask input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: none;
+    padding: 8px 0;
+    font: inherit;
+    font-size: 15px;
+    color: var(--text);
+    outline: none;
+    box-shadow: none;
+  }
+  .send-btn {
+    flex: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    border: 0;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .send-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
   .sr {
     position: absolute;
@@ -545,6 +1053,7 @@ const mcpUrl = 'https://vgmelo.tech/api/agenda/mcp';
     clip: rect(0 0 0 0);
   }
   .mcp pre {
+    margin: 0;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
