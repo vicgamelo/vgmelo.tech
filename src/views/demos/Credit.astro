@@ -3,6 +3,7 @@ import DemoShell from '../../components/DemoShell.astro';
 import { route, type Lang } from '../../i18n/routes';
 import { uiStrings } from '../../i18n/ui';
 import { LIVE_KEYS } from '../../lib/live';
+import { FIELDS, MAX_FILE_BYTES, MAX_FILE_ROWS } from '../../lib/credit';
 
 interface Props {
   lang: Lang;
@@ -10,175 +11,1667 @@ interface Props {
 const { lang } = Astro.props;
 const s = uiStrings(lang, [...LIVE_KEYS]);
 const pt = lang === 'pt';
-// Valores das categorias = os do dataset German Credit (OpenML credit-g) usados no treino.
-const selects = [
-  {
-    name: 'checking_status',
-    label: pt ? 'Conta corrente (DM)' : 'Checking account (DM)',
-    options: ['<0', '0<=X<200', '>=200', 'no checking'],
-    value: 'no checking',
-  },
-  {
-    name: 'credit_history',
-    label: pt ? 'Histórico de crédito' : 'Credit history',
-    options: ['existing paid', 'critical/other existing credit', 'delayed previously', 'all paid'],
-    value: 'existing paid',
-  },
-  {
-    name: 'purpose',
-    label: pt ? 'Finalidade' : 'Purpose',
-    options: ['new car', 'used car', 'furniture/equipment', 'radio/tv', 'education', 'business'],
-    value: 'radio/tv',
-  },
-  {
-    name: 'savings_status',
-    label: pt ? 'Poupança (DM)' : 'Savings (DM)',
-    options: ['<100', '100<=X<500', '500<=X<1000', '>=1000', 'no known savings'],
-    value: '<100',
-  },
-  {
-    name: 'employment',
-    label: pt ? 'Tempo no emprego (anos)' : 'Years employed',
-    options: ['unemployed', '<1', '1<=X<4', '4<=X<7', '>=7'],
-    value: '1<=X<4',
-  },
-  { name: 'housing', label: pt ? 'Moradia' : 'Housing', options: ['own', 'rent', 'for free'], value: 'own' },
-];
-const numbers = [
-  { name: 'duration', label: pt ? 'Prazo (meses)' : 'Term (months)', min: 4, max: 72, value: 24 },
-  { name: 'credit_amount', label: pt ? 'Valor (DM)' : 'Amount (DM)', min: 250, max: 20000, value: 3000 },
-  { name: 'age', label: pt ? 'Idade' : 'Age', min: 18, max: 75, value: 35 },
-];
+const kb = Math.round(MAX_FILE_BYTES / 1024);
 const L = pt
   ? {
-      run: 'Calcular',
+      tabLive: 'ML em tempo real',
+      tabBatch: 'Lote (CSV)',
+      chat: 'Conversa',
+      form: 'Formulário',
+      presets: 'Perfil pronto:',
+      presetLow: 'risco baixo',
+      presetHigh: 'risco alto',
+      clear: 'Recomeçar',
+      send: 'Enviar',
+      placeholder: 'Responda com suas palavras…',
+      dontKnow: 'não sei',
+      intro:
+        'Oi! Vou montar o perfil com 18 perguntas curtas, as mesmas variáveis que o modelo usa. Responda com suas palavras, toque numa opção ou diga "não sei" (o pipeline preenche com o valor típico do dataset).',
+      understood: 'Entendi:',
+      outside: 'fora do que o modelo viu no treino',
+      doneChat: 'Pronto, perfil completo. Confira o resumo e rode o pipeline.',
+      editing: 'Vamos corrigir',
+      profile: 'Perfil',
+      answered: 'respondidos',
+      imputed: 'vão ser imputados',
+      edit: 'corrigir',
+      run: 'Rodar o pipeline',
+      running: 'Rodando…',
+      agentNote:
+        'O agente de coleta roda no seu navegador, com regras e sinônimos (sem LLM): nada do que você escreve sai daqui, só o perfil final vai para o pipeline.',
+      stages: {
+        raw: 'Dados crus',
+        transform: 'Data transform',
+        normalize: 'Normalização',
+        fit: 'Fit ao vivo (baseline)',
+        model: 'Inferência do champion',
+        explain: 'O que mais pesou',
+      },
+      pending: 'na fila',
+      field: 'campo',
+      value: 'valor',
+      type: 'tipo recebido',
+      types: { string: 'texto', number: 'número', null: 'vazio' },
+      model: 'Modelo',
+      excluded: 'Fora do modelo por desenho (atributos protegidos):',
+      casts: 'Tipos',
+      castLine: 'virou',
+      noCasts: 'Todos os números já chegaram como número.',
+      missing: 'Faltantes',
+      noMissing: 'Nenhum: todos os campos foram respondidos.',
+      median: 'mediana do credit-g',
+      mode: 'moda do credit-g',
+      encoding: 'One-hot das categóricas',
+      column: 'coluna ativa',
+      columns: 'colunas',
+      infrequent: 'rara no treino: vai para o balde "infrequent"',
+      unseen: 'nunca vista no treino: todas as colunas em 0',
+      shape: 'Matriz que entra no modelo:',
+      warnings: 'Avisos',
+      scaler: 'StandardScaler do champion: z = (x − média) / desvio, com média e desvio aprendidos no treino.',
+      before: 'antes',
+      mean: 'média',
+      std: 'desvio',
+      after: 'depois (z)',
+      percentile: 'percentil no credit-g',
+      fitText: (r: Record<string, number | string>) =>
+        `Regressão logística (C=${r.C}, classes balanceadas) treinada agora em ${r.rows_train} linhas do credit-g: ${r.iterations} iterações, ${r.fit_ms} ms. AUC em ${r.rows_test} linhas que ela não viu: ${r.auc}. Para este perfil ela diz ${r.p}.`,
+      fitNote: 'Só para comparar: quem decide é o champion, treinado e promovido pelos gates do MLflow.',
+      modelText: (r: Record<string, string>) => `${r.estimator}${r.trees ? `, ${r.trees} árvores (taxa ${r.lr}, profundidade ${r.depth})` : ''}, versão ${r.version} no alias @champion.`,
+      logOdds: 'log-odds',
+      sigmoid: 'sigmoide',
+      explainNote:
+        'Para cada variável, troquei o seu valor pelo típico do credit-g (mediana ou moda) e rodei o modelo de novo. A diferença é quanto ela empurrou a probabilidade.',
+      typical: 'típico',
+      nothing: 'Nenhuma variável mudou a probabilidade em mais de 0,01 p.p.',
       prob: 'Probabilidade de inadimplência',
       approve: 'aprovar',
       review: 'mandar para análise',
-      model: 'modelo',
-      note: 'O German Credit é de um banco alemão dos anos 70 (valores em marcos). Sexo e estrangeiro ficam fora do modelo, e a diferença de desempenho entre faixas de idade é um dos critérios para promover. Quem responde é o @champion do MLflow.',
+      threshold: 'corte',
+      baseline: 'baseline ao vivo',
+      top: 'O que mais pesou:',
+      raised: 'aumentou o risco',
+      lowered: 'reduziu o risco',
+      invalid: 'O pipeline recusou o perfil:',
+      timing: 'As etapas levam cerca de 100 ms no servidor; a página mostra uma por vez. O tempo de cada uma é o medido lá.',
+      // lote
+      step1: '1. Gere um arquivo de teste ou use o seu',
+      valid: 'Baixar CSV válido',
+      withErrors: 'Baixar CSV com erros',
+      schema: 'Colunas e valores aceitos',
+      schemaNote: `Uma coluna por variável (o cabeçalho é obrigatório; "id" é opcional e volta no resultado). Vírgula ou ponto e vírgula. Até ${MAX_FILE_ROWS} linhas e ${kb} KB.`,
+      step2: '2. Envie e valide',
+      choose: 'Arquivo CSV',
+      validate: 'Validar',
+      validating: 'Validando…',
+      tooBig: `O arquivo passa de ${kb} KB.`,
+      pick: 'Escolha um arquivo .csv primeiro.',
+      ok: 'Arquivo correto: todas as linhas podem ir para o score.',
+      notOk: 'O arquivo tem problemas. Arrume o que está abaixo e envie de novo, ou faça o score só das linhas válidas.',
+      rows: 'linhas',
+      validRows: 'válidas',
+      invalidRows: 'com erro',
+      fileErrors: 'Problemas no arquivo',
+      colWarnings: 'Colunas',
+      summary: 'Resumo por coluna',
+      count: 'ocorrências',
+      line: 'linha',
+      problem: 'o que arrumar',
+      warning: 'aviso',
+      error: 'erro',
+      truncated: (n: number) => `Mostrando os primeiros; são ${n} no total.`,
+      step3: '3. Score',
+      score: (n: number) => `Fazer o score das ${n} linhas válidas (usa 1 da cota)`,
+      scoring: 'Calculando…',
+      download: 'Baixar resultado (CSV)',
+      scored: 'com score',
+      skipped: 'puladas (com erro)',
+      avg: 'probabilidade média',
+      csvNote: 'O CSV de volta traz cada linha com status, probabilidade e decisão. Células que começam com =, +, - ou @ ganham um apóstrofo para a planilha não executar nada.',
+      showing: (n: number, total: number) => `Primeiras ${n} de ${total} linhas.`,
+      tooLarge: `O arquivo passa de ${kb} KB.`,
+      notCsv: 'Envie um arquivo .csv.',
+      rateLimited: 'Muitas validações seguidas. Espere um pouco e tente de novo.',
+      batchNote: 'O arquivo é tratado como dado não confiável: lido com o módulo csv do Python, sem eval, e com limite de tamanho e de linhas.',
+      note: 'O German Credit (OpenML credit-g, UCI) é de um banco alemão dos anos 70, com valores em marcos. Sexo e estrangeiro ficam fora do modelo, e a diferença de desempenho entre faixas de idade é um dos gates para promover. Quem responde é o @champion do MLflow.',
     }
   : {
-      run: 'Score',
+      tabLive: 'Live ML',
+      tabBatch: 'Batch (CSV)',
+      chat: 'Chat',
+      form: 'Form',
+      presets: 'Ready profile:',
+      presetLow: 'low risk',
+      presetHigh: 'high risk',
+      clear: 'Start over',
+      send: 'Send',
+      placeholder: 'Answer in your own words…',
+      dontKnow: "don't know",
+      intro:
+        'Hi! I\'ll build the profile with 18 short questions, the same variables the model uses. Answer in your own words, tap an option or say "don\'t know" (the pipeline fills it with the dataset\'s typical value).',
+      understood: 'Got it:',
+      outside: 'outside what the model saw in training',
+      doneChat: 'Done, the profile is complete. Check the summary and run the pipeline.',
+      editing: "Let's fix",
+      profile: 'Profile',
+      answered: 'answered',
+      imputed: 'will be imputed',
+      edit: 'fix',
+      run: 'Run the pipeline',
+      running: 'Running…',
+      agentNote:
+        'The collecting agent runs in your browser, with rules and synonyms (no LLM): nothing you type leaves this page, only the final profile goes to the pipeline.',
+      stages: {
+        raw: 'Raw data',
+        transform: 'Data transform',
+        normalize: 'Normalization',
+        fit: 'Live fit (baseline)',
+        model: 'Champion inference',
+        explain: 'What weighed the most',
+      },
+      pending: 'queued',
+      field: 'field',
+      value: 'value',
+      type: 'type received',
+      types: { string: 'text', number: 'number', null: 'empty' },
+      model: 'Model',
+      excluded: 'Left out of the model by design (protected attributes):',
+      casts: 'Types',
+      castLine: 'became',
+      noCasts: 'Every number already arrived as a number.',
+      missing: 'Missing values',
+      noMissing: 'None: every field was answered.',
+      median: 'credit-g median',
+      mode: 'credit-g mode',
+      encoding: 'One-hot of the categoricals',
+      column: 'active column',
+      columns: 'columns',
+      infrequent: 'rare in training: goes to the "infrequent" bucket',
+      unseen: 'never seen in training: every column is 0',
+      shape: 'Matrix that goes into the model:',
+      warnings: 'Warnings',
+      scaler: "The champion's StandardScaler: z = (x − mean) / std, with mean and std learned in training.",
+      before: 'before',
+      mean: 'mean',
+      std: 'std',
+      after: 'after (z)',
+      percentile: 'credit-g percentile',
+      fitText: (r: Record<string, number | string>) =>
+        `Logistic regression (C=${r.C}, balanced classes) trained just now on ${r.rows_train} credit-g rows: ${r.iterations} iterations, ${r.fit_ms} ms. AUC on ${r.rows_test} rows it didn't see: ${r.auc}. For this profile it says ${r.p}.`,
+      fitNote: 'Only for comparison: the champion decides, trained and promoted through the MLflow gates.',
+      modelText: (r: Record<string, string>) => `${r.estimator}${r.trees ? `, ${r.trees} trees (rate ${r.lr}, depth ${r.depth})` : ''}, version ${r.version} under the @champion alias.`,
+      logOdds: 'log-odds',
+      sigmoid: 'sigmoid',
+      explainNote:
+        "For each variable, I swapped your value for credit-g's typical one (median or mode) and ran the model again. The difference is how much it pushed the probability.",
+      typical: 'typical',
+      nothing: 'No variable moved the probability by more than 0.01 p.p.',
       prob: 'Probability of default',
       approve: 'approve',
       review: 'send to review',
-      model: 'model',
-      note: "German Credit comes from a 1970s German bank (amounts in Deutsche Marks). Sex and foreign-worker status are left out of the model, and the performance gap between age groups is one of the promotion gates. The answer comes from the @champion in MLflow.",
+      threshold: 'cutoff',
+      baseline: 'live baseline',
+      top: 'What weighed the most:',
+      raised: 'raised the risk',
+      lowered: 'lowered the risk',
+      invalid: 'The pipeline refused the profile:',
+      timing: 'The steps take about 100 ms on the server; the page shows one at a time. Each step shows the time measured there.',
+      step1: '1. Generate a test file or use yours',
+      valid: 'Download valid CSV',
+      withErrors: 'Download CSV with errors',
+      schema: 'Columns and accepted values',
+      schemaNote: `One column per variable (the header is required; "id" is optional and comes back in the result). Comma or semicolon. Up to ${MAX_FILE_ROWS} rows and ${kb} KB.`,
+      step2: '2. Upload and validate',
+      choose: 'CSV file',
+      validate: 'Validate',
+      validating: 'Validating…',
+      tooBig: `The file is over ${kb} KB.`,
+      pick: 'Pick a .csv file first.',
+      ok: 'The file is correct: every row can be scored.',
+      notOk: 'The file has problems. Fix what is below and upload again, or score only the valid rows.',
+      rows: 'rows',
+      validRows: 'valid',
+      invalidRows: 'with errors',
+      fileErrors: 'File problems',
+      colWarnings: 'Columns',
+      summary: 'Summary by column',
+      count: 'count',
+      line: 'line',
+      problem: 'what to fix',
+      warning: 'warning',
+      error: 'error',
+      truncated: (n: number) => `Showing the first ones; there are ${n} in total.`,
+      step3: '3. Score',
+      score: (n: number) => `Score the ${n} valid rows (uses 1 of the quota)`,
+      scoring: 'Scoring…',
+      download: 'Download result (CSV)',
+      scored: 'scored',
+      skipped: 'skipped (errors)',
+      avg: 'mean probability',
+      csvNote: 'The CSV that comes back has each row with status, probability and decision. Cells starting with =, +, - or @ get an apostrophe so the spreadsheet runs nothing.',
+      showing: (n: number, total: number) => `First ${n} of ${total} rows.`,
+      tooLarge: `The file is over ${kb} KB.`,
+      notCsv: 'Upload a .csv file.',
+      rateLimited: 'Too many validations in a row. Wait a bit and try again.',
+      batchNote: "The file is treated as untrusted data: read with Python's csv module, no eval, with size and row limits.",
+      note: 'German Credit (OpenML credit-g, UCI) comes from a 1970s German bank, with amounts in Deutsche Marks. Sex and foreign-worker status are left out of the model, and the performance gap between age groups is one of the promotion gates. The answer comes from the @champion in MLflow.',
     };
+// Os textos com função não passam por JSON: o script recebe só strings.
+const { fitText, modelText, truncated, score, showing, ...plain } = L;
+const groups = [
+  { key: 'loan', title: pt ? 'O pedido' : 'The request' },
+  { key: 'money', title: pt ? 'Situação financeira' : 'Finances' },
+  { key: 'person', title: pt ? 'Sobre a pessoa' : 'About the person' },
+];
+const fit = fitText({ C: '{C}', rows_train: '{rows_train}', iterations: '{iterations}', fit_ms: '{fit_ms}', rows_test: '{rows_test}', auc: '{auc}', p: '{p}' });
+const modelT = modelText({ estimator: '{estimator}', trees: '{trees}', lr: '{lr}', depth: '{depth}', version: '{version}' });
+const modelPlain = modelText({ estimator: '{estimator}', trees: '', lr: '', depth: '', version: '{version}' });
+const templates = {
+  fit,
+  model: modelT,
+  modelPlain,
+  truncated: truncated(999999).replace('999999', '{n}'),
+  score: score(999999).replace('999999', '{n}'),
+  showing: showing(111111, 999999).replace('111111', '{n}').replace('999999', '{total}'),
+};
 ---
 
 <DemoShell lang={lang} demo="demoCredit">
-  <div class="demo" id="credit" data-s={JSON.stringify(s)} data-l={JSON.stringify(L)} data-login={route('login', lang)}>
+  <div
+    class="demo"
+    id="credit"
+    data-lang={lang}
+    data-s={JSON.stringify(s)}
+    data-l={JSON.stringify(plain)}
+    data-t={JSON.stringify(templates)}
+    data-login={route('login', lang)}
+  >
     <p class="notice" data-gate>…</p>
-    <form class="grid-form" data-live hidden>
-      {
-        selects.map((f) => (
-          <div class="field">
-            <label for={`c-${f.name}`}>{f.label}</label>
-            <select id={`c-${f.name}`} name={f.name}>
-              {f.options.map((o) => (
-                <option value={o} selected={o === f.value}>
-                  {o}
-                </option>
-              ))}
-            </select>
-          </div>
-        ))
-      }
-      {
-        numbers.map((f) => (
-          <div class="field">
-            <label for={`c-${f.name}`}>{f.label}</label>
-            <input id={`c-${f.name}`} name={f.name} type="number" min={f.min} max={f.max} value={f.value} required />
-          </div>
-        ))
-      }
-      <div class="actions full">
-        <button class="btn primary" type="submit">{L.run}</button>
-        <span class="muted" data-remaining></span>
+    <div class="live" data-live hidden>
+      <div class="topbar">
+        <div class="tabs" role="tablist">
+          <button type="button" role="tab" class="tab" id="tab-live" aria-selected="true" aria-controls="panel-live">{L.tabLive}</button>
+          <button type="button" role="tab" class="tab" id="tab-batch" aria-selected="false" aria-controls="panel-batch">{L.tabBatch}</button>
+        </div>
+        <span class="muted small" data-remaining></span>
       </div>
-    </form>
-    <p class="notice error" id="c-error" hidden></p>
-    <div class="card out" id="c-out" hidden>
-      <span class="muted">{L.prob}</span>
-      <strong class="big mono" id="c-prob"></strong>
-      <span id="c-decision"></span>
-      <span class="muted small mono" id="c-model"></span>
+
+      <section id="panel-live" role="tabpanel" aria-labelledby="tab-live" class="panel">
+        <div class="bar">
+          <div class="seg" role="group">
+            <button type="button" class="seg-btn" data-mode="chat" aria-pressed="true">{L.chat}</button>
+            <button type="button" class="seg-btn" data-mode="form" aria-pressed="false">{L.form}</button>
+          </div>
+          <div class="presets">
+            <span class="muted small">{L.presets}</span>
+            <button type="button" class="chip" data-preset="low">{L.presetLow}</button>
+            <button type="button" class="chip" data-preset="high">{L.presetHigh}</button>
+            <button type="button" class="chip" id="clear">{L.clear}</button>
+          </div>
+        </div>
+
+        <div class="collect">
+          <div class="card chat" id="chat">
+            <ol class="msgs" id="msgs" aria-live="polite"></ol>
+            <div class="chips" id="chips"></div>
+            <form class="chat-input" id="chat-form" autocomplete="off">
+              <input id="chat-text" maxlength="80" placeholder={L.placeholder} aria-label={L.placeholder} />
+              <button class="btn primary" type="submit">{L.send}</button>
+            </form>
+          </div>
+
+          <form class="card guided" id="guided" hidden>
+            {
+              groups.map((g) => (
+                <fieldset>
+                  <legend>{g.title}</legend>
+                  <div class="grid-form">
+                    {FIELDS.filter((f) => f.group === g.key).map((f) => (
+                      <div class="field">
+                        <label for={`f-${f.name}`}>{f.label[lang]}</label>
+                        {f.kind === 'cat' ? (
+                          <select id={`f-${f.name}`} name={f.name}>
+                            <option value="">— {L.dontKnow} —</option>
+                            {f.options!.map((op) => (
+                              <option value={op.value}>{op.label[lang]}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            id={`f-${f.name}`}
+                            name={f.name}
+                            type="number"
+                            inputmode={f.kind === 'int' ? 'numeric' : 'decimal'}
+                            step={f.kind === 'int' ? '1' : 'any'}
+                            min={f.minExclusive ? undefined : f.min}
+                            max={f.max}
+                            placeholder={L.dontKnow}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </fieldset>
+              ))
+            }
+          </form>
+
+          <aside class="card profile" id="profile">
+            <h2 class="h3">{L.profile} <span class="muted small mono" id="count"></span></h2>
+            <dl id="summary"></dl>
+          </aside>
+        </div>
+
+        <div class="actions run">
+          <button class="btn primary" type="button" id="run">{L.run}</button>
+          <span class="muted small" id="imputed"></span>
+        </div>
+        <p class="muted small">{L.agentNote}</p>
+
+        <p class="notice error" id="live-error" hidden></p>
+        <section id="pipe" hidden>
+          <ol class="pipeline" id="stages"></ol>
+          <p class="muted small">{L.timing}</p>
+        </section>
+        <div class="card result" id="result" hidden></div>
+      </section>
+
+      <section id="panel-batch" role="tabpanel" aria-labelledby="tab-batch" class="panel" hidden>
+        <div class="card step">
+          <h2 class="h3">{L.step1}</h2>
+          <div class="actions">
+            <button class="btn" type="button" data-sample="valid">{L.valid}</button>
+            <button class="btn" type="button" data-sample="errors">{L.withErrors}</button>
+          </div>
+          <details>
+            <summary>{L.schema}</summary>
+            <p class="muted small">{L.schemaNote}</p>
+            <div class="table-wrap">
+              <table class="schema">
+                <tbody>
+                  {
+                    FIELDS.map((f) => (
+                      <tr>
+                        <td class="mono">{f.name}</td>
+                        <td>
+                          {f.kind === 'cat'
+                            ? f.options!.map((op) => op.value).join(' · ')
+                            : `${f.kind === 'int' ? (pt ? 'inteiro' : 'integer') : pt ? 'número' : 'number'} ${f.minExclusive ? '>' : ''}${f.min}–${f.max}`}
+                        </td>
+                      </tr>
+                    ))
+                  }
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </div>
+
+        <div class="card step">
+          <h2 class="h3">{L.step2}</h2>
+          <div class="upload">
+            <div class="field">
+              <label for="file">{L.choose}</label>
+              <input id="file" type="file" accept=".csv,text/csv" />
+            </div>
+            <button class="btn primary" type="button" id="validate">{L.validate}</button>
+          </div>
+          <p class="muted small">{L.batchNote}</p>
+          <p class="notice error" id="batch-error" hidden></p>
+          <div id="report" hidden></div>
+        </div>
+
+        <div class="card step" id="score-step" hidden>
+          <h2 class="h3">{L.step3}</h2>
+          <div class="actions">
+            <button class="btn primary" type="button" id="score"></button>
+          </div>
+          <div id="scored" hidden></div>
+        </div>
+      </section>
     </div>
     <p class="muted small">{L.note}</p>
   </div>
 </DemoShell>
 
 <script>
-  import { api, liveError } from '../../lib/api';
-  import { buildApplicant } from '../../lib/credit';
+  import { errorFrom, liveError, readSse, type ApiError } from '../../lib/api';
+  import {
+    FIELD,
+    FIELDS,
+    MAX_FILE_BYTES,
+    PRESETS,
+    STAGES,
+    afterGate,
+    label,
+    nextField,
+    num,
+    parseAnswer,
+    pct,
+    pipelineBody,
+    pp,
+    sampleCsv,
+    show,
+    type Draft,
+    type Field,
+    type Lang,
+    type StageId,
+    type Value,
+  } from '../../lib/credit';
   import { gate } from '../../lib/live';
+
+  type Dict = Record<string, unknown>;
 
   const root = document.getElementById('credit');
   if (root) {
+    const lang = root.dataset.lang as Lang;
     const s = JSON.parse(root.dataset.s!) as Record<string, string>;
-    const L = JSON.parse(root.dataset.l!) as Record<string, string>;
-    const form = root.querySelector<HTMLFormElement>('form')!;
-    const $ = (id: string) => document.getElementById(id)!;
-    form.addEventListener('submit', async (e) => {
+    const L = JSON.parse(root.dataset.l!) as Record<string, string> & {
+      stages: Record<StageId, string>;
+      types: Record<string, string>;
+    };
+    const T = JSON.parse(root.dataset.t!) as Record<string, string>;
+    const $ = <E extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as E;
+    const fill = (tpl: string, vars: Record<string, string | number>) =>
+      tpl.replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? ''));
+
+    function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text?: string | number): HTMLElementTagNameMap[K] {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text !== undefined) e.textContent = String(text);
+      return e;
+    }
+    function table(head: string[], rows: (string | number | Node)[][], cls = ''): HTMLElement {
+      const wrap = el('div', 'table-wrap');
+      const t = el('table', cls);
+      const tr = el('tr');
+      head.forEach((h) => tr.append(el('th', '', h)));
+      t.append(el('thead'));
+      t.tHead!.append(tr);
+      const body = el('tbody');
+      for (const r of rows) {
+        const row = el('tr');
+        for (const c of r) {
+          const td = el('td');
+          if (c instanceof Node) td.append(c);
+          else td.textContent = String(c);
+          row.append(td);
+        }
+        body.append(row);
+      }
+      t.append(body);
+      wrap.append(t);
+      return wrap;
+    }
+    const code = (text: string) => el('code', '', text);
+    let canSpend = false;
+    const spendButtons = () => [$<HTMLButtonElement>('run'), $<HTMLButtonElement>('score')];
+    async function refreshGate() {
+      const g = await gate(root!, 'score', s);
+      const after = afterGate(Boolean(g.me?.user), g.ready);
+      root!.querySelector<HTMLElement>('[data-live]')!.hidden = !after.showLive;
+      canSpend = after.canSpend;
+      spendButtons().forEach((b) => (b.disabled = !canSpend));
+    }
+
+    // ------------------------------------------------------------ abas
+    const tabs = { live: $('tab-live'), batch: $('tab-batch') };
+    const panels = { live: $('panel-live'), batch: $('panel-batch') };
+    (Object.keys(tabs) as (keyof typeof tabs)[]).forEach((k) =>
+      tabs[k].addEventListener('click', () => {
+        for (const other of Object.keys(tabs) as (keyof typeof tabs)[]) {
+          tabs[other].setAttribute('aria-selected', String(other === k));
+          panels[other].hidden = other !== k;
+        }
+      }),
+    );
+
+    // ------------------------------------------------------------ perfil (compartilhado por conversa e formulário)
+    let draft: Draft = {};
+    let mode: 'chat' | 'form' = 'chat';
+    const msgs = $('msgs');
+    const chips = $('chips');
+    const chatText = $<HTMLInputElement>('chat-text');
+    const guided = $<HTMLFormElement>('guided');
+
+    function say(who: 'agent' | 'user', text: string, cls = '') {
+      const li = el('li', `msg ${who} ${cls}`.trim(), text);
+      msgs.append(li);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    function trainWarning(f: Field, v: Value): string {
+      if (f.kind === 'cat' || v === null || !f.train) return '';
+      const n = Number(v);
+      return n < f.train[0] || n > f.train[1] ? ` (${L.outside}: ${f.train[0]}–${f.train[1]})` : '';
+    }
+
+    function renderSummary() {
+      const dl = $('summary');
+      dl.replaceChildren();
+      let answered = 0;
+      for (const f of FIELDS) {
+        const has = f.name in draft;
+        const v = draft[f.name];
+        if (has && v !== null && v !== '') answered++;
+        const dt = el('dt', '', f.label[lang]);
+        const dd = el('dd', has ? '' : 'muted', has ? show(f.name, v, lang) : '—');
+        if (has) {
+          const b = el('button', 'link', L.edit);
+          b.type = 'button';
+          b.addEventListener('click', () => edit(f.name));
+          dd.append(' ', b);
+        }
+        dl.append(dt, dd);
+      }
+      $('count').textContent = `${answered}/${FIELDS.length} ${L.answered}`;
+      const missing = FIELDS.length - answered;
+      $('imputed').textContent = missing ? `${missing} ${L.imputed}` : '';
+    }
+
+    function setChips(f: Field | null) {
+      chips.replaceChildren();
+      if (!f) return;
+      const add = (text: string, answer: string) => {
+        const b = el('button', 'chip', text);
+        b.type = 'button';
+        b.addEventListener('click', () => answer && respond(answer, text));
+        chips.append(b);
+      };
+      if (f.kind === 'cat') f.options!.forEach((op) => add(op.label[lang], op.value));
+      add(L.dontKnow, L.dontKnow);
+    }
+
+    function ask() {
+      const f = nextField(draft);
+      setChips(f);
+      if (f) say('agent', f.ask[lang]);
+      else say('agent', L.doneChat, 'done');
+      chatText.disabled = !f;
+    }
+
+    function respond(answer: string, shown = answer) {
+      const f = nextField(draft);
+      if (!f) return;
+      say('user', shown);
+      const r = parseAnswer(f, answer, lang);
+      if (!r.ok) {
+        say('agent', r.hint, 'hint');
+        return;
+      }
+      draft[f.name] = r.value;
+      say('agent', `${L.understood} ${show(f.name, r.value, lang)}${trainWarning(f, r.value)}`, 'muted');
+      renderSummary();
+      ask();
+    }
+
+    function edit(name: string) {
+      delete draft[name];
+      renderSummary();
+      if (mode === 'chat') {
+        say('agent', `${L.editing}: ${label(name, lang)}.`, 'muted');
+        ask();
+      } else {
+        writeForm();
+        guided.querySelector<HTMLElement>(`[name="${name}"]`)?.focus();
+      }
+    }
+
+    function writeForm() {
+      for (const f of FIELDS) {
+        const input = guided.elements.namedItem(f.name) as HTMLInputElement | HTMLSelectElement | null;
+        if (input) input.value = draft[f.name] === null || draft[f.name] === undefined ? '' : String(draft[f.name]);
+      }
+    }
+
+    guided.addEventListener('input', (e) => {
+      const input = e.target as HTMLInputElement | HTMLSelectElement;
+      // O formulário devolve texto, inclusive nos números: o pipeline mostra a conversão de tipo.
+      draft[input.name] = input.value === '' ? null : input.value;
+      renderSummary();
+    });
+
+    $<HTMLFormElement>('chat-form').addEventListener('submit', (e) => {
       e.preventDefault();
-      if (!form.reportValidity()) return;
-      const applicant = buildApplicant(Object.fromEntries(new FormData(form)) as Record<string, string>);
-      $('c-error').hidden = true;
+      const text = chatText.value.trim();
+      if (!text) return;
+      chatText.value = '';
+      respond(text);
+      chatText.focus();
+    });
+
+    function setMode(m: 'chat' | 'form') {
+      mode = m;
+      root!.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
+      $('chat').hidden = m !== 'chat';
+      guided.hidden = m !== 'form';
+      if (m === 'form') writeForm();
+      else {
+        msgs.replaceChildren();
+        say('agent', L.intro);
+        ask();
+      }
+    }
+    root.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) =>
+      b.addEventListener('click', () => setMode(b.dataset.mode as 'chat' | 'form')),
+    );
+    root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((b) =>
+      b.addEventListener('click', () => {
+        draft = { ...PRESETS[b.dataset.preset as 'low' | 'high'] };
+        renderSummary();
+        setMode(mode);
+      }),
+    );
+    $('clear').addEventListener('click', () => {
+      draft = {};
+      renderSummary();
+      setMode(mode);
+    });
+
+    // ------------------------------------------------------------ pipeline ao vivo
+    const stagesEl = $('stages');
+    const stageNodes = new Map<StageId, { li: HTMLElement; body: HTMLElement; ms: HTMLElement }>();
+
+    function resetStages() {
+      stagesEl.replaceChildren();
+      stageNodes.clear();
+      STAGES.forEach((id, i) => {
+        const li = el('li', 'stage pending');
+        const head = el('div', 'stage-head');
+        head.append(el('span', 'n mono', i + 1), el('strong', '', L.stages[id]), el('span', 'state muted small', L.pending));
+        const ms = el('span', 'ms mono muted small');
+        head.append(ms);
+        const body = el('div', 'stage-body');
+        li.append(head, body);
+        stagesEl.append(li);
+        stageNodes.set(id, { li, body, ms });
+      });
+    }
+
+    function catOrValue(name: string, v: unknown): Node {
+      const span = el('span');
+      const f = FIELD[name];
+      if (f?.kind === 'cat' && typeof v === 'string') {
+        span.append(show(name, v, lang), ' ', el('code', 'small', v));
+      } else span.textContent = v === null || v === undefined ? '∅' : typeof v === 'string' ? `"${v}"` : String(v);
+      return span;
+    }
+
+    const render: Record<StageId, (d: Dict) => Node[]> = {
+      raw(d) {
+        const fields = d.fields as { name: string; value: unknown; type: string }[];
+        const m = d.model as { name: string; alias: string; version: string };
+        const p = el('p', 'small');
+        p.append(`${L.model}: `, code(`${m.name}@${m.alias}`), ` v${m.version}`);
+        const ex = el('p', 'muted small');
+        ex.append(`${L.excluded} `, ...(d.excluded as string[]).flatMap((x, i) => [i ? ', ' : '', code(x)]));
+        return [
+          table(
+            [L.field, L.value, L.type],
+            fields.map((f) => [code(f.name), catOrValue(f.name, f.value), el('span', `type t-${f.type}`, L.types[f.type] ?? f.type)]),
+          ),
+          p,
+          ex,
+        ];
+      },
+      transform(d) {
+        const out: Node[] = [];
+        const casts = (d.casts as { name: string; from: string; to: string; raw: unknown; value: unknown; coerced: boolean }[]).filter((c) => c.coerced);
+        out.push(el('h4', '', L.casts));
+        if (!casts.length) out.push(el('p', 'muted small', L.noCasts));
+        else {
+          const ul = el('ul', 'plain small');
+          for (const c of casts) {
+            const li = el('li');
+            li.append(code(c.name), ': ', code(JSON.stringify(c.raw)), ` (${L.types[c.from] ?? c.from}) ${L.castLine} `, code(String(c.value)), ` (${c.to})`);
+            ul.append(li);
+          }
+          out.push(ul);
+        }
+        const imputed = d.imputed as { name: string; value: unknown; strategy: string }[];
+        out.push(el('h4', '', L.missing));
+        if (!imputed.length) out.push(el('p', 'muted small', L.noMissing));
+        else {
+          const list = el('ul', 'plain small');
+          for (const i of imputed) {
+            const li = el('li');
+            li.append(code(i.name), ' ← ', catOrValue(i.name, i.value), ` (${i.strategy === 'median' ? L.median : L.mode})`);
+            list.append(li);
+          }
+          out.push(list);
+        }
+        const enc = d.encoding as { name: string; value: string; column: string | null; infrequent: boolean; seen_in_training: boolean; n_columns: number }[];
+        if (enc.length) {
+          out.push(el('h4', '', L.encoding));
+          out.push(
+            table(
+              [L.field, L.column, L.columns],
+              enc.map((e) => {
+                const c = el('span');
+                c.append(e.column ? code(e.column) : '—');
+                if (!e.seen_in_training) c.append(el('span', 'tag-warn small', ` ${L.unseen}`));
+                else if (e.infrequent) c.append(el('span', 'tag-warn small', ` ${L.infrequent}`));
+                return [code(e.name), c, e.n_columns];
+              }),
+            ),
+          );
+        }
+        const shape = d.shape as number[] | null;
+        if (shape) {
+          const p = el('p', 'small');
+          p.append(`${L.shape} `, code(`${shape[0]} × ${shape[1]}`));
+          out.push(p);
+        }
+        const warnings = d.warnings as { column: string; message: string }[];
+        if (warnings.length) {
+          out.push(el('h4', '', L.warnings));
+          const list = el('ul', 'plain small warn');
+          warnings.forEach((w) => {
+            const li = el('li');
+            li.append(code(w.column), `: ${w.message}`);
+            list.append(li);
+          });
+          out.push(list);
+        }
+        return out;
+      },
+      normalize(d) {
+        const rows = d.rows as { name: string; before: number; mean: number; std: number; after: number; percentile: number }[];
+        if (!rows.length) return [el('p', 'muted small', '—')];
+        return [
+          el('p', 'muted small', L.scaler),
+          table(
+            [L.field, L.before, L.mean, L.std, L.after, L.percentile],
+            rows.map((r) => {
+              const z = el('span', 'z');
+              const bar = el('span', 'zbar');
+              const fillEl = el('span', r.after >= 0 ? 'zfill pos' : 'zfill neg');
+              const w = Math.min(Math.abs(r.after), 3) / 3;
+              fillEl.style.width = `${w * 50}%`;
+              fillEl.style.left = r.after >= 0 ? '50%' : `${50 - w * 50}%`;
+              bar.append(fillEl);
+              z.append(el('span', 'mono', num(r.after, lang, 2)), bar);
+              return [code(r.name), num(r.before, lang), num(r.mean, lang), num(r.std, lang), z, pct(r.percentile, lang, 0)];
+            }),
+            'num',
+          ),
+        ];
+      },
+      fit(d) {
+        const params = d.params as { C: number };
+        const text = fill(T.fit, {
+          C: params.C,
+          rows_train: d.rows_train as number,
+          iterations: d.iterations as number,
+          fit_ms: num(d.fit_ms as number, lang, 1),
+          rows_test: d.rows_test as number,
+          auc: num(d.holdout_auc as number, lang, 3),
+          p: pct(d.probability as number, lang),
+        });
+        return [el('p', 'small', text), el('p', 'muted small', L.fitNote)];
+      },
+      model(d) {
+        const params = (d.params ?? {}) as { learning_rate?: number; max_depth?: number };
+        const tpl = d.trees ? T.model : T.modelPlain;
+        const text = fill(tpl, {
+          estimator: d.estimator as string,
+          trees: (d.trees as number) ?? '',
+          lr: params.learning_rate ?? '',
+          depth: params.max_depth ?? '',
+          version: d.version as string,
+        });
+        const out: Node[] = [el('p', 'small', text)];
+        if (typeof d.log_odds === 'number') {
+          const f = el('p', 'formula mono');
+          f.append(`${L.logOdds} = ${num(d.log_odds, lang, 3)}  →  ${L.sigmoid}  →  `, el('strong', '', pct(d.probability as number, lang)));
+          out.push(f);
+        }
+        return out;
+      },
+      explain(d) {
+        const feats = d.features as { name: string; value: Value; reference: Value; impact: number }[];
+        if (!feats.length) return [el('p', 'muted small', L.nothing)];
+        const max = Math.max(...feats.map((f) => Math.abs(f.impact)));
+        const list = el('ol', 'impacts');
+        for (const f of feats) {
+          const li = el('li');
+          const name = el('span', 'imp-name');
+          name.append(el('strong', '', label(f.name, lang)), el('span', 'muted small', ` ${show(f.name, f.value, lang)} · ${L.typical}: ${show(f.name, f.reference, lang)}`));
+          const track = el('span', 'imp-track');
+          const bar = el('span', f.impact > 0 ? 'imp-bar up' : 'imp-bar down');
+          bar.style.width = `${(Math.abs(f.impact) / max) * 100}%`;
+          track.append(bar);
+          li.append(name, track, el('span', 'imp-val mono small', pp(f.impact, lang)));
+          list.append(li);
+        }
+        return [el('p', 'muted small', L.explainNote), list];
+      },
+    };
+
+    function showStage(d: Dict) {
+      const id = d.id as StageId;
+      const node = stageNodes.get(id);
+      if (!node) return;
+      node.li.className = 'stage done';
+      node.li.querySelector('.state')!.textContent = '✓';
+      node.ms.textContent = `${num(d.ms as number, lang, 1)} ms`;
+      node.body.replaceChildren(...render[id](d));
+      const next = node.li.nextElementSibling as HTMLElement | null;
+      if (next) {
+        next.className = 'stage active';
+        next.querySelector('.state')!.textContent = L.running;
+      }
+    }
+
+    function showResult(d: Dict) {
+      const box = $('result');
+      box.replaceChildren();
+      const p = d.default_probability as number;
+      const approve = d.decision === 'approve';
+      const top = el('div', 'res-top');
+      top.append(el('span', 'muted', L.prob), el('strong', 'big mono', pct(p, lang)));
+      const meter = el('div', 'meter');
+      const fillEl = el('span', approve ? 'meter-fill ok' : 'meter-fill warn');
+      fillEl.style.width = `${Math.max(1, p * 100)}%`;
+      const cut = el('span', 'meter-cut');
+      cut.style.left = `${(d.threshold as number) * 100}%`;
+      cut.title = `${L.threshold} ${pct(d.threshold as number, lang, 0)}`;
+      meter.append(fillEl, cut);
+      const decision = el('p', approve ? 'decision ok' : 'decision warn', approve ? `✓ ${L.approve}` : `⚑ ${L.review}`);
+      const meta = el('p', 'muted small mono', `@champion v${d.model_version} · ${L.threshold} ${pct(d.threshold as number, lang, 0)}${d.baseline_probability != null ? ` · ${L.baseline} ${pct(d.baseline_probability as number, lang)}` : ''}`);
+      box.append(top, meter, decision, meta);
+      const feats = d.top_features as { name: string; value: Value; impact: number }[];
+      if (feats.length) {
+        box.append(el('p', 'small', L.top));
+        const ul = el('ul', 'plain small');
+        feats.forEach((f) => ul.append(el('li', '', `${label(f.name, lang)} (${show(f.name, f.value, lang)}): ${f.impact > 0 ? L.raised : L.lowered} ${pp(f.impact, lang)}`)));
+        box.append(ul);
+      }
+      box.hidden = false;
+    }
+
+    const runBtn = $<HTMLButtonElement>('run');
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    runBtn.addEventListener('click', async () => {
+      runBtn.disabled = true;
+      runBtn.textContent = L.running;
+      $('live-error').hidden = true;
+      $('result').hidden = true;
+      resetStages();
+      $('pipe').hidden = false;
+      const first = stagesEl.firstElementChild as HTMLElement;
+      first.className = 'stage active';
+      first.querySelector('.state')!.textContent = L.running;
+      $('pipe').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Os eventos chegam juntos (o servidor leva ~100 ms); a página revela um por vez.
+      const queue: [string, Dict][] = [];
+      let streamDone = false;
+      const reveal = (async () => {
+        for (;;) {
+          const item = queue.shift();
+          if (!item) {
+            if (streamDone) return;
+            await wait(40);
+            continue;
+          }
+          const [event, data] = item;
+          if (event === 'stage') {
+            showStage(data);
+            await wait(450);
+          } else if (event === 'result') showResult(data);
+          else if (event === 'error') throw { status: 502 } as ApiError;
+        }
+      })();
       try {
-        // O portal recebe o candidato direto no corpo (campos extras são recusados).
-        const r = await api<{ model_version: string; prediction: { default_probability: number; decision: string } }>(
-          '/api/demo/score',
-          { method: 'POST', body: JSON.stringify(applicant) },
-        );
-        const p = r.prediction;
-        $('c-out').hidden = false;
-        $('c-prob').textContent = `${(p.default_probability * 100).toFixed(1)}%`;
-        $('c-decision').textContent = p.decision === 'approve' ? `✓ ${L.approve}` : `⚑ ${L.review}`;
-        $('c-decision').className = p.decision === 'approve' ? 'ok' : 'warn';
-        $('c-model').textContent = `${L.model} v${r.model_version}`;
-        await gate(root, 'score', s);
+        const res = await fetch('/api/demo/score/pipeline', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
+          body: JSON.stringify(pipelineBody(draft, lang)),
+        });
+        if (!res.ok) {
+          const body = (await res.clone().json().catch(() => null)) as { detail?: { problems?: { column: string; message: string }[] } } | null;
+          const problems = body?.detail?.problems;
+          if (res.status === 422 && problems?.length) {
+            streamDone = true;
+            $('pipe').hidden = true;
+            const box = $('live-error');
+            box.replaceChildren(el('span', '', L.invalid));
+            const ul = el('ul', 'plain');
+            problems.forEach((p) => {
+              const li = el('li');
+              li.append(code(p.column), `: ${p.message}`);
+              ul.append(li);
+            });
+            box.append(ul);
+            box.hidden = false;
+            return;
+          }
+          throw await errorFrom(res);
+        }
+        await readSse(res, (event, data) => queue.push([event, data as Dict]));
+        streamDone = true;
+        await reveal;
+        await refreshGate();
       } catch (err) {
-        $('c-error').hidden = false;
-        $('c-error').textContent = liveError(err, s);
+        streamDone = true;
+        $('live-error').textContent = liveError(err, s);
+        $('live-error').hidden = false;
+      } finally {
+        streamDone = true;
+        runBtn.disabled = !canSpend;
+        runBtn.textContent = L.run;
       }
     });
-    void gate(root, 'score', s);
+
+    // ------------------------------------------------------------ lote
+    function download(text: string, name: string) {
+      const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+      const a = el('a');
+      a.href = url;
+      a.download = name;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    root.querySelectorAll<HTMLButtonElement>('[data-sample]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const kind = b.dataset.sample as 'valid' | 'errors';
+        const name = lang === 'pt' ? `credito-exemplo-${kind === 'valid' ? 'valido' : 'com-erros'}.csv` : `credit-sample-${kind}.csv`;
+        download(sampleCsv(kind), name);
+      }),
+    );
+
+    const fileInput = $<HTMLInputElement>('file');
+    const batchError = $('batch-error');
+    const report = $('report');
+    const scoreStep = $('score-step');
+    const scoreBtn = $<HTMLButtonElement>('score');
+    let checked: ArrayBuffer | null = null;
+
+    function batchFail(text: string) {
+      batchError.textContent = text;
+      batchError.hidden = false;
+    }
+
+    async function readFile(): Promise<ArrayBuffer | null> {
+      batchError.hidden = true;
+      const file = fileInput.files?.[0];
+      if (!file) return batchFail(L.pick), null;
+      if (file.size > MAX_FILE_BYTES) return batchFail(L.tooBig), null;
+      return file.arrayBuffer();
+    }
+
+    function batchMessage(err: unknown): string {
+      const e = err as ApiError;
+      if (e?.status === 413) return L.tooLarge;
+      if (e?.status === 415) return L.notCsv;
+      if (e?.status === 429 && e.reason === 'rate_limited') return L.rateLimited;
+      return liveError(err, s);
+    }
+
+    async function post(path: string, body: ArrayBuffer): Promise<Response> {
+      return fetch(`${path}?lang=${lang}`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'text/csv' },
+        body,
+      });
+    }
+
+    type Problem = { row: number; column: string; code: string; message: string; value: string | null; severity: string };
+    type Report = {
+      ok: boolean;
+      rows: number;
+      valid_rows: number;
+      invalid_rows: number;
+      file_errors: { code: string; message: string }[];
+      column_warnings: { column: string; message: string }[];
+      problems: Problem[];
+      problems_total: number;
+      truncated: boolean;
+      summary: { column: string; code: string; severity: string; count: number }[];
+    };
+
+    function renderReport(r: Report) {
+      report.replaceChildren();
+      const okAll = r.ok && !r.file_errors.length;
+      report.append(el('p', okAll ? 'notice ok' : 'notice error', okAll ? L.ok : L.notOk));
+      if (!r.file_errors.length) {
+        const stats = el('p', 'stats mono');
+        stats.append(
+          el('span', '', `${r.rows} ${L.rows}`),
+          el('span', 'ok', `${r.valid_rows} ${L.validRows}`),
+          el('span', r.invalid_rows ? 'bad' : '', `${r.invalid_rows} ${L.invalidRows}`),
+        );
+        report.append(stats);
+      }
+      if (r.file_errors.length) {
+        report.append(el('h4', '', L.fileErrors));
+        const ul = el('ul', 'plain');
+        r.file_errors.forEach((e) => ul.append(el('li', '', e.message)));
+        report.append(ul);
+      }
+      if (r.column_warnings.length) {
+        report.append(el('h4', '', L.colWarnings));
+        const ul = el('ul', 'plain small');
+        r.column_warnings.forEach((w) => {
+          const li = el('li');
+          li.append(code(w.column), `: ${w.message}`);
+          ul.append(li);
+        });
+        report.append(ul);
+      }
+      if (r.summary.length) {
+        report.append(el('h4', '', L.summary));
+        report.append(
+          table(
+            [L.field, L.problem, L.count],
+            r.summary.map((x) => [code(x.column), el('span', x.severity === 'error' ? 'bad' : 'warn', `${x.severity === 'error' ? L.error : L.warning}: ${x.code}`), x.count]),
+          ),
+        );
+      }
+      if (r.problems.length) {
+        report.append(el('h4', '', `${L.line} × ${L.field}`));
+        const box = el('div', 'scroll');
+        box.append(
+          table(
+            [L.line, L.field, L.value, L.problem],
+            r.problems.map((p) => [
+              p.row,
+              code(p.column),
+              p.value === null ? '∅' : el('code', '', p.value),
+              el('span', p.severity === 'error' ? '' : 'warn', p.message),
+            ]),
+            'problems',
+          ),
+        );
+        report.append(box);
+        if (r.truncated) report.append(el('p', 'muted small', fill(T.truncated, { n: r.problems_total })));
+      }
+      report.hidden = false;
+      scoreStep.hidden = !r.valid_rows;
+      scoreBtn.textContent = fill(T.score, { n: r.valid_rows });
+      $('scored').hidden = true;
+    }
+
+    fileInput.addEventListener('change', () => {
+      checked = null;
+      report.hidden = true;
+      scoreStep.hidden = true;
+      batchError.hidden = true;
+    });
+
+    const validateBtn = $<HTMLButtonElement>('validate');
+    validateBtn.addEventListener('click', async () => {
+      const body = await readFile();
+      if (!body) return;
+      validateBtn.disabled = true;
+      validateBtn.textContent = L.validating;
+      try {
+        const res = await post('/api/demo/score/batch/validate', body);
+        if (!res.ok) throw await errorFrom(res);
+        renderReport((await res.json()) as Report);
+        checked = body;
+      } catch (err) {
+        batchFail(batchMessage(err));
+      } finally {
+        validateBtn.disabled = false;
+        validateBtn.textContent = L.validate;
+      }
+    });
+
+    scoreBtn.addEventListener('click', async () => {
+      if (!checked) return;
+      scoreBtn.disabled = true;
+      const label0 = scoreBtn.textContent;
+      scoreBtn.textContent = L.scoring;
+      try {
+        const res = await post('/api/demo/score/batch', checked);
+        if (res.status === 422) {
+          const body = (await res.json().catch(() => null)) as { detail?: { report?: Report } } | null;
+          if (body?.detail?.report) {
+            renderReport(body.detail.report);
+            return;
+          }
+        }
+        if (!res.ok) throw await errorFrom(res);
+        const data = (await res.json()) as {
+          model_version: string;
+          threshold: number;
+          results: { line: number; id: string | null; status: string; default_probability: number | null; decision: string | null }[];
+          csv: string;
+        };
+        const box = $('scored');
+        box.replaceChildren();
+        const scored = data.results.filter((r) => r.status === 'scored');
+        const mean = scored.reduce((a, r) => a + (r.default_probability ?? 0), 0) / Math.max(1, scored.length);
+        const approve = scored.filter((r) => r.decision === 'approve').length;
+        const stats = el('p', 'stats mono');
+        stats.append(
+          el('span', 'ok', `${scored.length} ${L.scored}`),
+          el('span', data.results.length - scored.length ? 'bad' : '', `${data.results.length - scored.length} ${L.skipped}`),
+          el('span', '', `✓ ${approve} ${L.approve}`),
+          el('span', '', `⚑ ${scored.length - approve} ${L.review}`),
+          el('span', '', `${L.avg} ${pct(mean, lang)}`),
+          el('span', 'muted', `@champion v${data.model_version}`),
+        );
+        const dl = el('button', 'btn primary', L.download);
+        dl.type = 'button';
+        dl.addEventListener('click', () => download(data.csv, lang === 'pt' ? 'credito-score.csv' : 'credit-score.csv'));
+        const shown = data.results.slice(0, 50);
+        box.append(
+          stats,
+          dl,
+          el('p', 'muted small', L.csvNote),
+          table(
+            [L.line, 'id', 'status', L.prob, ''],
+            shown.map((r) => [
+              r.line,
+              r.id ?? '',
+              r.status,
+              r.default_probability === null ? '—' : pct(r.default_probability, lang),
+              r.decision === null ? '' : el('span', r.decision === 'approve' ? 'ok' : 'warn', r.decision === 'approve' ? `✓ ${L.approve}` : `⚑ ${L.review}`),
+            ]),
+          ),
+        );
+        if (data.results.length > shown.length) box.append(el('p', 'muted small', fill(T.showing, { n: shown.length, total: data.results.length })));
+        box.hidden = false;
+        await refreshGate();
+      } catch (err) {
+        batchFail(batchMessage(err));
+      } finally {
+        scoreBtn.disabled = !canSpend;
+        scoreBtn.textContent = label0;
+      }
+    });
+
+    // ------------------------------------------------------------ início
+    renderSummary();
+    setMode('chat');
+    void refreshGate();
   }
 </script>
 
-<style>
-  .demo {
-    max-width: 900px;
+<style is:global>
+  #credit {
+    max-width: 1000px;
     display: grid;
     gap: 18px;
+    min-width: 0;
   }
-  .grid-form {
+  #credit .live,
+  #credit .panel {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
-    gap: 14px;
+    gap: 16px;
+    min-width: 0;
   }
-  .full {
-    grid-column: 1 / -1;
-    align-items: center;
-  }
-  .out {
-    gap: 4px;
-  }
-  .big {
-    font-size: 36px;
-  }
-  .small {
+  #credit .small {
     font-size: 14px;
     margin: 0;
   }
-  .ok {
-    color: var(--ok);
-    font-weight: 700;
+  #credit .h3 {
+    font-size: 18px;
+    margin: 0;
   }
-  .warn {
-    color: var(--warn);
+  #credit h4 {
+    font-size: 14px;
+    margin: 6px 0 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+  #credit .topbar,
+  #credit .bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    align-items: center;
+    justify-content: space-between;
+  }
+  #credit .tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--line);
+    flex: 1;
+    min-width: 0;
+  }
+  #credit .tab {
+    font: inherit;
+    font-weight: 600;
+    background: none;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    padding: 10px 12px;
+    color: var(--muted);
+    cursor: pointer;
+    min-height: 44px;
+  }
+  #credit .tab[aria-selected='true'] {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+  #credit .seg {
+    display: inline-flex;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 3px;
+    background: var(--bg-soft);
+  }
+  #credit .seg-btn {
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    padding: 8px 14px;
+    color: var(--muted);
+    cursor: pointer;
+    min-height: 38px;
+  }
+  #credit .seg-btn[aria-pressed='true'] {
+    background: var(--panel);
+    color: var(--text);
+    box-shadow: var(--shadow);
+  }
+  #credit .presets,
+  #credit .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  #credit .chip {
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 6px 12px;
+    cursor: pointer;
+    text-align: left;
+    min-height: 34px;
+  }
+  #credit .chip:hover {
+    border-color: var(--accent);
+  }
+  #credit .collect {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 14px;
+    align-items: start;
+  }
+  @media (max-width: 760px) {
+    #credit .collect {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  #credit .chat {
+    gap: 12px;
+  }
+  #credit .msgs {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 360px;
+    overflow-y: auto;
+  }
+  #credit .msg {
+    max-width: 88%;
+    padding: 9px 13px;
+    border-radius: 14px;
+    font-size: 15px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+  #credit .msg.agent {
+    align-self: flex-start;
+    background: var(--bg-soft);
+    border-bottom-left-radius: 4px;
+  }
+  #credit .msg.user {
+    align-self: flex-end;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-bottom-right-radius: 4px;
+  }
+  #credit .msg.muted {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  #credit .msg.hint {
+    border: 1px solid var(--warn);
+  }
+  #credit .msg.done {
+    border: 1px solid var(--ok);
+  }
+  #credit .chat-input {
+    display: flex;
+    gap: 8px;
+  }
+  #credit .chat-input input {
+    flex: 1;
+    min-width: 0;
+  }
+  #credit .guided fieldset {
+    border: 0;
+    padding: 0;
+    margin: 0 0 8px;
+    min-width: 0;
+  }
+  #credit .guided legend {
     font-weight: 700;
+    margin-bottom: 8px;
+  }
+  #credit .grid-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+    gap: 12px;
+  }
+  #credit .profile dl {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: 4px 10px;
+    margin: 0;
+    font-size: 14px;
+  }
+  #credit .profile dt {
+    color: var(--muted);
+  }
+  #credit .profile dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  #credit .link {
+    font: inherit;
+    font-size: 12px;
+    background: none;
+    border: 0;
+    padding: 0;
+    color: var(--accent);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  #credit .run {
+    align-items: center;
+  }
+  #credit .pipeline {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+    counter-reset: none;
+  }
+  #credit .stage {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--panel);
+    padding: 12px 16px;
+    min-width: 0;
+    transition: border-color 0.2s, opacity 0.2s;
+  }
+  #credit .stage.pending {
+    opacity: 0.5;
+  }
+  #credit .stage.active {
+    border-color: var(--accent);
+    animation: credit-pulse 1s ease-in-out infinite;
+  }
+  #credit .stage.done {
+    border-left: 4px solid var(--accent);
+  }
+  @keyframes credit-pulse {
+    50% {
+      box-shadow: 0 0 0 4px var(--accent-soft);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #credit .stage.active {
+      animation: none;
+    }
+  }
+  #credit .stage-head {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    flex-wrap: wrap;
+  }
+  #credit .stage-head .n {
+    color: var(--accent);
+  }
+  #credit .stage-head .ms {
+    margin-left: auto;
+  }
+  #credit .stage-body {
+    display: grid;
+    gap: 6px;
+    margin-top: 6px;
+    min-width: 0;
+  }
+  #credit .stage-body:empty {
+    display: none;
+  }
+  #credit .stage-body table {
+    font-size: 13px;
+  }
+  #credit .stage-body td,
+  #credit .stage-body th {
+    padding: 5px 8px;
+    white-space: nowrap;
+  }
+  #credit .stage-body .type {
+    font-size: 12px;
+    border-radius: 999px;
+    padding: 1px 8px;
+    background: var(--bg-soft);
+  }
+  #credit .stage-body .t-string {
+    color: var(--accent2);
+  }
+  #credit .stage-body .t-null {
+    color: var(--warn);
+  }
+  #credit .stage-body .tag-warn {
+    color: var(--warn);
+    white-space: normal;
+  }
+  #credit ul.plain {
+    margin: 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 3px;
+  }
+  #credit .warn {
+    color: var(--warn);
+  }
+  #credit .ok {
+    color: var(--ok);
+  }
+  #credit .bad {
+    color: var(--danger);
+  }
+  #credit .stage-body .z {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #credit .stage-body .zbar {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--bg-soft);
+  }
+  #credit .stage-body .zfill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: 4px;
+  }
+  #credit .stage-body .zfill.pos {
+    background: var(--warn);
+  }
+  #credit .stage-body .zfill.neg {
+    background: var(--accent);
+  }
+  #credit .stage-body .formula {
+    font-size: 14px;
+    background: var(--bg-soft);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  #credit .stage-body .impacts {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+  }
+  #credit .stage-body .impacts li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(60px, 30%) auto;
+    gap: 10px;
+    align-items: center;
+  }
+  @media (max-width: 520px) {
+    #credit .stage-body .impacts li {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+    #credit .stage-body .imp-track {
+      grid-column: 1 / -1;
+      grid-row: 2;
+    }
+  }
+  #credit .stage-body .imp-name {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 6px;
+    font-size: 14px;
+    min-width: 0;
+  }
+  #credit .stage-body .imp-track {
+    height: 10px;
+    background: var(--bg-soft);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  #credit .stage-body .imp-bar {
+    display: block;
+    height: 100%;
+    border-radius: 5px;
+  }
+  #credit .stage-body .imp-bar.up {
+    background: var(--warn);
+  }
+  #credit .stage-body .imp-bar.down {
+    background: var(--accent);
+  }
+  #credit .result .res-top {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  #credit .result .big {
+    font-size: 40px;
+    line-height: 1.1;
+  }
+  #credit .result .meter {
+    position: relative;
+    height: 12px;
+    border-radius: 6px;
+    background: var(--bg-soft);
+  }
+  #credit .result .meter-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    border-radius: 6px;
+  }
+  #credit .result .meter-fill.ok {
+    background: var(--ok);
+  }
+  #credit .result .meter-fill.warn {
+    background: var(--warn);
+  }
+  #credit .result .meter-cut {
+    position: absolute;
+    top: -4px;
+    bottom: -4px;
+    width: 2px;
+    background: var(--text);
+  }
+  #credit .result .decision {
+    font-weight: 700;
+    font-size: 18px;
+    margin: 0;
+  }
+  #credit .step {
+    gap: 12px;
+  }
+  #credit .upload {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: end;
+  }
+  #credit .upload .field {
+    flex: 1 1 220px;
+    min-width: 0;
+  }
+  #credit details summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  #credit .schema {
+    font-size: 13px;
+  }
+  #credit .schema td:first-child {
+    white-space: nowrap;
+  }
+  #credit #report,
+  #credit #scored {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+  }
+  #credit .stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin: 0;
+    font-size: 14px;
+  }
+  #credit .scroll {
+    max-height: 360px;
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  #credit .problems td {
+    font-size: 13px;
+    vertical-align: top;
+  }
+  #credit .problems td:nth-child(4) {
+    min-width: 240px;
+  }
+  #credit td code {
+    white-space: nowrap;
+  }
+  #credit .problems td:nth-child(3) code,
+  #credit li code {
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 </style>
