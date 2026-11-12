@@ -57,6 +57,11 @@ const DEMO_ICON: Record<Demo['key'], IconName> = {
         </a>
         {props.item.detail && <a href={route(props.item.detail, props.lang)}>{t('projects.details')} →</a>}
         {props.item.demo && <a href={route(props.item.demo, props.lang)}>{t('projects.demo')} →</a>}
+        {props.item.live && (
+          <a href={props.item.live} rel="noopener">
+            {t('projects.live')} ↗
+          </a>
+        )}
       </div>
     </article>
   )
