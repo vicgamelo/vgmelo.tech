@@ -1,0 +1,207 @@
+---
+// Cérebro 3D da home (scripts/brain.ts). Cada seção do site é um neurônio; os rótulos são links de verdade.
+// Sem JS, os links aparecem como uma lista simples.
+import { route, type Lang } from '../i18n/routes';
+import { useT } from '../i18n/ui';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const t = useT(lang);
+// Região do cérebro de cada seção (x = lado, y = cima, z = frente).
+const hubs = [
+  { key: 'projects', label: t('nav.projects'), pos: [0.35, 0.62, 0.85] },
+  { key: 'demos', label: t('nav.demos'), pos: [-0.45, 0.2, 1.05] },
+  { key: 'articles', label: t('nav.articles'), pos: [0.05, 0.9, 0.05] },
+  { key: 'apps', label: t('nav.apps'), pos: [0.55, 0.55, -0.6] },
+  { key: 'consulting', label: t('nav.consulting'), pos: [0.98, 0.05, 0.2] },
+  { key: 'about', label: t('nav.about'), pos: [-0.6, 0.35, -0.95] },
+  { key: 'contact', label: t('nav.contact'), pos: [0, -0.42, -0.8] },
+] as const;
+---
+
+<div class="brain" data-brain>
+  <canvas aria-hidden="true"></canvas>
+  <nav aria-label={t('home.brain.nav')}>
+    <ul>
+      {
+        hubs.map((h) => (
+          <li>
+            <a href={route(h.key, lang)} data-x={h.pos[0]} data-y={h.pos[1]} data-z={h.pos[2]}>
+              {h.label}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </nav>
+  <button
+    class="pause"
+    type="button"
+    aria-pressed="false"
+    aria-label={t('home.brain.pause')}
+    data-pause={t('home.brain.pause')}
+    data-play={t('home.brain.play')}
+    hidden
+  >
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path class="i-pause" d="M5 3.5v9M11 3.5v9" /><path class="i-play" d="M5 3l8 5-8 5z" /></svg>
+  </button>
+  <span class="hint mono" aria-hidden="true">{lang === 'pt' ? 'arraste para girar · clique num neurônio' : 'drag to rotate · click a neuron'}</span>
+</div>
+
+<script>
+  import '../scripts/brain';
+</script>
+
+<style>
+  .brain {
+    position: relative;
+    aspect-ratio: 1 / 0.92;
+    width: 100%;
+    --dive: 0;
+  }
+  canvas {
+    display: none;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    touch-action: pan-y;
+    cursor: grab;
+  }
+  canvas:active {
+    cursor: grabbing;
+  }
+  /* Sem JS: lista de links simples */
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    background: color-mix(in srgb, var(--panel) 88%, transparent);
+    border: 1px solid var(--line);
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+      opacity 0.3s,
+      background 0.2s,
+      color 0.2s,
+      border-color 0.2s;
+  }
+  .hint {
+    display: none;
+  }
+
+  /* Com JS: o canvas aparece e cada link segue o seu neurônio (--lx/--ly vêm do script) */
+  .live {
+    min-height: 320px;
+  }
+  .live canvas {
+    display: block;
+  }
+  .live ul {
+    display: block;
+  }
+  .live li {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+  .live a {
+    position: absolute;
+    transform: translate(calc(var(--lx, 0px) + 12px), calc(var(--ly, 0px) - 50%));
+    background: var(--panel);
+  }
+  /* o de trás ficaria em cima de um da frente: some até girar */
+  .live a.hide {
+    visibility: hidden;
+  }
+  .live a.flip {
+    transform: translate(calc(var(--lx, 0px) - 100% - 12px), calc(var(--ly, 0px) - 50%));
+  }
+  .live a.back {
+    color: var(--muted);
+    opacity: 0.75;
+    font-size: 12px;
+  }
+  .live a.on,
+  .live a:focus-visible {
+    opacity: 1;
+    background: var(--accent-fill);
+    border-color: var(--accent-fill);
+    color: var(--accent-ink);
+  }
+  .pause {
+    position: absolute;
+    right: 4px;
+    bottom: 0;
+    z-index: 2;
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .pause:hover {
+    color: var(--text);
+    border-color: var(--line-strong);
+  }
+  .pause svg path {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .pause .i-play,
+  .pause[aria-pressed='true'] .i-pause {
+    display: none;
+  }
+  .pause[aria-pressed='true'] .i-play {
+    display: inline;
+  }
+  .live .pause[hidden] {
+    display: none;
+  }
+  .live .hint {
+    display: block;
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    font-size: 11.5px;
+    color: var(--muted);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  /* Mergulho: os rótulos somem e a tela clareia no fim */
+  .diving a,
+  .diving .hint {
+    opacity: 0;
+  }
+  .diving::after {
+    content: '';
+    position: absolute;
+    inset: -40px;
+    background: radial-gradient(circle, var(--accent-fill), transparent 60%);
+    opacity: calc(var(--dive) * var(--dive) * 0.8);
+    pointer-events: none;
+  }
+</style>

@@ -1,26 +1,33 @@
+/* Grafite e papel: neutros quentes, um acento (brasa), anil só para dados.
+   Contrastes (WCAG) conferidos: texto-acento ≥ 4,5 em fundo e cartão nos dois temas. */
 :root {
-  --bg: #f5f7fa;
-  --bg-soft: #eceff4;
-  --panel: #ffffff;
-  --panel-2: #f8fafc;
-  --line: #e2e7ee;
-  --line-strong: #cbd3de;
-  --text: #0b1220;
-  --muted: #566275;
-  --accent: #0d9488;
+  --bg: #f6f3ee;
+  --bg-soft: #efebe4;
+  --panel: #fffdfa;
+  --panel-2: #faf7f2;
+  --line: #e6e0d6;
+  --line-strong: #d3cbbe;
+  --text: #1a1714;
+  --muted: #625b52;
+  --accent: #b3470f;
+  --accent-fill: #c2410c;
   --accent-ink: #ffffff;
-  --accent-soft: #d5f5ef;
-  --accent2: #7c3aed;
-  --accent2-soft: #ede5ff;
-  --accent3: #d97706;
-  --warn: #b45309;
-  --danger: #b91c1c;
-  --ok: #047857;
-  --radius: 14px;
-  --radius-sm: 10px;
-  --shadow: 0 1px 2px rgb(11 18 32 / 0.04), 0 10px 30px -12px rgb(11 18 32 / 0.12);
-  --glow: 0 0 0 1px rgb(13 148 136 / 0.25), 0 10px 40px -10px rgb(13 148 136 / 0.35);
-  --grid-line: rgb(11 18 32 / 0.045);
+  --accent-soft: #fbe6da;
+  --accent2: #4353d6;
+  --accent2-soft: #e6e8fb;
+  --accent3: #a66a00;
+  --warn: #9a5b00;
+  --danger: #b42318;
+  --ok: #1e7a46;
+  --radius: 18px;
+  --radius-sm: 12px;
+  --radius-xs: 8px;
+  --shadow: 0 1px 2px rgb(40 30 20 / 0.05), 0 12px 32px -16px rgb(40 30 20 / 0.18);
+  --shadow-lift: 0 2px 4px rgb(40 30 20 / 0.06), 0 24px 48px -20px rgb(40 30 20 / 0.28);
+  --glow: var(--shadow-lift);
+  --grid-line: transparent;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --display: 'Bricolage Grotesque Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
   --mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color-scheme: light dark;
@@ -28,26 +35,26 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #07090d;
-    --bg-soft: #0d1117;
-    --panel: #0e131a;
-    --panel-2: #121821;
-    --line: #1b232e;
-    --line-strong: #2a3544;
-    --text: #e8eef5;
-    --muted: #8d9aab;
-    --accent: #2dd4bf;
-    --accent-ink: #032b27;
-    --accent-soft: #0c2a27;
-    --accent2: #a78bfa;
-    --accent2-soft: #1d1733;
-    --accent3: #fbbf24;
-    --warn: #fbbf24;
-    --danger: #f87171;
-    --ok: #34d399;
+    --bg: #121110;
+    --bg-soft: #1a1917;
+    --panel: #1c1a18;
+    --panel-2: #22201d;
+    --line: #2d2a26;
+    --line-strong: #3d3933;
+    --text: #f3efe8;
+    --muted: #a8a196;
+    --accent: #ff7a45;
+    --accent-fill: #ff7a45;
+    --accent-ink: #121110;
+    --accent-soft: #3a1f12;
+    --accent2: #8ea2ff;
+    --accent2-soft: #1f2340;
+    --accent3: #f0b14a;
+    --warn: #f0b14a;
+    --danger: #ff7b72;
+    --ok: #6fd69b;
     --shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 20px 40px -24px rgb(0 0 0 / 0.8);
-    --glow: 0 0 0 1px rgb(45 212 191 / 0.35), 0 12px 48px -12px rgb(45 212 191 / 0.35);
-    --grid-line: rgb(255 255 255 / 0.035);
+    --shadow-lift: 0 1px 0 rgb(255 255 255 / 0.05) inset, 0 28px 56px -24px rgb(0 0 0 / 0.9);
   }
 }
 
@@ -61,6 +68,20 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* Troca de página com transição (CSS puro; navegadores sem suporte só trocam). */
+@view-transition {
+  navigation: auto;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.22s;
+}
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -70,11 +91,7 @@ body {
   font-size: 16px;
   font-feature-settings: 'cv11', 'ss01';
   -webkit-font-smoothing: antialiased;
-  /* Brilho e grade discretos no topo, como um painel */
-  background-image:
-    radial-gradient(900px 420px at 15% -120px, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%),
-    radial-gradient(700px 380px at 95% -80px, color-mix(in srgb, var(--accent2) 14%, transparent), transparent 70%);
-  background-repeat: no-repeat;
+  overflow-x: clip;
 }
 
 img {
@@ -89,19 +106,19 @@ a {
 
 :focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline-offset: 3px;
   border-radius: 6px;
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .container {
   width: 100%;
-  max-width: 1120px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 0 16px;
+  padding: 0 24px;
 }
 
 .skip {
@@ -119,29 +136,71 @@ a {
 h1,
 h2,
 h3 {
-  line-height: 1.15;
-  letter-spacing: -0.025em;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
   font-weight: 650;
+  text-wrap: balance;
+}
+/* Bricolage só nos títulos grandes; h3 e interface ficam em Inter. */
+h1,
+h2 {
+  font-family: var(--display);
+  font-optical-sizing: auto;
+  font-weight: 700;
+  letter-spacing: -0.03em;
 }
 
 h1 {
-  font-size: clamp(32px, 5.5vw, 52px);
+  font-size: clamp(36px, 6vw, 64px);
+  line-height: 1.02;
   margin: 0 0 16px;
-  letter-spacing: -0.035em;
 }
 
 .page-head {
-  padding: 56px 0 24px;
+  padding: 64px 0 32px;
+}
+.page-head h1 {
+  font-size: clamp(36px, 5vw, 56px);
 }
 .page-head p {
   color: var(--muted);
   font-size: 18px;
-  max-width: 720px;
+  max-width: 680px;
   margin: 0;
+  text-wrap: pretty;
 }
 
 .section {
-  padding: 40px 0;
+  padding: 48px 0;
+}
+@media (max-width: 640px) {
+  .page-head {
+    padding: 40px 0 24px;
+  }
+  .section {
+    padding: 32px 0;
+  }
+}
+
+/* Aparece ao rolar, guiado pela própria rolagem (CSS). Nada depende de JS nem de rolar para existir: sem suporte,
+   na impressão ou numa captura de página inteira, o conteúdo está lá. */
+@supports (animation-timeline: view()) {
+  @media screen and (prefers-reduced-motion: no-preference) {
+    [data-reveal] {
+      animation: reveal linear both;
+    }
+    /* regra à parte (e mais específica): o minificador junta tudo num "animation" abreviado, que não aceita view() */
+    [data-reveal][data-reveal] {
+      animation-timeline: view();
+      animation-range: entry 0% entry 30%;
+    }
+  }
+}
+/* só desloca (sem opacidade): uma captura que pegue o quadro inicial ainda mostra tudo */
+@keyframes reveal {
+  from {
+    transform: translateY(28px) scale(0.985);
+  }
 }
 .section-title {
   display: flex;
@@ -153,7 +212,7 @@ h1 {
 }
 .section-title h2 {
   margin: 0;
-  font-size: clamp(22px, 3vw, 28px);
+  font-size: clamp(28px, 4vw, 40px);
 }
 .section-title a {
   font-size: 15px;
@@ -170,22 +229,24 @@ h1 {
   gap: 8px;
   font-family: var(--mono);
   color: var(--accent);
-  font-size: 12.5px;
-  letter-spacing: 0.02em;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  margin-bottom: 8px;
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr));
-  gap: 14px;
+  gap: 16px;
 }
 
 .card {
-  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 20px;
+  padding: 24px;
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
@@ -195,12 +256,15 @@ h1 {
 a.card {
   color: inherit;
   text-decoration: none;
-  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.2s,
+    transform 0.35s var(--ease-out),
+    box-shadow 0.35s var(--ease-out);
 }
 a.card:hover {
-  border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
-  transform: translateY(-2px);
-  box-shadow: var(--glow);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lift);
 }
 @media (prefers-reduced-motion: reduce) {
   a.card:hover {
@@ -231,9 +295,10 @@ a.card:hover {
 .tag {
   font-family: var(--mono);
   font-size: 11.5px;
-  color: var(--accent2);
-  background: var(--accent2-soft);
-  border-radius: 6px;
+  color: var(--muted);
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 999px;
   padding: 2px 8px;
   white-space: nowrap;
 }
@@ -246,9 +311,13 @@ a.card:hover {
   color: var(--accent);
   background: var(--accent-soft);
   border-radius: 999px;
-  padding: 2px 10px;
+  padding: 3px 10px;
   width: fit-content;
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  white-space: nowrap;
+}
+.badge.live {
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
 }
 .badge.live::before {
   content: '';
@@ -256,7 +325,21 @@ a.card:hover {
   height: 7px;
   border-radius: 50%;
   background: currentColor;
-  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 25%, transparent);
+  animation: live-pulse 2s ease-out 3;
+}
+@keyframes live-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 55%, transparent);
+  }
+  80%,
+  100% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .badge.live::before {
+    animation: none;
+  }
 }
 
 .btn {
@@ -275,19 +358,27 @@ a.card:hover {
   text-decoration: none;
   cursor: pointer;
   min-height: 44px;
-  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.2s,
+    background 0.15s,
+    transform 0.12s var(--ease-out);
 }
 .btn:hover {
-  border-color: var(--accent);
+  border-color: var(--text);
+}
+.btn:active:not([disabled]) {
+  transform: translateY(1px) scale(0.98);
 }
 .btn.primary {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
   color: var(--accent-ink);
-  box-shadow: 0 8px 24px -10px color-mix(in srgb, var(--accent) 70%, transparent);
 }
 .btn.primary:hover {
-  background: color-mix(in srgb, var(--accent) 88%, white);
+  background: color-mix(in srgb, var(--accent-fill) 88%, var(--text));
+  border-color: color-mix(in srgb, var(--accent-fill) 88%, var(--text));
+  box-shadow: 0 10px 24px -12px color-mix(in srgb, var(--accent-fill) 80%, transparent);
 }
 .btn svg {
   width: 18px;
@@ -310,6 +401,7 @@ ul.checks {
   margin: 0;
   display: grid;
   gap: 6px;
+  align-content: start;
 }
 ul.checks li {
   padding-left: 22px;
@@ -357,11 +449,26 @@ textarea {
   min-height: 140px;
   resize: vertical;
 }
+/* select com a mesma cara dos campos: seta própria desenhada com dois degradês */
+select {
+  appearance: none;
+  padding-right: 40px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 20px) 50%,
+    calc(100% - 15px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
 input:focus,
 select:focus,
 textarea:focus {
   border-color: var(--accent);
   outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 .hp {
   position: absolute;
@@ -713,4 +820,15 @@ td {
 }
 .bad {
   color: var(--danger) !important;
+}
+
+/* Menu do celular aberto: a página por trás não rola. */
+@media (max-width: 640px) {
+  .container {
+    padding: 0 16px;
+  }
+}
+
+html:has(.mobile[open]) {
+  overflow: hidden;
 }

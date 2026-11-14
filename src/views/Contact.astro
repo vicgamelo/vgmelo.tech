@@ -14,11 +14,12 @@ const strings = uiStrings(lang, ['contact.sending', 'contact.ok', 'contact.error
 
 <Base lang={lang} title={t('contact.title')} description={t('contact.lead')} alt={ROUTES.contact}>
   <div class="container">
-    <header class="page-head">
+    <header class="page-head contact-head">
       <h1>{t('contact.title')}</h1>
       <p>{t('contact.lead')}</p>
     </header>
-    <form id="contact" class="form" data-strings={JSON.stringify(strings)} novalidate>
+    <div class="contact-grid">
+    <form id="contact" class="form card" data-strings={JSON.stringify(strings)} novalidate>
       <div class="field">
         <label for="c-name">{t('contact.name')}</label>
         <input id="c-name" name="name" autocomplete="name" required maxlength="100" />
@@ -51,12 +52,15 @@ const strings = uiStrings(lang, ['contact.sending', 'contact.ok', 'contact.error
       </div>
       <p class="notice" role="status" aria-live="polite" hidden></p>
     </form>
-    <p class="or">
-      {t('contact.or')} <a href={LINKS.linkedin} rel="me noopener">LinkedIn</a>.
-    </p>
-    <p class="or">
-      {t('contact.agenda')} <a href={route('agenda', lang)}>{t('contact.agendaLink')}</a>.
-    </p>
+    <aside class="side">
+      <p class="or">
+        {t('contact.or')} <a href={LINKS.linkedin} rel="me noopener">LinkedIn</a>.
+      </p>
+      <p class="or">
+        {t('contact.agenda')} <a href={route('agenda', lang)}>{t('contact.agendaLink')}</a>.
+      </p>
+    </aside>
+    </div>
   </div>
 </Base>
 
@@ -106,8 +110,48 @@ const strings = uiStrings(lang, ['contact.sending', 'contact.ok', 'contact.error
     font-size: 14px;
     margin: 0;
   }
+  .contact-head {
+    text-align: center;
+    max-width: 640px;
+    margin-inline: auto;
+  }
+  .contact-head p {
+    margin-inline: auto;
+    text-wrap: balance;
+  }
+  .contact-grid {
+    display: grid;
+    gap: 24px;
+    max-width: 640px;
+    margin: 0 auto;
+    padding-bottom: 24px;
+  }
+  .form.card {
+    max-width: none;
+    padding: 28px;
+  }
+  .form .actions .btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 48px;
+  }
+  .side {
+    display: grid;
+    gap: 8px;
+    justify-items: center;
+    text-align: center;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+  }
   .or {
-    margin-top: 28px;
+    margin: 0;
+    font-size: 16px;
     color: var(--muted);
+    text-wrap: balance;
+  }
+  @media (max-width: 640px) {
+    .form.card {
+      padding: 20px;
+    }
   }
 </style>
