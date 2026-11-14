@@ -25,7 +25,9 @@ const isActive = (href: string) => here.startsWith(href);
 <header class="site-header">
   <div class="container bar">
     <a class="brand" href={route('home', lang)} aria-label={t('site.name')}>
-      <span class="logo" aria-hidden="true">vm</span>
+      <span class="logo">
+        <img src="/victor-112.jpg" width="36" height="36" alt="" decoding="async" />
+      </span>
       <span class="who">
         <span class="name">Victor Melo</span>
         <span class="role">{t('site.role')}</span>
@@ -106,23 +108,27 @@ const isActive = (href: string) => here.startsWith(href);
     position: relative;
     width: 36px;
     height: 36px;
-    border-radius: 11px;
-    background: var(--text);
-    color: var(--bg);
-    font-family: var(--display);
-    font-weight: 800;
-    font-size: 16px;
-    letter-spacing: -0.04em;
+    border-radius: 50%;
+    background: var(--bg-soft);
     transition: transform 0.35s var(--ease-out);
+  }
+  /* foto de 112 px desenhada a 36: nítida até 3x */
+  .logo img {
+    display: block;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 0 0 1px var(--line-strong);
   }
   .logo::after {
     content: '';
     position: absolute;
-    right: -3px;
-    bottom: -3px;
-    width: 11px;
-    height: 11px;
-    border-radius: 4px;
+    right: -2px;
+    bottom: -2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
     background: var(--accent-fill);
     border: 2px solid var(--bg);
   }

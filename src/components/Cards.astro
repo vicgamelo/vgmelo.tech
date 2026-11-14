@@ -12,6 +12,9 @@ type Props =
 
 const props = Astro.props;
 const t = useT(props.lang);
+// demo que mora em outro subdomínio (ex.: o Giz): o rodapé diz para onde o cartão leva
+const demoHref = props.kind === 'demo' ? route(props.item.key, props.lang) : '';
+const demoHost = demoHref.startsWith('http') ? new URL(demoHref).host : null;
 const DEMO_ICON: Record<Demo['key'], IconName> = {
   demoAgents: 'chat',
   demoStudio: 'agents',
@@ -101,7 +104,7 @@ const DEMO_ICON: Record<Demo['key'], IconName> = {
 }
 {
   props.kind === 'demo' && (
-    <a class="card" href={route(props.item.key, props.lang)}>
+    <a class="card" href={demoHref}>
       <div class="demo-head">
         <span class="demo-icon">
           <Icon name={DEMO_ICON[props.item.key]} />
@@ -112,7 +115,15 @@ const DEMO_ICON: Record<Demo['key'], IconName> = {
       </div>
       <h3>{props.item.title[props.lang]}</h3>
       <p class="grow">{props.item.text[props.lang]}</p>
-      <span class="mono muted small">{props.item.project ?? 'vgmelo.tech'}</span>
+      {
+        demoHost ? (
+          <span class="mono small opens">
+            {t('demos.opensAt')} {demoHost} ↗
+          </span>
+        ) : (
+          <span class="mono muted small">{props.item.project ?? 'vgmelo.tech'}</span>
+        )
+      }
     </a>
   )
 }
@@ -165,6 +176,10 @@ const DEMO_ICON: Record<Demo['key'], IconName> = {
     align-items: center;
     justify-content: space-between;
     gap: 10px;
+  }
+  .opens {
+    color: var(--accent);
+    font-weight: 600;
   }
   .muted-badge {
     color: var(--muted);
