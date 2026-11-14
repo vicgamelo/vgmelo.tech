@@ -19,6 +19,8 @@ export interface Project {
   tags: string[];
   demo?: 'demoCnpj' | 'demoMcp' | 'demoAgents' | 'demoCredit' | 'demoDrift' | 'demoAttention' | 'demoOcr';
   detail?: 'projectAgentAuth' | 'projectRag';
+  /** O projeto roda no ar em outro endereço (fora das páginas de demo deste site). */
+  live?: string;
   featured?: boolean;
 }
 
@@ -195,6 +197,31 @@ export const PROJECTS: Project[] = [
     },
     tags: ['OCR', 'Computer vision', 'TypeScript'],
     demo: 'demoOcr',
+  },
+  {
+    slug: 'giz',
+    name: 'giz',
+    repo: 'https://github.com/vicgamelo/giz',
+    summary: {
+      pt: 'AutoML visual que roda no navegador: da planilha ao modelo treinado, com Python em WebAssembly e um assistente de IA local. O arquivo não sai do aparelho.',
+      en: 'Visual AutoML that runs in the browser: from a spreadsheet to a trained model, with Python in WebAssembly and a local AI assistant. The file never leaves the device.',
+    },
+    highlights: {
+      pt: [
+        'Perfil dos dados, receita de tratamento, AutoML com ranking ao vivo, avaliação e previsão em lote',
+        'pandas, scikit-learn, LightGBM e XGBoost no Pyodide; funciona offline depois de carregar',
+        'Assistente que roda na placa de vídeo (WebGPU), explica alertas e métricas e só age com um clique',
+        'Exporta o script Python que refaz o modelo e registra o experimento no MLflow',
+      ],
+      en: [
+        'Data profile, cleaning recipe, AutoML with a live leaderboard, evaluation and batch prediction',
+        'pandas, scikit-learn, LightGBM and XGBoost on Pyodide; works offline once loaded',
+        'An assistant that runs on the GPU (WebGPU), explains alerts and metrics, and only acts on a click',
+        'Exports the Python script that rebuilds the model and logs the experiment to MLflow',
+      ],
+    },
+    tags: ['AutoML', 'WebAssembly', 'WebGPU'],
+    live: 'https://ml.vgmelo.tech',
   },
   {
     slug: 'ml-from-scratch',
