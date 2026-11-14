@@ -377,7 +377,7 @@ export const STACK = [
 ];
 
 export interface Demo {
-  key: 'demoCnpj' | 'demoDrift' | 'demoAttention' | 'demoAgents' | 'demoStudio' | 'demoCredit' | 'demoMcp' | 'demoOcr' | 'demoPca' | 'demoVision';
+  key: 'demoCnpj' | 'demoDrift' | 'demoAttention' | 'demoAgents' | 'demoStudio' | 'demoCredit' | 'demoMcp' | 'demoOcr' | 'demoPca' | 'demoVision' | 'demoGiz';
   live: boolean;
   title: T;
   text: T;
@@ -425,6 +425,16 @@ export const DEMOS: Demo[] = [
     text: {
       pt: 'Um agente monta o perfil e você vê o pipeline do modelo campeão do MLflow rodar etapa por etapa, ou valida e pontua um CSV em lote.',
       en: "An agent builds the profile and you watch the MLflow champion's pipeline run step by step, or validate and score a CSV in batch.",
+    },
+  },
+  {
+    key: 'demoGiz',
+    live: false,
+    project: 'giz',
+    title: { pt: 'Giz: AutoML no navegador', en: 'Giz: AutoML in the browser' },
+    text: {
+      pt: 'Suba uma planilha, trate os dados, compare modelos e exporte o código Python. O Python e um assistente de IA rodam no seu navegador; o arquivo não sai do aparelho.',
+      en: 'Upload a spreadsheet, clean the data, compare models and export the Python code. Python and an AI assistant run in your browser; the file never leaves the device.',
     },
   },
   {
